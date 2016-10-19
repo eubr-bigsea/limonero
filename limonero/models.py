@@ -20,7 +20,7 @@ class DataSourceFormat:
     XML_FILE = 'XML_FILE'
     NETCDF4 = 'NETCDF4'
     HDF5 = 'HDF5'
-    CSV_FILE = 'CSV_FILE'
+    CSV = 'CSV'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
     TEXT = 'TEXT'
