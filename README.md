@@ -2,13 +2,11 @@
 Data source metadata information for Lemonade Project
 
 ### Install
-Make sure you have `python2.7`
 ```
 git clone git@github.com:eubr-bigsea/limonero.git
 cd limonero
 pip install -r requirements.txt
 ```
-python limonero/app_api.py -c limonero.json
 
 ### Config
 Copy `limonero.json.example` to `limonero.json`
