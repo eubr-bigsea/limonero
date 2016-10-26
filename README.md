@@ -33,3 +33,17 @@ Edit `limonero.json` according to your database config
 ```
 python limonero/app_api.py -c limonero.json
 ```
+
+#### Using docker
+Build the container
+```
+docker build -t bigsea/limonero .
+```
+
+Repeat [config](#config) stop and run using config file
+```
+docker run \
+  -v $PWD/limonero.json:/usr/src/app/limonero.json \
+  -p 5000:5000 \
+  bigsea/limonero
+```
