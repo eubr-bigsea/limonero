@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
@@ -20,10 +21,10 @@ class DataSourceFormat:
     XML_FILE = 'XML_FILE'
     NETCDF4 = 'NETCDF4'
     HDF5 = 'HDF5'
-    CSV = 'CSV'
+    TEXT = 'TEXT'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
-    TEXT = 'TEXT'
+    CSV = 'CSV'
     PICKLE = 'PICKLE'
 
 
@@ -79,8 +80,11 @@ class DataSource(db.Model):
     temporary = Column(Boolean, nullable=False, default=False)
     workflow_id = Column(Integer)
     task_id = Column(Integer)
-    # Associations
+    __mapper_args__ = {
+        "order_by": 'name'
+    }
 
+    # Associations
     storage_id = Column(Integer, 
                         ForeignKey("storage.id"), nullable=False)
     storage = relationship("Storage", foreign_keys=[storage_id])
@@ -117,8 +121,8 @@ class Attribute(db.Model):
     std_deviation = Column(Float)
     missing_total = Column(String(200))
     deciles = Column(Text)
-    # Associations
 
+    # Associations
     data_source_id = Column(Integer, 
                             ForeignKey("data_source.id"), nullable=False)
     data_source = relationship("DataSource", foreign_keys=[data_source_id], 
