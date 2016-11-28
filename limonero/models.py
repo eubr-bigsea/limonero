@@ -5,6 +5,7 @@ import datetime
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
     Enum, DateTime, Numeric, Text, Unicode, UnicodeText
+from sqlalchemy import event
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
@@ -53,6 +54,7 @@ class DataType:
     TEXT = 'TEXT'
     DATE = 'DATE'
     INTEGER = 'INTEGER'
+    TIMESTAMP = 'TIMESTAMP'
 
 
 class DataSource(db.Model):
@@ -81,7 +83,7 @@ class DataSource(db.Model):
     workflow_id = Column(Integer)
     task_id = Column(Integer)
     __mapper_args__ = {
-        "order_by": 'name'
+        'order_by': 'name'
     }
 
     # Associations
@@ -146,6 +148,7 @@ class Storage(db.Model):
     name = Column(String(100), nullable=False)
     type = Column(Enum(*StorageType.__dict__.keys(), 
                        name='StorageTypeEnumType'), nullable=False)
+    url = Column(String(1000), nullable=False)
 
     def __unicode__(self):
         return self.name
