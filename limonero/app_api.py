@@ -10,6 +10,7 @@ from flask_admin import Admin
 
 from models import db, DataSource, Storage
 from data_source_api import DataSourceDetailApi, DataSourceListApi
+from storage_api import StorageDetailApi, StorageListApi
 
 
 import sqlalchemy_utils
@@ -31,6 +32,8 @@ api = Api(app)
 mappings = {
     '/datasources': DataSourceListApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
+    '/storages': StorageListApi,
+    '/storages/<int:storage_id>': StorageDetailApi,
 }
 for path, view in mappings.iteritems():
     api.add_resource(view, path)
