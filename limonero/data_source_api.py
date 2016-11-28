@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-}
+from app_auth import requires_auth
 from flask import request, current_app
 from flask_restful import Resource
-
-from app_auth import requires_auth
-from models import db, DataSource
 from schema import *
 
 
@@ -15,8 +13,15 @@ class DataSourceListApi(Resource):
     def get():
         only = ('id', 'name') \
             if request.args.get('simple', 'false') == 'true' else None
-        data_sources = DataSource.query.all()
-        return DataSourceListResponseSchema(many=True, only=only).dump(data_sources).data
+        enabled_filter = request.args.get('enabled')
+        if enabled_filter:
+            data_sources = DataSource.query.filter(
+                DataSource.enabled == (enabled_filter != 'false'))
+        else:
+            data_sources = DataSource.query.all()
+
+        return DataSourceListResponseSchema(
+            many=True, only=only).dump(data_sources).data
 
     @staticmethod
     @requires_auth
@@ -30,13 +35,14 @@ class DataSourceListApi(Resource):
             if form.errors:
                 result, result_code = dict(
                     status="ERROR", message="Validation error",
-                    errors=form.errors,), 401
+                    errors=form.errors), 401
             else:
                 try:
                     data_source = form.data
                     db.session.add(data_source)
                     db.session.commit()
-                    result, result_code = response_schema.dump(data_source).data, 200
+                    result, result_code = response_schema.dump(
+                        data_source).data, 200
                 except Exception, e:
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
@@ -76,8 +82,7 @@ class DataSourceDetailApi(Resource):
                 if current_app.debug:
                     result['debug_detail'] = e.message
                 db.session.rollback()
-        else:
-            return result, result_code
+        return result, result_code
 
     @staticmethod
     @requires_auth
@@ -86,8 +91,9 @@ class DataSourceDetailApi(Resource):
         result_code = 404
 
         if request.json:
-            request_schema = PartialSchemaFactory(DataSourceCreateRequestSchema)
-            form = request_schema.load(request.json)
+            request_schema = partial_schema_factory(DataSourceCreateRequestSchema)
+            # Ignore missing fields to allow partial updates
+            form = request_schema.load(request.json, partial=True)
             response_schema = DataSourceItemResponseSchema()
             if not form.errors:
                 try:
