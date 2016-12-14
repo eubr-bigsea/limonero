@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import logging
 
 from flask_cors import CORS, cross_origin
 from flask import Flask, session, request
@@ -20,6 +21,11 @@ sqlalchemy_utils.i18n.get_locale = get_locale
 import json
 app = Flask(__name__)
 babel = Babel(app)
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+logging.getLogger('werkzeug').setLevel(logging.DEBUG)
+
 
 app.secret_key = 'l3m0n4d1'
 # Flask Admin 

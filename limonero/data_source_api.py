@@ -14,11 +14,15 @@ class DataSourceListApi(Resource):
         only = ('id', 'name') \
             if request.args.get('simple', 'false') == 'true' else None
         enabled_filter = request.args.get('enabled')
+        data_sources = DataSource.query
+
         if enabled_filter:
-            data_sources = DataSource.query.filter(
+            data_sources = data_sources.filter(
                 DataSource.enabled == (enabled_filter != 'false'))
+        if 'format' in request.args:
+            data_sources = data_sources.filter_by(format=request.args.get('format'))
         else:
-            data_sources = DataSource.query.all()
+            data_sources = data_sources.all()
 
         return DataSourceListResponseSchema(
             many=True, only=only).dump(data_sources).data
