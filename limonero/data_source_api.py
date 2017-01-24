@@ -18,20 +18,7 @@ class DataSourceListApi(Resource):
             only = ('id', 'name') \
                 if request.args.get('simple', 'false') == 'true' else None
 
-        enabled_filter = request.args.get('enabled')
         data_sources = DataSource.query
-
-
-        # if enabled_filter:
-        #     data_sources = data_sources.filter(
-        #         DataSource.enabled == (enabled_filter != 'false'))
-        #
-        # if 'format' in request.args:
-        #     data_sources = data_sources.filter_by(
-        #         format=request.args.get('format'))
-        # if 'user_id' in request.args:
-        #     data_sources = data_sources.filter_by(
-        #         user_id=request.args.get('format'))
 
         possible_filters = ['enabled', 'format', 'user_id']
         for f in possible_filters:
