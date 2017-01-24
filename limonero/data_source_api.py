@@ -11,18 +11,33 @@ class DataSourceListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        only = ('id', 'name') \
-            if request.args.get('simple', 'false') == 'true' else None
+        if request.args.get('fields'):
+            only = [x.strip() for x in
+                    request.args.get('fields').split(',')]
+        else:
+            only = ('id', 'name') \
+                if request.args.get('simple', 'false') == 'true' else None
+
         enabled_filter = request.args.get('enabled')
         data_sources = DataSource.query
 
-        if enabled_filter:
-            data_sources = data_sources.filter(
-                DataSource.enabled == (enabled_filter != 'false'))
-        if 'format' in request.args:
-            data_sources = data_sources.filter_by(format=request.args.get('format'))
-        else:
-            data_sources = data_sources.all()
+
+        # if enabled_filter:
+        #     data_sources = data_sources.filter(
+        #         DataSource.enabled == (enabled_filter != 'false'))
+        #
+        # if 'format' in request.args:
+        #     data_sources = data_sources.filter_by(
+        #         format=request.args.get('format'))
+        # if 'user_id' in request.args:
+        #     data_sources = data_sources.filter_by(
+        #         user_id=request.args.get('format'))
+
+        possible_filters = ['enabled', 'format', 'user_id']
+        for f in possible_filters:
+            if f in request.args:
+                v = {f: request.args.get(f)}
+                data_sources = data_sources.filter_by(**v)
 
         return DataSourceListResponseSchema(
             many=True, only=only).dump(data_sources).data
@@ -95,7 +110,8 @@ class DataSourceDetailApi(Resource):
         result_code = 404
 
         if request.json:
-            request_schema = partial_schema_factory(DataSourceCreateRequestSchema)
+            request_schema = partial_schema_factory(
+                DataSourceCreateRequestSchema)
             # Ignore missing fields to allow partial updates
             form = request_schema.load(request.json, partial=True)
             response_schema = DataSourceItemResponseSchema()
@@ -119,5 +135,5 @@ class DataSourceDetailApi(Resource):
                     db.session.rollback()
             else:
                 result = dict(status="ERROR", message="Invalid data",
-                            errors=form.errors)
+                              errors=form.errors)
         return result, result_code
