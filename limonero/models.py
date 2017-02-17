@@ -58,6 +58,10 @@ class DataType:
     INTEGER = 'INTEGER'
     TIMESTAMP = 'TIMESTAMP'
 
+    def __init__(self, message, error_code):
+        self.message = message
+        self.error_code = error_code
+
 
 class DataSource(db.Model):
     """ Data source in Lemonade system (anything that stores data. """
