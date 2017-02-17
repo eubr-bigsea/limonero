@@ -34,7 +34,7 @@ limonero:
 ```
 ### Run
 ```
-python limonero/app.py -c limonero.yaml
+LIMONERO_CONFIG=limonero.yaml python limonero/app.py
 ```
 
 #### Using docker
