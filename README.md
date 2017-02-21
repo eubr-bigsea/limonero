@@ -1,5 +1,8 @@
 # limonero
 [logo]: docs/img/limonero.png "Lemonade Limonero"
+
+![alt text][logo]
+
 Data source metadata information for Lemonade Project
 
 ### Install
