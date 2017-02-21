@@ -10,21 +10,19 @@ import sqlalchemy_utils
 import yaml
 from flask import Flask, request
 from flask_admin import Admin
-from flask_admin.contrib.sqla import ModelView
 from flask_babel import get_locale, Babel
 from flask_cors import CORS
 from flask_restful import Api, abort
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi
-from models import db, DataSource, Storage
-from storage_api import StorageDetailApi, StorageListApi
+from limonero.admin import DataSourceModelView, StorageModelView
+from limonero.models import db, DataSource, Storage
+from limonero.storage_api import StorageDetailApi, StorageListApi
 
 sqlalchemy_utils.i18n.get_locale = get_locale
 
-
 eventlet.monkey_patch(all=True)
-app = Flask(__name__)
-
+app = Flask(__name__, static_url_path='')
 
 babel = Babel(app)
 
@@ -44,8 +42,8 @@ mappings = {
     '/storages': StorageListApi,
     '/storages/<int:storage_id>': StorageDetailApi,
 }
-for path, view in mappings.iteritems():
-    api.add_resource(view, path)
+for p, view in mappings.iteritems():
+    api.add_resource(view, p)
 
 
 # @app.before_request
@@ -53,6 +51,11 @@ def before():
     if request.args and 'lang' in request.args:
         if request.args['lang'] not in ('es', 'en'):
             return abort(404)
+
+
+@app.route('/static/<path:path>')
+def static_file(path):
+    return app.send_static_file(path)
 
 
 @babel.localeselector
@@ -90,13 +93,14 @@ def main(is_main_module):
 
         if is_main_module:
             if config.get('environment', 'dev') == 'dev':
-                admin.add_view(ModelView(DataSource, db.session))
-                admin.add_view(ModelView(Storage, db.session))
+                admin.add_view(DataSourceModelView(DataSource, db.session))
+                admin.add_view(StorageModelView(Storage, db.session))
                 app.run(debug=True, port=port)
             else:
                 eventlet.wsgi.server(eventlet.listen(('', port)), app)
     else:
         logger.error('Please, set LIMONERO_CONFIG environment variable')
         exit(1)
+
 
 main(__name__ == '__main__')
