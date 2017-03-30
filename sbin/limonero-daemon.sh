@@ -53,8 +53,15 @@ case $cmd_option in
 
    (startf)
       trap "$0 stop" SIGINT SIGTERM
-      $0 start
-      sleep infinity &
+      # set python path
+      PYTHONPATH=$LIMONERO_HOME:$PYTHONPATH python $LIMONERO_HOME/limonero/runner/limonero_server.py \
+         -c $LIMONERO_HOME/conf/limonero-config.yaml &
+      limonero_server_pid=$!
+
+      # persist the pid
+      echo $limonero_server_pid > $pid
+
+      echo "Limonero server started, logging to $log (pid=$limonero_server_pid)"
       wait
       ;;
 
