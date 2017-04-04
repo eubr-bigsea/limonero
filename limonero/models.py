@@ -83,6 +83,19 @@ class PrivacyRiskType:
                 if n[0] != '_' and n != 'values']
 
 
+# noinspection PyClassHasNoInit
+class PermissionType:
+    READ = 'READ'
+    WRITE = 'WRITE'
+    DENY = 'DENY'
+    MANAGE = 'MANAGE'
+
+    @staticmethod
+    def values():
+        return [n for n in PermissionType.__dict__.keys()
+                if n[0] != '_' and n != 'values']
+
+
 class Attribute(db.Model):
     """ Data source attribute. """
     __tablename__ = 'attribute'
@@ -167,6 +180,8 @@ class DataSource(db.Model):
     description = Column(String(500))
     enabled = Column(Boolean,
                      default=True, nullable=False)
+    statistics_process_counter = Column(Integer,
+                                        default=0, nullable=False)
     read_only = Column(Boolean,
                        default=True, nullable=False)
     privacy_aware = Column(Boolean,
@@ -199,6 +214,31 @@ class DataSource(db.Model):
 
     def __unicode__(self):
         return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class DataSourcePermission(db.Model):
+    """ Associate users and permissions """
+    __tablename__ = 'data_source_permission'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    permission = Column(Enum(*PermissionType.values(),
+                             name='PermissionTypeEnumType'), nullable=False)
+    user_id = Column(Integer, nullable=False)
+
+    # Associations
+    data_source_id = Column(Integer,
+                            ForeignKey("data_source.id"), nullable=False)
+    data_source = relationship("DataSource", foreign_keys=[data_source_id],
+                               backref=backref(
+                                   "permissions",
+                                   cascade="all, delete-orphan"))
+
+    def __unicode__(self):
+        return self.permission
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
@@ -245,6 +285,31 @@ class Storage(db.Model):
 
     def __unicode__(self):
         return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class StoragePermission(db.Model):
+    """ Associate users and permissions """
+    __tablename__ = 'storage_permission'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    permission = Column(Enum(*PermissionType.values(),
+                             name='PermissionTypeEnumType'), nullable=False)
+    user_id = Column(Integer, nullable=False)
+
+    # Associations
+    storage_id = Column(Integer,
+                        ForeignKey("storage.id"), nullable=False)
+    storage = relationship("Storage", foreign_keys=[storage_id],
+                           backref=backref(
+                               "permissions",
+                               cascade="all, delete-orphan"))
+
+    def __unicode__(self):
+        return self.permission
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)

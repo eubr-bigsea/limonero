@@ -1,8 +1,18 @@
 # -*- coding: utf-8 -*-}
 from app_auth import requires_auth
-from flask import request, current_app
+from flask import request, current_app, g
 from flask_restful import Resource
 from schema import *
+from sqlalchemy import or_
+
+
+def _get_data_sources(data_sources, permissions):
+    if g.user.id != 0:  # It is not a inter service call
+        data_sources = data_sources.filter(or_(
+            DataSource.user_id == g.user.id,
+            DataSource.permissions.any(
+                DataSourcePermission.permission.in_(permissions))))
+    return data_sources
 
 
 class DataSourceListApi(Resource):
@@ -15,12 +25,14 @@ class DataSourceListApi(Resource):
             only = [x.strip() for x in
                     request.args.get('fields').split(',')]
         else:
-            only = ('id', 'name') \
+            only = ('id', 'name', 'attributes.name',
+                    'attributes.type', 'user_id') \
                 if request.args.get('simple', 'false') == 'true' else None
 
-        data_sources = DataSource.query
+        data_sources = _get_data_sources(
+            DataSource.query, [PermissionType.READ, PermissionType.MANAGE])
 
-        possible_filters = ['enabled', 'format', 'user_id']
+        possible_filters = ['enabled', 'format']
         for f in possible_filters:
             if f in request.args:
                 v = {f: request.args.get(f)}
@@ -49,7 +61,7 @@ class DataSourceListApi(Resource):
                     db.session.commit()
                     result, result_code = response_schema.dump(
                         data_source).data, 200
-                except Exception, e:
+                except Exception as e:
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
                     if current_app.debug:
@@ -65,9 +77,23 @@ class DataSourceDetailApi(Resource):
     @staticmethod
     @requires_auth
     def get(data_source_id):
-        data_source = DataSource.query.get(data_source_id)
-        if data_source is not None:
-            return DataSourceItemResponseSchema().dump(data_source).data
+        if request.args.get('fields'):
+            only = [x.strip() for x in
+                    request.args.get('fields').split(',')]
+        else:
+            only = ('id', 'name', 'attributes.name',
+                    'attributes.type', 'user_id') \
+                if request.args.get('simple', 'false') == 'true' else None
+
+        data_sources = _get_data_sources(
+            DataSource.query.filter(DataSource.id == data_source_id),
+            [PermissionType.READ, PermissionType.MANAGE])
+
+        data_sources = data_sources.all()
+        if len(data_sources) == 1:
+            data_source = data_sources[0]
+            return DataSourceItemResponseSchema(only=only).dump(
+                data_source).data
         else:
             return dict(status="ERROR", message="Not found"), 404
 
@@ -76,13 +102,17 @@ class DataSourceDetailApi(Resource):
     def delete(data_source_id):
         result, result_code = dict(status="ERROR", message="Not found"), 404
 
-        data_source = DataSource.query.get(data_source_id)
-        if data_source is not None:
+        data_sources = _get_data_sources(
+            DataSource.query.filter(DataSource.id == data_source_id),
+            [PermissionType.MANAGE])
+
+        if len(data_sources) == 1:
+            data_source = data_sources[0]
             try:
                 db.session.delete(data_source)
                 db.session.commit()
                 result, result_code = dict(status="OK", message="Deleted"), 200
-            except Exception, e:
+            except Exception as e:
                 result, result_code = dict(status="ERROR",
                                            message="Internal error"), 500
                 if current_app.debug:
@@ -104,17 +134,25 @@ class DataSourceDetailApi(Resource):
             response_schema = DataSourceItemResponseSchema()
             if not form.errors:
                 try:
-                    form.data.id = data_source_id
-                    data_source = db.session.merge(form.data)
-                    db.session.commit()
+                    data_sources = _get_data_sources(DataSource.query.filter(
+                        DataSource.id == data_source_id),
+                        [PermissionType.MANAGE])
 
-                    if data_source is not None:
-                        result, result_code = dict(
-                            status="OK", message="Updated",
-                            data=response_schema.dump(data_source).data), 200
+                    if len(data_sources) == 1:
+                        form.data.id = data_source_id
+                        data_source = db.session.merge(form.data)
+                        db.session.commit()
+
+                        if data_source is not None:
+                            result, result_code = dict(
+                                status="OK", message="Updated",
+                                data=response_schema.dump(
+                                    data_source).data), 200
+                        else:
+                            result = dict(status="ERROR", message="Not found")
                     else:
                         result = dict(status="ERROR", message="Not found")
-                except Exception, e:
+                except Exception as e:
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
                     if current_app.debug:

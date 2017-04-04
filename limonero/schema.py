@@ -131,6 +131,8 @@ class DataSourceListResponseSchema(Schema):
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
                                default=True)
     privacy_aware = fields.Boolean(required=True, missing=False,
@@ -154,14 +156,14 @@ class DataSourceListResponseSchema(Schema):
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
-        'tahiti.schema.AttributeListResponseSchema',
+        'limonero.schema.AttributeListResponseSchema',
         required=True,
         many=True)
     storage = fields.Nested(
-        'tahiti.schema.StorageListResponseSchema',
+        'limonero.schema.StorageListResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
-        'tahiti.schema.PrivacyRiskListResponseSchema',
+        'limonero.schema.PrivacyRiskListResponseSchema',
         required=True,
         many=True)
 
@@ -175,6 +177,8 @@ class DataSourceCreateRequestSchema(Schema):
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
                                default=True)
     privacy_aware = fields.Boolean(required=True, missing=False,
@@ -193,12 +197,12 @@ class DataSourceCreateRequestSchema(Schema):
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
-        'tahiti.schema.AttributeCreateRequestSchema',
+        'limonero.schema.AttributeCreateRequestSchema',
         required=True,
         many=True)
     storage_id = fields.Integer(required=True)
     privacy_risks = fields.Nested(
-        'tahiti.schema.PrivacyRiskCreateRequestSchema',
+        'limonero.schema.PrivacyRiskCreateRequestSchema',
         required=True,
         many=True)
 
@@ -213,6 +217,8 @@ class DataSourceItemResponseSchema(Schema):
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
                                default=True)
     privacy_aware = fields.Boolean(required=True, missing=False,
@@ -236,14 +242,14 @@ class DataSourceItemResponseSchema(Schema):
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
-        'tahiti.schema.AttributeItemResponseSchema',
+        'limonero.schema.AttributeItemResponseSchema',
         required=True,
         many=True)
     storage = fields.Nested(
-        'tahiti.schema.StorageItemResponseSchema',
+        'limonero.schema.StorageItemResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
-        'tahiti.schema.PrivacyRiskItemResponseSchema',
+        'limonero.schema.PrivacyRiskItemResponseSchema',
         required=True,
         many=True)
 

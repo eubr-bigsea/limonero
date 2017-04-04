@@ -71,6 +71,7 @@ def main(is_main_module):
         with open(config_file) as f:
             config = yaml.load(f)['limonero']
 
+        app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
 
         server_config = config.get('servers', {})
