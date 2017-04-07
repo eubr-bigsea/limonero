@@ -41,6 +41,8 @@ case $cmd_option in
 
    (start)
       # set python path
+      PYTHONPATH=$LIMONERO_HOME:$PYTHONPATH python $LIMONERO_HOME/limonero/manage.py \
+         db upgrade || true
       PYTHONPATH=$LIMONERO_HOME:$PYTHONPATH nohup -- python $LIMONERO_HOME/limonero/runner/limonero_server.py \
          -c $LIMONERO_HOME/conf/limonero-config.yaml >> $log 2>&1 < /dev/null &
       limonero_server_pid=$!
@@ -54,6 +56,8 @@ case $cmd_option in
    (startf)
       trap "$0 stop" SIGINT SIGTERM
       # set python path
+      PYTHONPATH=$LIMONERO_HOME:$PYTHONPATH python $LIMONERO_HOME/limonero/manage.py \
+         db upgrade || true
       PYTHONPATH=$LIMONERO_HOME:$PYTHONPATH python $LIMONERO_HOME/limonero/runner/limonero_server.py \
          -c $LIMONERO_HOME/conf/limonero-config.yaml &
       limonero_server_pid=$!
