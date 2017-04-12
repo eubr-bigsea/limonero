@@ -19,6 +19,7 @@ from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
 
+os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
 
 eventlet.monkey_patch(all=True)
