@@ -2,6 +2,8 @@
 from app_auth import requires_auth
 from flask import request, current_app, g
 from flask_restful import Resource
+
+from app_auth import requires_auth
 from schema import *
 from sqlalchemy import or_
 
@@ -13,6 +15,8 @@ def _get_data_sources(data_sources, permissions):
             DataSource.permissions.any(
                 DataSourcePermission.permission.in_(permissions))))
     return data_sources
+
+log = logging.getLogger(__name__)
 
 
 class DataSourceListApi(Resource):
@@ -62,6 +66,7 @@ class DataSourceListApi(Resource):
                     result, result_code = response_schema.dump(
                         data_source).data, 200
                 except Exception as e:
+                    log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
                     if current_app.debug:
@@ -113,6 +118,7 @@ class DataSourceDetailApi(Resource):
                 db.session.commit()
                 result, result_code = dict(status="OK", message="Deleted"), 200
             except Exception as e:
+                log.exception('Error in DELETE')
                 result, result_code = dict(status="ERROR",
                                            message="Internal error"), 500
                 if current_app.debug:
@@ -153,6 +159,7 @@ class DataSourceDetailApi(Resource):
                     else:
                         result = dict(status="ERROR", message="Not found")
                 except Exception as e:
+                    log.exception('Error in PATCH')
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
                     if current_app.debug:

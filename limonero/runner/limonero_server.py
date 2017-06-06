@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import argparse
 import logging
 import logging.config
 import os
@@ -14,7 +15,7 @@ from flask_babel import get_locale, Babel
 from flask_cors import CORS
 from flask_restful import Api, abort
 
-from data_source_api import DataSourceDetailApi, DataSourceListApi
+from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
@@ -65,14 +66,18 @@ def get_locale():
 
 
 def main(is_main_module):
-    config_file = os.environ.get('LIMONERO_CONFIG')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config", type=str,
+            help="Config file", required=True)
+    args = parser.parse_args()
+
+    config_file = args.config
 
     logger = logging.getLogger(__name__)
     if config_file:
         with open(config_file) as f:
             config = yaml.load(f)['limonero']
 
-        app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
 
         server_config = config.get('servers', {})
