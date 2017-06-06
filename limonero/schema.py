@@ -183,6 +183,10 @@ class DataSourceListResponseSchema(Schema):
         'limonero.schema.AttributeListResponseSchema',
         required=True,
         many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionListResponseSchema',
+        required=True,
+        many=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
@@ -228,6 +232,10 @@ class DataSourceCreateRequestSchema(Schema):
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
+        required=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionCreateRequestSchema',
         required=True,
         many=True)
     storage_id = fields.Integer(required=True)
@@ -281,6 +289,10 @@ class DataSourceItemResponseSchema(Schema):
         'limonero.schema.AttributeItemResponseSchema',
         required=True,
         many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionItemResponseSchema',
+        required=True,
+        many=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
@@ -294,6 +306,44 @@ class DataSourceItemResponseSchema(Schema):
     def make_object(self, data):
         """ Deserialize data into an instance of DataSource"""
         return DataSource(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
 
     class Meta:
         ordered = True

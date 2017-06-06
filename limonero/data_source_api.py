@@ -1,13 +1,41 @@
 # -*- coding: utf-8 -*-}
 import logging
 
+import math
 from flask import request, current_app
 from flask_restful import Resource
+from sqlalchemy import or_, and_
 
 from app_auth import requires_auth
 from schema import *
+from flask import g
+from models import DataSource, DataSourcePermission
 
 log = logging.getLogger(__name__)
+
+
+def apply_filter(query, args, name, transform=None, transform_name=None):
+    result = query
+    if name in args and args[name].strip() != '':
+        v = transform(args[name]) if transform else args[name]
+        f = transform_name(name) if transform_name else name
+        result = query.filter_by(**{f: v})
+
+    return result
+
+
+def _filter_by_permissions(data_sources, permissions):
+    if g.user.id != 0:  # It is not a inter service call
+        conditions = or_(
+            DataSource.user_id == g.user.id,
+            and_(
+                DataSourcePermission.user_id == g.user.id,
+                DataSourcePermission.permission.in_(permissions)
+            )
+        )
+        data_sources = data_sources.join(
+            DataSource.permissions, isouter=True).filter(conditions)
+    return data_sources
 
 
 class DataSourceListApi(Resource):
@@ -16,23 +44,54 @@ class DataSourceListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        if request.args.get('fields'):
-            only = [x.strip() for x in
-                    request.args.get('fields').split(',')]
+        if request.args.get('simple') != 'true':
+            only = None
         else:
-            only = ('id', 'name') \
-                if request.args.get('simple', 'false') == 'true' else None
+            only = ('id', 'name', 'description', 'created',
+                    'user_name', 'permissions', 'user_id')
 
+        if request.args.get('fields'):
+            only = tuple(
+                [x.strip() for x in request.args.get('fields').split(',')])
+
+        possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
         data_sources = DataSource.query
+        for f, transform in possible_filters.items():
+            data_sources = apply_filter(data_sources, request.args, f,
+                                        transform, lambda field: field)
 
-        possible_filters = ['enabled', 'format', 'user_id']
-        for f in possible_filters:
-            if f in request.args:
-                v = {f: request.args.get(f)}
-                data_sources = data_sources.filter_by(**v)
+        data_sources = _filter_by_permissions(
+            data_sources, PermissionType.values())
 
-        return DataSourceListResponseSchema(
-            many=True, only=only).dump(data_sources).data
+        sort = request.args.get('sort', 'name')
+        if sort not in ['name', 'id', 'user_id', 'user_name']:
+            sort = 'id'
+
+        sort_option = getattr(DataSource, sort)
+        if request.args.get('asc', 'true') == 'false':
+            sort_option = sort_option.desc()
+
+        data_sources = data_sources.order_by(sort_option)
+
+        page = request.args.get('page') or '1'
+        if page is not None and page.isdigit():
+            page_size = int(request.args.get('size', 20))
+            page = int(page)
+            pagination = data_sources.paginate(page, page_size, True)
+            result = {
+                'data': DataSourceListResponseSchema(many=True, only=only).dump(
+                    pagination.items).data,
+                'pagination': {
+                    'page': page, 'size': page_size,
+                    'total': pagination.total,
+                    'pages': int(math.ceil(1.0 * pagination.total / page_size))}
+            }
+        else:
+            result = {
+                'data': DataSourceListResponseSchema(many=True, only=only).dump(
+                    data_sources).data}
+        db.session.commit()
+        return result
 
     @staticmethod
     @requires_auth
@@ -71,7 +130,9 @@ class DataSourceDetailApi(Resource):
     @staticmethod
     @requires_auth
     def get(data_source_id):
-        data_source = DataSource.query.get(data_source_id)
+        filtered = _filter_by_permissions(DataSource.query,
+                                          PermissionType.values())
+        data_source = filtered.filter(DataSource.id == data_source_id).first()
         if data_source is not None:
             return DataSourceItemResponseSchema().dump(data_source).data
         else:
@@ -82,10 +143,13 @@ class DataSourceDetailApi(Resource):
     def delete(data_source_id):
         result, result_code = dict(status="ERROR", message="Not found"), 404
 
-        data_source = DataSource.query.get(data_source_id)
+        filtered = _filter_by_permissions(
+            DataSource.query, [PermissionType.MANAGE, PermissionType.WRITE])
+        data_source = filtered.filter(DataSource.id == data_source_id).first()
         if data_source is not None:
             try:
-                db.session.delete(data_source)
+                data_source.enabled = False
+                db.session.add(data_source)
                 db.session.commit()
                 result, result_code = dict(status="OK", message="Deleted"), 200
             except Exception as e:

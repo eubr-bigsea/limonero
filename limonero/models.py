@@ -87,7 +87,6 @@ class PrivacyRiskType:
 class PermissionType:
     READ = 'READ'
     WRITE = 'WRITE'
-    DENY = 'DENY'
     MANAGE = 'MANAGE'
 
     @staticmethod
@@ -242,6 +241,8 @@ class DataSourcePermission(db.Model):
     permission = Column(Enum(*PermissionType.values(),
                              name='PermissionTypeEnumType'), nullable=False)
     user_id = Column(Integer, nullable=False)
+    user_login = Column(String(50), nullable=False)
+    user_name = Column(String(200), nullable=False)
 
     # Associations
     data_source_id = Column(Integer,
