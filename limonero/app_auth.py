@@ -17,7 +17,7 @@ MSG2 = 'Could not verify your access level for that URL. ' \
 CONFIG_KEY = 'LIMONERO_CONFIG'
 
 
-def authenticate(msg):
+def authenticate(msg, params):
     """Sends a 401 response that enables basic auth"""
     return Response(json.dumps({'status': 'ERROR', 'message': msg}), 401,
                     mimetype="application/json")
@@ -27,12 +27,25 @@ def requires_auth(f):
     @wraps(f)
     def decorated(*_args, **kwargs):
         access_token = request.headers.get('access-token')
-        user_id = request.headers.get('user_id') or (
-            request.json and request.json.get('user_id'))
+        user_id = request.args.get('user_id') or \
+                  request.headers.get('x-user-id') or (
+                      request.json and (request.json.get('user_id') or
+                                        request.json.get('user', {}).get('id')))
         client = request.headers.get('client')
 
         config = current_app.config[CONFIG_KEY]
-        if access_token and user_id and client:
+        internal_token = request.args.get('token',
+                                          request.headers.get('x-auth-token'))
+        if internal_token:
+            if internal_token == str(config['secret']):
+                setattr(g, 'user',
+                        User(0, '', '', '', '', ''))  # System user
+                return f(*_args, **kwargs)
+            else:
+                return authenticate(MSG2, {'client': client,
+                                           'access_token': access_token,
+                                           'user_id': user_id})
+        elif access_token and user_id and client:
             # It is using Thorn
             url = '{}/users/valid_token'.format(
                 config['services']['thorn']['url'])
@@ -40,7 +53,7 @@ def requires_auth(f):
                                               'user_id': user_id,
                                               'client': client})
             if result.status_code != 200:
-                return authenticate(MSG2)
+                return authenticate(MSG2, {})
             else:
                 user_data = json.loads(result.text)
                 setattr(g, 'user', User(id=user_data['id'],
@@ -50,14 +63,9 @@ def requires_auth(f):
                                         last_name=user_data['lastname'],
                                         locale=user_data['locale']))
                 return f(*_args, **kwargs)
-        elif request.args.get('token'):
-            if request.args.get('token') == config['secret']:
-                setattr(g, 'user',
-                        User(0, '', '', '', '', ''))  # System user
-                return f(*_args, **kwargs)
-            else:
-                return authenticate(MSG2)
         else:
-            return authenticate(MSG1)
+            return authenticate(MSG1, {'client': client,
+                                       'access_token': access_token,
+                                       'user_id': user_id})
 
     return decorated

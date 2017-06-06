@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-}
 import logging
-
 import math
+
+from flask import g
 from flask import request, current_app
 from flask_restful import Resource
 from sqlalchemy import or_, and_
 
 from app_auth import requires_auth
 from schema import *
-from flask import g
-from models import DataSource, DataSourcePermission
 
 log = logging.getLogger(__name__)
 
@@ -44,60 +43,68 @@ class DataSourceListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        if request.args.get('simple') != 'true':
-            only = None
-        else:
-            only = ('id', 'name', 'description', 'created',
-                    'user_name', 'permissions', 'user_id')
+        result, result_code = 'Internal error', 500
+        # noinspection PyBroadException
+        try:
+            if request.args.get('simple') != 'true':
+                only = None
+            else:
+                only = ('id', 'name', 'description', 'created',
+                        'user_name', 'permissions', 'user_id')
 
-        if request.args.get('fields'):
-            only = tuple(
-                [x.strip() for x in request.args.get('fields').split(',')])
+            if request.args.get('fields'):
+                only = tuple(
+                    [x.strip() for x in request.args.get('fields').split(',')])
 
-        possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
-        data_sources = DataSource.query
-        for f, transform in possible_filters.items():
-            data_sources = apply_filter(data_sources, request.args, f,
-                                        transform, lambda field: field)
+            possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
+            data_sources = DataSource.query
+            for f, transform in possible_filters.items():
+                data_sources = apply_filter(data_sources, request.args, f,
+                                            transform, lambda field: field)
 
-        data_sources = _filter_by_permissions(
-            data_sources, PermissionType.values())
+            data_sources = _filter_by_permissions(
+                data_sources, PermissionType.values())
 
-        sort = request.args.get('sort', 'name')
-        if sort not in ['name', 'id', 'user_id', 'user_name']:
-            sort = 'id'
+            sort = request.args.get('sort', 'name')
+            if sort not in ['name', 'id', 'user_id', 'user_name']:
+                sort = 'id'
 
-        sort_option = getattr(DataSource, sort)
-        if request.args.get('asc', 'true') == 'false':
-            sort_option = sort_option.desc()
+            sort_option = getattr(DataSource, sort)
+            if request.args.get('asc', 'true') == 'false':
+                sort_option = sort_option.desc()
 
-        data_sources = data_sources.order_by(sort_option)
+            data_sources = data_sources.order_by(sort_option)
 
-        page = request.args.get('page') or '1'
-        if page is not None and page.isdigit():
-            page_size = int(request.args.get('size', 20))
-            page = int(page)
-            pagination = data_sources.paginate(page, page_size, True)
-            result = {
-                'data': DataSourceListResponseSchema(many=True, only=only).dump(
-                    pagination.items).data,
-                'pagination': {
-                    'page': page, 'size': page_size,
-                    'total': pagination.total,
-                    'pages': int(math.ceil(1.0 * pagination.total / page_size))}
-            }
-        else:
-            result = {
-                'data': DataSourceListResponseSchema(many=True, only=only).dump(
-                    data_sources).data}
-        db.session.commit()
-        return result
+            page = request.args.get('page') or '1'
+            if page is not None and page.isdigit():
+                page_size = int(request.args.get('size', 20))
+                page = int(page)
+                pagination = data_sources.paginate(page, page_size, True)
+                result = {
+                    'data': DataSourceListResponseSchema(
+                        many=True, only=only).dump(pagination.items).data,
+                    'pagination': {
+                        'page': page, 'size': page_size,
+                        'total': pagination.total,
+                        'pages': int(
+                            math.ceil(1.0 * pagination.total / page_size))}
+                }
+            else:
+                result = {
+                    'data': DataSourceListResponseSchema(
+                        many=True, only=only).dump(data_sources).data}
+            db.session.commit()
+            result_code = 200
+        except Exception as ex:
+            log.exception(ex.message)
+
+        return result, result_code
 
     @staticmethod
     @requires_auth
     def post():
         result, result_code = dict(
-            status="ERROR", message="Missing json in the request body"), 401
+            status="ERROR", message="Missing json in the request body"), 400
         if request.json is not None:
             request_schema = DataSourceCreateRequestSchema()
             response_schema = DataSourceItemResponseSchema()
@@ -105,7 +112,7 @@ class DataSourceListApi(Resource):
             if form.errors:
                 result, result_code = dict(
                     status="ERROR", message="Validation error",
-                    errors=form.errors), 401
+                    errors=form.errors), 400
             else:
                 try:
                     data_source = form.data
@@ -196,3 +203,101 @@ class DataSourceDetailApi(Resource):
                 result = dict(status="ERROR", message="Invalid data",
                               errors=form.errors)
         return result, result_code
+
+
+class DataSourcePermissionApi(Resource):
+    """ REST API for sharing a DataSource """
+
+    @staticmethod
+    @requires_auth
+    def post(data_source_id, user_id):
+        result, result_code = dict(
+            status="ERROR", message="Missing json in the request body"), 400
+
+        if request.json is not None:
+            form = request.json
+            to_validate = ['permission', 'user_name', 'user_login']
+            error = False
+            for check in to_validate:
+                if check not in form or form.get(check, '').strip() == '':
+                    result, result_code = dict(
+                        status="ERROR", message="Validation error",
+                        errors={'Missing': check}), 400
+                    error = True
+                    break
+                if check == 'permission' and form.get(
+                        'permission') not in PermissionType.values():
+                    result, result_code = dict(
+                        status="ERROR", message="Validation error",
+                        errors={'Invalid': check}), 400
+                    error = True
+                    break
+            if not error:
+                try:
+                    filtered = _filter_by_permissions(
+                        DataSource.query, [PermissionType.MANAGE])
+                    data_source = filtered.filter(
+                        DataSource.id == data_source_id).first()
+
+                    if data_source is not None:
+                        conditions = [DataSourcePermission.data_source_id ==
+                                      data_source_id,
+                                      DataSourcePermission.user_id == user_id]
+                        permission = DataSourcePermission.query.filter(
+                            *conditions).first()
+
+                        action_performed = 'Added'
+                        if permission is not None:
+                            action_performed = 'Updated'
+                            permission.permission = form['permission']
+                        else:
+                            permission = DataSourcePermission(
+                                data_source=data_source, user_id=user_id,
+                                user_name=form['user_name'],
+                                user_login=form['user_login'],
+                                permission=form['permission'])
+
+                        db.session.add(permission)
+                        db.session.commit()
+                        result, result_code = {'message': action_performed,
+                                               'status': 'OK'}, 200
+                    else:
+                        result, result_code = dict(status="ERROR",
+                                                   message="Not found"), 404
+                except Exception as e:
+                    log.exception('Error in POST')
+                    result, result_code = dict(status="ERROR",
+                                               message="Internal error"), 500
+                    if current_app.debug:
+                        result['debug_detail'] = e.message
+                    db.session.rollback()
+
+        return result, result_code
+
+    @staticmethod
+    @requires_auth
+    def delete(data_source_id, user_id):
+        result, result_code = dict(status="ERROR", message="Not found"), 404
+
+        filtered = _filter_by_permissions(DataSource.query,
+                                          [PermissionType.MANAGE])
+        data_source = filtered.filter(DataSource.id == data_source_id).first()
+        if data_source is not None:
+            permission = DataSourcePermission.query.filter(
+                DataSourcePermission.data_source_id == data_source_id,
+                DataSourcePermission.user_id == user_id).first()
+            if permission is not None:
+                try:
+                    db.session.delete(permission)
+                    db.session.commit()
+                    result, result_code = dict(status="OK",
+                                               message="Deleted"), 200
+                except Exception as e:
+                    log.exception('Error in DELETE')
+                    result, result_code = dict(status="ERROR",
+                                               message="Internal error"), 500
+                    if current_app.debug:
+                        result['debug_detail'] = e.message
+                    db.session.rollback()
+        return result, result_code
+

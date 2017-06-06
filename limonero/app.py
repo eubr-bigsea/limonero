@@ -6,6 +6,7 @@ import os
 
 import eventlet
 import eventlet.wsgi
+import itertools
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
@@ -14,7 +15,8 @@ from flask_babel import get_locale, Babel
 from flask_cors import CORS
 from flask_restful import Api, abort
 
-from data_source_api import DataSourceDetailApi, DataSourceListApi
+from data_source_api import DataSourceDetailApi, DataSourceListApi, \
+    DataSourcePermissionApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
@@ -40,12 +42,20 @@ api = Api(app)
 mappings = {
     '/datasources': DataSourceListApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
+    '/datasources/<int:data_source_id>/permission/<int:user_id>':
+        DataSourcePermissionApi,
     '/storages': StorageListApi,
     '/storages/<int:storage_id>': StorageDetailApi,
 }
-for p, view in mappings.iteritems():
-    api.add_resource(view, p)
+grouped_mappings = itertools.groupby(sorted(mappings.items()),
+                                     key=lambda path: path[1])
+for view, g in grouped_mappings:
+    v = list(g)
+    api.add_resource(view, *[x[0] for x in v])
 
+
+# for route in app.url_map.iter_rules():
+#    print route
 
 # @app.before_request
 def before():
