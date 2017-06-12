@@ -1,22 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import itertools
 import logging
 import logging.config
 import os
 
 import eventlet
 import eventlet.wsgi
-import itertools
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_cors import CORS
+from flask_redis import FlaskRedis
 from flask_restful import Api, abort
+from py4j_init import init_jvm
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
-    DataSourcePermissionApi
+    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
@@ -35,12 +37,19 @@ app.secret_key = 'l3m0n4d1'
 # Flask Admin 
 admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
 
+# JVM
+init_jvm(app)
+
 # CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
 api = Api(app)
 
+redis_store = FlaskRedis()
+
 mappings = {
     '/datasources': DataSourceListApi,
+    '/datasources/upload': DataSourceUploadApi,
+    '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,
@@ -96,6 +105,7 @@ def main(is_main_module):
         app.config.update(config.get('config', {}))
 
         db.init_app(app)
+        # redis_store.init_app(app)
 
         # with app.app_context():
         #    db.create_all()

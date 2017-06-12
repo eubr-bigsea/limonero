@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-}
+import StringIO
+import csv
 import logging
 import math
+from ast import literal_eval
+from urlparse import urlparse
 
+from dateutil import parser as date_parser
 from flask import g
 from flask import request, current_app
 from flask_restful import Resource
+from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
 
 from app_auth import requires_auth
@@ -301,3 +307,276 @@ class DataSourcePermissionApi(Resource):
                     db.session.rollback()
         return result, result_code
 
+
+class DataSourceUploadApi(Resource):
+    """ REST API for upload a DataSource """
+
+    @staticmethod
+    def _get_tmp_path(jvm, hdfs, parsed, filename):
+        tmp_dir = u'{}/tmp/upload/{}'.format(parsed.path.replace('//', '/'),
+                                             filename)
+        tmp_path = jvm.org.apache.hadoop.fs.Path(tmp_dir)
+        if not hdfs.exists(tmp_path):
+            hdfs.mkdirs(tmp_path)
+        return tmp_path
+
+    @staticmethod
+    @requires_auth
+    def get():
+        identifier = request.args.get('resumableIdentifier', type=str)
+        filename = request.args.get('resumableFilename', type=str)
+        chunk_number = request.args.get('resumableChunkNumber', type=int)
+
+        result, result_code = 'OK', 200
+
+        if not identifier or not filename or not chunk_number:
+            # Parameters are missing or invalid
+            result, result_code = 'Missing arguments', 500
+        else:
+            storage = Storage.query.get(
+                request.args.get('storage_id', type=int))
+            parsed = urlparse(storage.url)
+
+            # noinspection PyUnresolvedReferences
+            jvm = current_app.gateway.jvm
+
+            str_uri = '{proto}://{host}:{port}'.format(
+                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            uri = jvm.java.net.URI(str_uri)
+
+            conf = jvm.org.apache.hadoop.conf.Configuration()
+            conf.set('dfs.client.use.datanode.hostname', 'true')
+
+            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+
+            tmp_path = DataSourceUploadApi._get_tmp_path(
+                jvm, hdfs, parsed, filename)
+
+            chunk_filename = "{tmp}/{file}.part{part:09d}".format(
+                tmp=tmp_path.toString(), file=filename, part=chunk_number)
+            current_app.logger.debug('Creating chunk: %s', chunk_filename)
+
+            # time.sleep(1)
+            chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
+            if not hdfs.exists(chunk_path):
+                # Let resumable.js know this chunk does not exists
+                #  and needs to be uploaded
+                result, result_code = 'Not found', 404
+
+        return result, result_code
+
+    @staticmethod
+    @requires_auth
+    def post():
+        identifier = request.args.get('resumableIdentifier', type=str)
+        filename = request.args.get('resumableFilename', type=unicode)
+        chunk_number = request.args.get('resumableChunkNumber', type=int)
+        total_chunks = request.args.get('resumableTotalChunks', type=int)
+
+        result, result_code = 'OK', 200
+        if not identifier or not filename or not chunk_number:
+            # Parameters are missing or invalid
+            import pdb
+            pdb.set_trace()
+            result, result_code = 'Missing arguments', 500
+        else:
+            storage = Storage.query.get(
+                request.args.get('storage_id', type=int))
+            parsed = urlparse(storage.url)
+
+            # noinspection PyUnresolvedReferences
+            jvm = current_app.gateway.jvm
+
+            str_uri = '{proto}://{host}:{port}'.format(
+                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            uri = jvm.java.net.URI(str_uri)
+
+            conf = jvm.org.apache.hadoop.conf.Configuration()
+            conf.set('dfs.client.use.datanode.hostname', 'true')
+
+            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+            target_path = jvm.org.apache.hadoop.fs.Path(
+                u'{}/{}'.format(u'/limonero/data', filename))
+            if hdfs.exists(target_path):
+                result, result_code = \
+                    {"status": "error", "message": "File already exists"}, 500
+            else:
+                tmp_path = DataSourceUploadApi._get_tmp_path(
+                    jvm, hdfs, parsed, filename)
+
+                chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
+                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
+                current_app.logger.debug('Wrote chunk: %s', chunk_filename)
+
+                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
+
+                output_stream = hdfs.create(chunk_path)
+                block = bytearray2(request.get_data())
+                output_stream.write(block, 0, len(block))
+
+                output_stream.close()
+
+                # Checks if all file's parts are present
+                v = u'{}{}'.format(str_uri, tmp_path.toString())
+                full_path = jvm.org.apache.hadoop.fs.Path(v)
+                full_path = tmp_path
+                list_iter = hdfs.listFiles(full_path, False)
+                counter = 0
+                while list_iter.hasNext():
+                    counter += 1
+                    list_iter.next()
+
+                if counter == total_chunks:
+                    # time to merge all files
+                    target_path = jvm.org.apache.hadoop.fs.Path(
+                        u'{}/{}'.format('/limonero/data', filename))
+                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
+                        hdfs, full_path, hdfs, target_path, True, conf, None)
+                    ds = DataSource(
+                        name=filename,
+                        storage_id=storage.id,
+                        description='Imported in Limonero',
+                        enabled=True,
+                        url='{}{}'.format(str_uri, target_path.toString()),
+                        format=DataSourceFormat.TEXT,
+                        user_id=1,
+                        user_login='FIXME',
+                        user_name='FIXME')
+
+                    db.session.add(ds)
+                    db.session.commit()
+
+        return result, result_code, {
+            'Content-Type': 'application/json; charset=utf-8'}
+
+
+class DataSourceInferSchemaApi(Resource):
+    tests = {
+        DataType.DATETIME: lambda x: date_parser.parse(x),
+        DataType.DECIMAL: '',
+        DataType.DOUBLE: '',
+    }
+
+    @staticmethod
+    @requires_auth
+    def post(data_source_id):
+
+        ds = DataSource.query.get_or_404(data_source_id)
+
+        request_body = {}
+        if request.data:
+            request_body = json.loads(request.data)
+
+        parsed = urlparse(ds.storage.url)
+
+        # noinspection PyUnresolvedReferences
+        jvm = current_app.gateway.jvm
+
+        str_uri = '{proto}://{host}:{port}'.format(
+            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+        uri = jvm.java.net.URI(str_uri)
+
+        conf = jvm.org.apache.hadoop.conf.Configuration()
+        conf.set('dfs.client.use.datanode.hostname', 'true')
+
+        hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+        input_stream = hdfs.open(jvm.org.apache.hadoop.fs.Path(ds.url))
+        buffered_reader = jvm.java.io.BufferedReader(
+            jvm.java.io.InputStreamReader(input_stream))
+
+        delimiter = request_body.get('delimiter', ',')
+        quote_char = request_body.get('quote_char', None)
+        use_header = request_body.get('use_header', False)
+
+        # Read 100 lines, may be enough to infer schema
+        lines = StringIO.StringIO()
+        for _ in range(100):
+            lines.write(buffered_reader.readLine())
+            lines.write('\n')
+
+        buffered_reader.close()
+        lines.seek(0)
+
+        csv_reader = csv.reader(lines, delimiter=delimiter,
+                                quotechar=quote_char)
+
+        attrs = []
+
+        for row in csv_reader:
+            if use_header and len(attrs) == 0:
+                for attr in row:
+                    attrs.append(
+                        Attribute(name=attr, nullable=False, enumeration=False))
+            else:
+                if len(attrs) == 0:
+                    for i, attr in enumerate(row):
+                        # Default name is attrX
+                        attrs.append(
+                            Attribute(name='attr{}'.format(i), nullable=False,
+                                      enumeration=False))
+                for i, value in enumerate(row):
+                    if value is None or value == '':
+                        attrs[i].nullable = True
+                    else:
+                        if attrs[i].type != DataType.TEXT:
+                            try:
+                                v = literal_eval(value)
+                            except ValueError:
+                                v = value
+                            except SyntaxError:
+                                v = value
+                            # test if first char is zero to avoid python
+                            # convertion of octal
+                            if any([(value[0] == '0' and value[1] != '.'),
+                                    type(v) in [str, unicode]]):
+                                if type(v) not in [int, float, long]:
+                                    try:
+                                        date_parser.parse(value)
+                                        attrs[i].type = DataType.DATETIME
+                                    except ValueError:
+                                        attrs[i].type = DataType.TEXT
+                                        attrs[i].size = len(value)
+                                        attrs[i].precision = None
+                                        attrs[i].scale = None
+                                else:
+                                    attrs[i].type = DataType.TEXT
+                                    attrs[i].size = len(value)
+                                    attrs[i].precision = None
+                                    attrs[i].scale = None
+                            elif type(v) in [int]:
+                                attrs[i].type = DataType.INTEGER
+                            elif type(v) in [long]:
+                                attrs[i].type = DataType.LONG
+                            elif type(v) in [int]:
+                                attrs[i].type = DataType.INTEGER
+                            elif type(v) in [float]:
+                                left, right = value.split('.')
+                                attrs[i].type = DataType.DECIMAL
+                                attrs[i].precision = max(
+                                    attrs[i].precision,
+                                    len(left) + len(right))
+                                attrs[i].scale = max(attrs[i].scale,
+                                                     len(right))
+                        else:
+                            attrs[i].size = max(attrs[i].size, len(value))
+
+        old_attrs = Attribute.query.filter(data_source_id == ds.id)
+        old_attrs.delete(synchronize_session=False)
+        for attr in attrs:
+
+            if attr.type is None:
+                attr.type = DataType.TEXT
+            attr.data_source = ds
+            attr.feature = False
+            attr.label = False
+            db.session.add(attr)
+
+        db.session.commit()
+        '''
+        return [(x.name, x.type, x.nullable, x.size, x.precision, x.scale)
+                for x
+                in attrs]
+        '''
+        '''
+        '''
+        return {'status': 'OK'}

@@ -119,6 +119,7 @@ class Attribute(db.Model):
                        name='DataTypeEnumType'), nullable=False)
     size = Column(Integer)
     precision = Column(Integer)
+    scale = Column(Integer)
     nullable = Column(Boolean, nullable=False)
     enumeration = Column(Boolean, nullable=False)
     missing_representation = Column(String(200))
