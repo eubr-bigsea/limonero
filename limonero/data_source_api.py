@@ -491,7 +491,10 @@ class DataSourceInferSchemaApi(Resource):
         # Read 100 lines, may be enough to infer schema
         lines = StringIO.StringIO()
         for _ in range(100):
-            lines.write(buffered_reader.readLine())
+            line = buffered_reader.readLine()
+            if line is None:
+                break
+            lines.write(line)
             lines.write('\n')
 
         buffered_reader.close()
