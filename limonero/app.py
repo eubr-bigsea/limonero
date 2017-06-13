@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import itertools
 import logging
 import logging.config
 import os
@@ -12,9 +13,12 @@ from flask import Flask, request
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_cors import CORS
+from flask_redis import FlaskRedis
 from flask_restful import Api, abort
+from py4j_init import init_jvm
 
-from data_source_api import DataSourceDetailApi, DataSourceListApi
+from data_source_api import DataSourceDetailApi, DataSourceListApi, \
+    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
@@ -33,19 +37,34 @@ app.secret_key = 'l3m0n4d1'
 # Flask Admin 
 admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
 
+# JVM
+init_jvm(app)
+
 # CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
 api = Api(app)
 
+redis_store = FlaskRedis()
+
 mappings = {
     '/datasources': DataSourceListApi,
+    '/datasources/upload': DataSourceUploadApi,
+    '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
+    '/datasources/<int:data_source_id>/permission/<int:user_id>':
+        DataSourcePermissionApi,
     '/storages': StorageListApi,
     '/storages/<int:storage_id>': StorageDetailApi,
 }
-for p, view in mappings.iteritems():
-    api.add_resource(view, p)
+grouped_mappings = itertools.groupby(sorted(mappings.items()),
+                                     key=lambda path: path[1])
+for view, g in grouped_mappings:
+    v = list(g)
+    api.add_resource(view, *[x[0] for x in v])
 
+
+# for route in app.url_map.iter_rules():
+#    print route
 
 # @app.before_request
 def before():
@@ -72,6 +91,7 @@ def main(is_main_module):
         with open(config_file) as f:
             config = yaml.load(f)['limonero']
 
+        app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
 
         server_config = config.get('servers', {})
@@ -85,6 +105,7 @@ def main(is_main_module):
         app.config.update(config.get('config', {}))
 
         db.init_app(app)
+        # redis_store.init_app(app)
 
         # with app.app_context():
         #    db.create_all()

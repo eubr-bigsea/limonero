@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import datetime
 import json
 from copy import deepcopy
 from marshmallow import Schema, fields, post_load
@@ -23,6 +23,7 @@ def load_json(str_value):
     except:
         return "Error loading JSON"
 
+
 # region Protected\s*
 # endregion
 
@@ -36,13 +37,14 @@ class AttributeListResponseSchema(Schema):
                          validate=[OneOf(DataType.__dict__.keys())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
+    scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(required=True)
     enumeration = fields.Boolean(required=True)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
     label = fields.Boolean(required=True, missing=True,
-                          default=True)
+                           default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -52,9 +54,10 @@ class AttributeListResponseSchema(Schema):
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Attribute"""
+        """ Deserialize data into an instance of Attribute"""
         return Attribute(**data)
 
     class Meta:
@@ -70,13 +73,14 @@ class AttributeItemResponseSchema(Schema):
                          validate=[OneOf(DataType.__dict__.keys())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
+    scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(required=True)
     enumeration = fields.Boolean(required=True)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
     label = fields.Boolean(required=True, missing=True,
-                          default=True)
+                           default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -86,9 +90,10 @@ class AttributeItemResponseSchema(Schema):
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Attribute"""
+        """ Deserialize data into an instance of Attribute"""
         return Attribute(**data)
 
     class Meta:
@@ -104,13 +109,14 @@ class AttributeCreateRequestSchema(Schema):
                          validate=[OneOf(DataType.__dict__.keys())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
+    scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(required=True)
     enumeration = fields.Boolean(required=True)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
     label = fields.Boolean(required=True, missing=True,
-                          default=True)
+                           default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -120,9 +126,10 @@ class AttributeCreateRequestSchema(Schema):
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Attribute"""
+        """ Deserialize data into an instance of Attribute"""
         return Attribute(**data)
 
     class Meta:
@@ -134,9 +141,10 @@ class DataSourceExecuteRequestSchema(Schema):
     id = fields.Integer(required=True)
     name = fields.String(required=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of DataSource"""
+        """ Deserialize data into an instance of DataSource"""
         return DataSource(**data)
 
     class Meta:
@@ -149,35 +157,51 @@ class DataSourceListResponseSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
-                              default=True)
+                               default=True)
+    privacy_aware = fields.Boolean(required=True, missing=False,
+                                   default=False)
     url = fields.String(required=True)
     created = fields.DateTime(required=True, missing=func.now(),
-                            default=func.now())
+                              default=func.now())
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True)
-    estimated_size_in_mega_bytes = fields.Decimal(required=False, allow_none=True)
+    estimated_size_in_mega_bytes = fields.Decimal(
+        required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
     user_id = fields.Integer(required=False, allow_none=True)
     user_login = fields.String(required=False, allow_none=True)
     user_name = fields.String(required=False, allow_none=True)
     tags = fields.String(required=False, allow_none=True)
     temporary = fields.Boolean(required=True, missing=False,
-                              default=False)
+                               default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
-    task_id = fields.Integer(required=False, allow_none=True)
-    attributes = fields.Nested('schema.AttributeListResponseSchema',
-                               required=True,
-                               many=True)
-    storage = fields.Nested('schema.StorageListResponseSchema',
-                            required=True)
+    task_id = fields.String(required=False, allow_none=True)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeListResponseSchema',
+        required=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionListResponseSchema',
+        required=True,
+        many=True)
+    storage = fields.Nested(
+        'limonero.schema.StorageListResponseSchema',
+        required=True)
+    privacy_risks = fields.Nested(
+        'limonero.schema.PrivacyRiskListResponseSchema',
+        required=True,
+        many=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of DataSource"""
+        """ Deserialize data into an instance of DataSource"""
         return DataSource(**data)
 
     class Meta:
@@ -189,9 +213,13 @@ class DataSourceCreateRequestSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
-                              default=True)
+                               default=True)
+    privacy_aware = fields.Boolean(required=True, missing=False,
+                                   default=False)
     url = fields.String(required=True)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
@@ -202,17 +230,27 @@ class DataSourceCreateRequestSchema(Schema):
     user_name = fields.String(required=False, allow_none=True)
     tags = fields.String(required=False, allow_none=True)
     temporary = fields.Boolean(required=True, missing=False,
-                              default=False)
+                               default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
-    task_id = fields.Integer(required=False, allow_none=True)
-    attributes = fields.Nested('schema.AttributeCreateRequestSchema',
-                               required=True,
-                               many=True)
+    task_id = fields.String(required=False, allow_none=True)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeCreateRequestSchema',
+        required=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionCreateRequestSchema',
+        required=True,
+        many=True)
     storage_id = fields.Integer(required=True)
+    privacy_risks = fields.Nested(
+        'limonero.schema.PrivacyRiskCreateRequestSchema',
+        required=True,
+        many=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of DataSource"""
+        """ Deserialize data into an instance of DataSource"""
         return DataSource(**data)
 
     class Meta:
@@ -225,36 +263,90 @@ class DataSourceItemResponseSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     enabled = fields.Boolean(required=True, missing=True,
-                            default=True)
+                             default=True)
+    statistics_process_counter = fields.Integer(required=True, missing=0,
+                                                default=0)
     read_only = fields.Boolean(required=True, missing=True,
-                              default=True)
+                               default=True)
+    privacy_aware = fields.Boolean(required=True, missing=False,
+                                   default=False)
     url = fields.String(required=True)
     created = fields.DateTime(required=True, missing=func.now(),
-                            default=func.now())
+                              default=func.now())
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True)
-    estimated_size_in_mega_bytes = fields.Decimal(required=False, allow_none=True)
+    estimated_size_in_mega_bytes = fields.Decimal(
+        required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
     user_id = fields.Integer(required=False, allow_none=True)
     user_login = fields.String(required=False, allow_none=True)
     user_name = fields.String(required=False, allow_none=True)
     tags = fields.String(required=False, allow_none=True)
     temporary = fields.Boolean(required=True, missing=False,
-                              default=False)
+                               default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
-    task_id = fields.Integer(required=False, allow_none=True)
-    attributes = fields.Nested('schema.AttributeItemResponseSchema',
-                               required=True,
-                               many=True)
-    storage = fields.Nested('schema.StorageItemResponseSchema',
-                            required=True)
+    task_id = fields.String(required=False, allow_none=True)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeItemResponseSchema',
+        required=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionItemResponseSchema',
+        required=True,
+        many=True)
+    storage = fields.Nested(
+        'limonero.schema.StorageItemResponseSchema',
+        required=True)
+    privacy_risks = fields.Nested(
+        'limonero.schema.PrivacyRiskItemResponseSchema',
+        required=True,
+        many=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of DataSource"""
+        """ Deserialize data into an instance of DataSource"""
         return DataSource(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
 
     class Meta:
         ordered = True
@@ -268,9 +360,10 @@ class StorageListResponseSchema(Schema):
                          validate=[OneOf(StorageType.__dict__.keys())])
     url = fields.String(required=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Storage"""
+        """ Deserialize data into an instance of Storage"""
         return Storage(**data)
 
     class Meta:
@@ -285,9 +378,10 @@ class StorageItemResponseSchema(Schema):
                          validate=[OneOf(StorageType.__dict__.keys())])
     url = fields.String(required=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Storage"""
+        """ Deserialize data into an instance of Storage"""
         return Storage(**data)
 
     class Meta:
@@ -299,9 +393,10 @@ class StorageCreateRequestSchema(Schema):
     id = fields.Integer(required=True)
     url = fields.String(required=True)
 
+    # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
-        """ Deserializes data into an instance of Storage"""
+        """ Deserialize data into an instance of Storage"""
         return Storage(**data)
 
     class Meta:
