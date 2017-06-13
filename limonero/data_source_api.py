@@ -372,6 +372,7 @@ class DataSourceUploadApi(Resource):
         filename = request.args.get('resumableFilename', type=unicode)
         chunk_number = request.args.get('resumableChunkNumber', type=int)
         total_chunks = request.args.get('resumableTotalChunks', type=int)
+        total_size = request.args.get('resumableTotalSize', type=int)
 
         result, result_code = 'OK', 200
         if not identifier or not filename or not chunk_number:
@@ -417,8 +418,6 @@ class DataSourceUploadApi(Resource):
                 output_stream.close()
 
                 # Checks if all file's parts are present
-                v = u'{}{}'.format(str_uri, tmp_path.toString())
-                full_path = jvm.org.apache.hadoop.fs.Path(v)
                 full_path = tmp_path
                 list_iter = hdfs.listFiles(full_path, False)
                 counter = 0
@@ -440,6 +439,7 @@ class DataSourceUploadApi(Resource):
                         url='{}{}'.format(str_uri, target_path.toString()),
                         format=DataSourceFormat.TEXT,
                         user_id=1,
+                        estimated_size_in_mega_bytes=(total_size/1024.0)/1024.0,
                         user_login='FIXME',
                         user_name='FIXME')
 
