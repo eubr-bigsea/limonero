@@ -35,6 +35,19 @@ class DataSourceFormat:
 
 
 # noinspection PyClassHasNoInit
+class ModelType:
+    SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
+    SPARK_ML_REGRESSION = 'SPARK_ML_REGRESSION'
+    UNSPECIFIED = 'UNSPECIFIED'
+    SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
+
+    @staticmethod
+    def values():
+        return [n for n in ModelType.__dict__.keys()
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
 class StorageType:
     HDFS = 'HDFS'
     OPHIDIA = 'OPHIDIA'
@@ -252,6 +265,64 @@ class DataSourcePermission(db.Model):
                                backref=backref(
                                    "permissions",
                                    cascade="all, delete-orphan"))
+
+    def __unicode__(self):
+        return self.permission
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class Model(db.Model):
+    """ Machine learning model """
+    __tablename__ = 'model'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    enabled = Column(Boolean,
+                     default=True, nullable=False)
+    created = Column(DateTime,
+                     default=func.now(), nullable=False)
+    path = Column(String(500), nullable=False)
+    type = Column(Enum(*ModelType.values(),
+                       name='ModelTypeEnumType'),
+                  default=ModelType.UNSPECIFIED, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    user_login = Column(String(50), nullable=False)
+    user_name = Column(String(200), nullable=False)
+
+    # Associations
+    storage_id = Column(Integer,
+                        ForeignKey("storage.id"), nullable=False)
+    storage = relationship("Storage", foreign_keys=[storage_id])
+
+    def __unicode__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class ModelPermission(db.Model):
+    """ Associate users and permissions to models """
+    __tablename__ = 'model_permission'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    permission = Column(Enum(*PermissionType.values(),
+                             name='PermissionTypeEnumType'), nullable=False)
+    user_id = Column(Integer, nullable=False)
+    user_login = Column(String(50), nullable=False)
+    user_name = Column(String(200), nullable=False)
+
+    # Associations
+    model_id = Column(Integer,
+                      ForeignKey("model.id"), nullable=False)
+    model = relationship("Model", foreign_keys=[model_id],
+                         backref=backref(
+                             "permissions",
+                             cascade="all, delete-orphan"))
 
     def __unicode__(self):
         return self.permission

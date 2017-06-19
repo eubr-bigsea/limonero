@@ -352,6 +352,126 @@ class DataSourcePermissionItemResponseSchema(Schema):
         ordered = True
 
 
+class ModelListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
+    created = fields.DateTime(required=True, missing=func.now(),
+                              default=func.now())
+    path = fields.String(required=True)
+    type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
+                         default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    storage = fields.Nested(
+        'limonero.schema.StorageListResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of Model"""
+        return Model(**data)
+
+    class Meta:
+        ordered = True
+
+
+class ModelCreateRequestSchema(Schema):
+    """ JSON serialization schema """
+    name = fields.String(required=True)
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
+    path = fields.String(required=True)
+    type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
+                         default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    storage_id = fields.Integer(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of Model"""
+        return Model(**data)
+
+    class Meta:
+        ordered = True
+
+
+class ModelItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
+    created = fields.DateTime(required=True, missing=func.now(),
+                              default=func.now())
+    path = fields.String(required=True)
+    type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
+                         default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    storage = fields.Nested(
+        'limonero.schema.StorageItemResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of Model"""
+        return Model(**data)
+
+    class Meta:
+        ordered = True
+
+
+class ModelPermissionListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of ModelPermission"""
+        return ModelPermission(**data)
+
+    class Meta:
+        ordered = True
+
+
+class ModelPermissionItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of ModelPermission"""
+        return ModelPermission(**data)
+
+    class Meta:
+        ordered = True
+
+
 class StorageListResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
