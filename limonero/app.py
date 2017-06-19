@@ -3,10 +3,10 @@
 import itertools
 import logging
 import logging.config
-import os
 
 import eventlet
 import eventlet.wsgi
+import os
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
@@ -15,13 +15,14 @@ from flask_babel import get_locale, Babel
 from flask_cors import CORS
 from flask_redis import FlaskRedis
 from flask_restful import Api, abort
-from py4j_init import init_jvm
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi
 from limonero.admin import DataSourceModelView, StorageModelView
+from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
+from py4j_init import init_jvm
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
@@ -53,6 +54,9 @@ mappings = {
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,
+    '/models': ModelListApi,
+    '/models/<int:model_id>': ModelDetailApi,
+
     '/storages': StorageListApi,
     '/storages/<int:storage_id>': StorageDetailApi,
 }

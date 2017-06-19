@@ -358,6 +358,8 @@ class ModelListResponseSchema(Schema):
     name = fields.String(required=True)
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
+    created = fields.DateTime(required=True, missing=func.now(),
+                              default=func.now())
     path = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
                          default=ModelType.UNSPECIFIED,
@@ -368,10 +370,6 @@ class ModelListResponseSchema(Schema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
-    permissions = fields.Nested(
-        'limonero.schema.ModelPermissionListResponseSchema',
-        required=True,
-        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -396,10 +394,6 @@ class ModelCreateRequestSchema(Schema):
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
     storage_id = fields.Integer(required=True)
-    permissions = fields.Nested(
-        'limonero.schema.ModelPermissionCreateRequestSchema',
-        required=True,
-        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -417,6 +411,8 @@ class ModelItemResponseSchema(Schema):
     name = fields.String(required=True)
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
+    created = fields.DateTime(required=True, missing=func.now(),
+                              default=func.now())
     path = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
                          default=ModelType.UNSPECIFIED,
@@ -427,10 +423,6 @@ class ModelItemResponseSchema(Schema):
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
-    permissions = fields.Nested(
-        'limonero.schema.ModelPermissionItemResponseSchema',
-        required=True,
-        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -447,14 +439,9 @@ class ModelPermissionListResponseSchema(Schema):
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
                                validate=[OneOf(PermissionType.__dict__.keys())])
-    created = fields.DateTime(required=True, missing=func.now(),
-                              default=func.now())
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
-    model = fields.Nested(
-        'limonero.schema.ModelListResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -471,14 +458,9 @@ class ModelPermissionItemResponseSchema(Schema):
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
                                validate=[OneOf(PermissionType.__dict__.keys())])
-    created = fields.DateTime(required=True, missing=func.now(),
-                              default=func.now())
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
-    model = fields.Nested(
-        'limonero.schema.ModelItemResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
