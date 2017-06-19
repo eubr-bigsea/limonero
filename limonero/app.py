@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import argparse
 import itertools
 import logging
 import logging.config
-import os
 
 import eventlet
 import eventlet.wsgi
+import os
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
@@ -15,13 +16,13 @@ from flask_babel import get_locale, Babel
 from flask_cors import CORS
 from flask_redis import FlaskRedis
 from flask_restful import Api, abort
-from py4j_init import init_jvm
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
+from py4j_init import init_jvm
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
@@ -36,9 +37,6 @@ logging.config.fileConfig('logging_config.ini')
 app.secret_key = 'l3m0n4d1'
 # Flask Admin 
 admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
-
-# JVM
-init_jvm(app)
 
 # CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -84,7 +82,16 @@ def get_locale():
 
 
 def main(is_main_module):
-    config_file = os.environ.get('LIMONERO_CONFIG')
+    config_file = None
+    if is_main_module:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-c", "--config", type=str,
+                            help="Config file", required=False)
+        args = parser.parse_args()
+        config_file = args.config
+
+    if config_file is None:
+        config_file = os.environ.get('LIMONERO_CONFIG')
 
     logger = logging.getLogger(__name__)
     if config_file:
@@ -114,6 +121,8 @@ def main(is_main_module):
         logger.debug('Running in %s mode', config.get('environment'))
 
         if is_main_module:
+            # JVM, used to interact with HDFS.
+            init_jvm(app)
             if config.get('environment', 'dev') == 'dev':
                 admin.add_view(DataSourceModelView(DataSource, db.session))
                 admin.add_view(StorageModelView(Storage, db.session))
@@ -125,4 +134,5 @@ def main(is_main_module):
         exit(1)
 
 
-main(__name__ == '__main__')
+if __name__ == '__main__':
+    main(__name__ == '__main__')
