@@ -52,6 +52,7 @@ class DataSourceListApi(Resource):
         result, result_code = 'Internal error', 500
         # noinspection PyBroadException
         try:
+
             if request.args.get('simple') != 'true':
                 only = None
             else:
@@ -82,23 +83,27 @@ class DataSourceListApi(Resource):
             data_sources = data_sources.order_by(sort_option)
 
             page = request.args.get('page') or '1'
-            if page is not None and page.isdigit():
-                page_size = int(request.args.get('size', 20))
-                page = int(page)
-                pagination = data_sources.paginate(page, page_size, True)
-                result = {
-                    'data': DataSourceListResponseSchema(
-                        many=True, only=only).dump(pagination.items).data,
-                    'pagination': {
-                        'page': page, 'size': page_size,
-                        'total': pagination.total,
-                        'pages': int(
-                            math.ceil(1.0 * pagination.total / page_size))}
-                }
+            if request.args.get('list') is None:
+                if page is not None and page.isdigit():
+                    page_size = int(request.args.get('size', 20))
+                    page = int(page)
+                    pagination = data_sources.paginate(page, page_size, True)
+                    result = {
+                        'data': DataSourceListResponseSchema(
+                            many=True, only=only).dump(pagination.items).data,
+                        'pagination': {
+                            'page': page, 'size': page_size,
+                            'total': pagination.total,
+                            'pages': int(
+                                math.ceil(1.0 * pagination.total / page_size))}
+                    }
+                else:
+                    result = {
+                        'data': DataSourceListResponseSchema(
+                            many=True, only=only).dump(data_sources).data}
             else:
-                result = {
-                    'data': DataSourceListResponseSchema(
-                        many=True, only=only).dump(data_sources).data}
+                result = DataSourceListResponseSchema(
+                    many=True, only=only).dump(data_sources).data
             db.session.commit()
             result_code = 200
         except Exception as ex:
@@ -439,7 +444,8 @@ class DataSourceUploadApi(Resource):
                         url='{}{}'.format(str_uri, target_path.toString()),
                         format=DataSourceFormat.TEXT,
                         user_id=1,
-                        estimated_size_in_mega_bytes=(total_size/1024.0)/1024.0,
+                        estimated_size_in_mega_bytes=(
+                                                     total_size / 1024.0) / 1024.0,
                         user_login='FIXME',
                         user_name='FIXME')
 
