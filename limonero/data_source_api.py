@@ -184,12 +184,12 @@ class DataSourceDetailApi(Resource):
     def patch(data_source_id):
         result = dict(status="ERROR", message="Insufficient data")
         result_code = 404
-
-        if request.json:
+        json_data = request.json or json.loads(request.data)
+        if json_data:
             request_schema = partial_schema_factory(
                 DataSourceCreateRequestSchema)
             # Ignore missing fields to allow partial updates
-            form = request_schema.load(request.json, partial=True)
+            form = request_schema.load(json_data, partial=True)
             response_schema = DataSourceItemResponseSchema()
             if not form.errors:
                 try:
