@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from marshmallow import Schema, fields, post_load
 from marshmallow.validate import OneOf
-from models import *
+from limonero.models import *
 
 
 def partial_schema_factory(schema_cls):
