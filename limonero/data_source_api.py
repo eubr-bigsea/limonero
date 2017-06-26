@@ -204,6 +204,7 @@ class DataSourceDetailApi(Resource):
                     else:
                         result = dict(status="ERROR", message="Not found")
                 except Exception as e:
+                    current_app.logger.exception(e)
                     log.exception('Error in PATCH')
                     result, result_code = dict(status="ERROR",
                                                message="Internal error"), 500
