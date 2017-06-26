@@ -184,7 +184,7 @@ class DataSourceListResponseSchema(Schema):
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionListResponseSchema',
@@ -235,17 +235,9 @@ class DataSourceCreateRequestSchema(Schema):
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
-        required=True,
-        many=True)
-    permissions = fields.Nested(
-        'limonero.schema.DataSourcePermissionCreateRequestSchema',
-        required=True,
+        allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
-    privacy_risks = fields.Nested(
-        'limonero.schema.PrivacyRiskCreateRequestSchema',
-        required=True,
-        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -290,7 +282,7 @@ class DataSourceItemResponseSchema(Schema):
     task_id = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionItemResponseSchema',
