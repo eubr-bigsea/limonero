@@ -493,6 +493,7 @@ class DataSourceInferSchemaApi(Resource):
 
         delimiter = request_body.get('delimiter', ',')
         quote_char = request_body.get('quote_char', None)
+        quote_char = quote_char.encode('latin1') if quote_char else None
         use_header = request_body.get('use_header', False)
 
         # Read 100 lines, may be enough to infer schema
