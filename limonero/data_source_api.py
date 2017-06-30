@@ -183,7 +183,6 @@ class DataSourceDetailApi(Resource):
     @requires_auth
     def patch(data_source_id):
         result = dict(status="ERROR", message="Insufficient data")
-        result_code = 404
         json_data = request.json or json.loads(request.data)
         if json_data:
             request_schema = partial_schema_factory(
@@ -572,7 +571,7 @@ class DataSourceInferSchemaApi(Resource):
                         else:
                             attrs[i].size = max(attrs[i].size, len(value))
 
-        old_attrs = Attribute.query.filter(data_source_id == ds.id)
+        old_attrs = Attribute.query.filter(Attribute.data_source_id == ds.id)
         old_attrs.delete(synchronize_session=False)
         for attr in attrs:
 

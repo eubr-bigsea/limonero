@@ -182,20 +182,22 @@ class DataSourceListResponseSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionListResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
         'limonero.schema.PrivacyRiskListResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
 
     # noinspection PyUnresolvedReferences
@@ -218,8 +220,6 @@ class DataSourceCreateRequestSchema(Schema):
                                                 default=0)
     read_only = fields.Boolean(required=True, missing=True,
                                default=True)
-    privacy_aware = fields.Boolean(required=True, missing=False,
-                                   default=False)
     url = fields.String(required=True)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
@@ -233,8 +233,14 @@ class DataSourceCreateRequestSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionCreateRequestSchema',
         allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
@@ -280,20 +286,22 @@ class DataSourceItemResponseSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionItemResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
         'limonero.schema.PrivacyRiskItemResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
 
     # noinspection PyUnresolvedReferences
@@ -326,6 +334,25 @@ class DataSourcePermissionListResponseSchema(Schema):
 
 
 class DataSourcePermissionItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionCreateRequestSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
