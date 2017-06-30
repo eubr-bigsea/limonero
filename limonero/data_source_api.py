@@ -502,7 +502,7 @@ class DataSourceInferSchemaApi(Resource):
             line = buffered_reader.readLine()
             if line is None:
                 break
-            lines.write(line)
+            lines.write(line.encode('utf8'))
             lines.write('\n')
 
         buffered_reader.close()
@@ -529,7 +529,7 @@ class DataSourceInferSchemaApi(Resource):
                     if value is None or value == '':
                         attrs[i].nullable = True
                     else:
-                        if attrs[i].type != DataType.TEXT:
+                        if attrs[i].type != DataType.CHARACTER:
                             try:
                                 v = literal_eval(value)
                             except ValueError:
@@ -541,16 +541,17 @@ class DataSourceInferSchemaApi(Resource):
                             if any([(value[0] == '0' and value[1] != '.'),
                                     type(v) in [str, unicode]]):
                                 if type(v) not in [int, float, long]:
+                                    # noinspection PyBroadException
                                     try:
                                         date_parser.parse(value)
                                         attrs[i].type = DataType.DATETIME
-                                    except ValueError:
-                                        attrs[i].type = DataType.TEXT
+                                    except:
+                                        attrs[i].type = DataType.CHARACTER
                                         attrs[i].size = len(value)
                                         attrs[i].precision = None
                                         attrs[i].scale = None
                                 else:
-                                    attrs[i].type = DataType.TEXT
+                                    attrs[i].type = DataType.CHARACTER
                                     attrs[i].size = len(value)
                                     attrs[i].precision = None
                                     attrs[i].scale = None
@@ -576,7 +577,10 @@ class DataSourceInferSchemaApi(Resource):
         for attr in attrs:
 
             if attr.type is None:
-                attr.type = DataType.TEXT
+                attr.type = DataType.CHARACTER
+            if attr.type == DataType.CHARACTER:
+                if attr.size > 1000:
+                    attr.type = DataType.TEXT
             attr.data_source = ds
             attr.feature = False
             attr.label = False
