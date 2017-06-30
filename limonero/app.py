@@ -126,7 +126,7 @@ def main(is_main_module):
 
         if is_main_module:
             # JVM, used to interact with HDFS.
-            init_jvm(app)
+            init_jvm(app, logger)
             if config.get('environment', 'dev') == 'dev':
                 admin.add_view(DataSourceModelView(DataSource, db.session))
                 admin.add_view(StorageModelView(Storage, db.session))

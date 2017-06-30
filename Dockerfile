@@ -12,7 +12,9 @@ ENV PYTHONPATH $PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
 RUN apt-get update && apt-get install -y  \
      python-pip \
      openjdk-8-jdk \
-   && rm -rf /var/lib/apt/lists/*
+   && rm -rf /var/lib/apt/lists/* \
+   && curl -s ${SPARK_HADOOP_URL} | tar -xz -C /usr/local/  \
+   && mv /usr/local/$SPARK_HADOOP_PKG $SPARK_HOME
 
 WORKDIR $LIMONERO_HOME
 COPY . $LIMONERO_HOME
