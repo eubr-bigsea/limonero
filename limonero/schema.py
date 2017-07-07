@@ -183,9 +183,6 @@ class AttributePrivacyListResponseSchema(Schema):
     privacy_model_parameters = fields.String(required=False, allow_none=True)
     unlock_privacy_key = fields.String(required=False, allow_none=True)
     is_global_law = fields.Boolean(required=False, allow_none=True)
-    attribute = fields.Nested(
-        'limonero.schema.AttributeListResponseSchema',
-        allow_none=True)
     attribute_privacy_group = fields.Nested(
         'limonero.schema.AttributePrivacyGroupListResponseSchema',
         allow_none=True)
