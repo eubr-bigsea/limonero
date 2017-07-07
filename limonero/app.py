@@ -18,7 +18,9 @@ from flask_redis import FlaskRedis
 from flask_restful import Api, abort
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
-    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi
+    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
+    DataSourcePrivacyApi
+from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
@@ -52,6 +54,9 @@ mappings = {
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,
+    '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
+    '/privacy': GlobalPrivacyListApi,
+    '/privacy/attribute-groups': AttributePrivacyGroupListApi,
     '/models': ModelListApi,
     '/models/<int:model_id>': ModelDetailApi,
 

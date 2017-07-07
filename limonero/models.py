@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
 from sqlalchemy import event
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
 
 make_translatable(options={'locales': ['pt', 'en', 'es'],
@@ -110,6 +111,8 @@ class PermissionType:
 
 # noinspection PyClassHasNoInit
 class AnonymizationTechnique:
+    ENCRYPTION = 'ENCRYPTION'
+    NO_TECHNIQUE = 'NO_TECHNIQUE'
     MASK = 'MASK'
     SUPPRESSION = 'SUPPRESSION'
     GENERALIZATION = 'GENERALIZATION'
@@ -117,6 +120,19 @@ class AnonymizationTechnique:
     @staticmethod
     def values():
         return [n for n in AnonymizationTechnique.__dict__.keys()
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class PrivacyType:
+    SENSITIVE = 'SENSITIVE'
+    IDENTIFIER = 'IDENTIFIER'
+    NON_SENSITIVE = 'NON_SENSITIVE'
+    QUASI_IDENTIFIER = 'QUASI_IDENTIFIER'
+
+    @staticmethod
+    def values():
+        return [n for n in PrivacyType.__dict__.keys()
                 if n[0] != '_' and n != 'values']
 
 
@@ -152,10 +168,14 @@ class Attribute(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id"), nullable=False)
-    data_source = relationship("DataSource", foreign_keys=[data_source_id],
-                               backref=backref(
-                                   "attributes",
-                                   cascade="all, delete-orphan"))
+    data_source = relationship(
+        "DataSource",
+        foreign_keys=[data_source_id],
+        backref=backref("attributes",
+                        cascade="all, delete-orphan"))
+    attribute_privacy = relationship(
+        "AttributePrivacy", uselist=False,
+        back_populates="attribute")
 
     def __unicode__(self):
         return self.name
@@ -170,28 +190,56 @@ class AttributePrivacy(db.Model):
 
     # Fields
     id = Column(Integer, primary_key=True)
-    privacy_type = Column(String(100), nullable=False)
-    category_technique = Column(String(100), nullable=False)
+    attribute_name = Column(String(200), nullable=False)
+    data_type = Column(Enum(*DataType.values(),
+                            name='DataTypeEnumType'))
+    privacy_type = Column(Enum(*PrivacyType.values(),
+                               name='PrivacyTypeEnumType'), nullable=False)
+    category_technique = Column(String(100))
     anonymization_technique = Column(Enum(*AnonymizationTechnique.values(),
                                           name='AnonymizationTechniqueEnumType'), nullable=False)
-    hierarchical_structure_type = Column(String(100), nullable=False)
-    privacy_model_technique = Column(String(100), nullable=False)
-    hierarchy = Column(Text, nullable=False)
-    category_model = Column(Text, nullable=False)
-    privacy_model = Column(Text, nullable=False)
-    privacy_model_parameters = Column(Text, nullable=False)
-    unlock_privacy_key = Column(String(400), nullable=False)
+    hierarchical_structure_type = Column(String(100))
+    privacy_model_technique = Column(String(100))
+    hierarchy = Column(Text)
+    category_model = Column(Text)
+    privacy_model = Column(Text)
+    privacy_model_parameters = Column(Text)
+    unlock_privacy_key = Column(String(400))
+    is_global_law = Column(Boolean)
 
     # Associations
     attribute_id = Column(Integer,
-                          ForeignKey("attribute.id"), nullable=False)
-    attribute = relationship("Attribute", foreign_keys=[attribute_id],
-                             backref=backref(
-                                 "attribute_privacy",
-                                 cascade="all, delete-orphan"))
+                          ForeignKey("attribute.id"))
+    attribute = relationship(
+        "Attribute",
+        foreign_keys=[attribute_id],
+        back_populates="attribute_privacy")
+    attribute_privacy_group_id = Column(Integer,
+                                        ForeignKey("attribute_privacy_group.id"))
+    attribute_privacy_group = relationship(
+        "AttributePrivacyGroup",
+        foreign_keys=[attribute_privacy_group_id],
+        backref=backref("attribute_privacy",
+                        cascade="all, delete-orphan"))
 
     def __unicode__(self):
-        return self.privacy_type
+        return self.attribute_name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class AttributePrivacyGroup(db.Model):
+    """ Groups attributes with same semantic """
+    __tablename__ = 'attribute_privacy_group'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    user_id = Column(Integer, nullable=False)
+
+    def __unicode__(self):
+        return self.name
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
@@ -230,6 +278,9 @@ class DataSource(db.Model):
                        default=False, nullable=False)
     workflow_id = Column(Integer)
     task_id = Column(String(200))
+    attribute_delimiter = Column(String(4))
+    record_delimiter = Column(String(4))
+    text_delimiter = Column(String(4))
     __mapper_args__ = {
         'order_by': 'name'
     }
@@ -237,7 +288,9 @@ class DataSource(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id"), nullable=False)
-    storage = relationship("Storage", foreign_keys=[storage_id])
+    storage = relationship(
+        "Storage",
+        foreign_keys=[storage_id])
 
     def __unicode__(self):
         return self.name
@@ -261,10 +314,11 @@ class DataSourcePermission(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id"), nullable=False)
-    data_source = relationship("DataSource", foreign_keys=[data_source_id],
-                               backref=backref(
-                                   "permissions",
-                                   cascade="all, delete-orphan"))
+    data_source = relationship(
+        "DataSource",
+        foreign_keys=[data_source_id],
+        backref=backref("permissions",
+                        cascade="all, delete-orphan"))
 
     def __unicode__(self):
         return self.permission
@@ -295,7 +349,9 @@ class Model(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id"), nullable=False)
-    storage = relationship("Storage", foreign_keys=[storage_id])
+    storage = relationship(
+        "Storage",
+        foreign_keys=[storage_id])
 
     def __unicode__(self):
         return self.name
@@ -319,10 +375,11 @@ class ModelPermission(db.Model):
     # Associations
     model_id = Column(Integer,
                       ForeignKey("model.id"), nullable=False)
-    model = relationship("Model", foreign_keys=[model_id],
-                         backref=backref(
-                             "permissions",
-                             cascade="all, delete-orphan"))
+    model = relationship(
+        "Model",
+        foreign_keys=[model_id],
+        backref=backref("permissions",
+                        cascade="all, delete-orphan"))
 
     def __unicode__(self):
         return self.permission
@@ -347,10 +404,11 @@ class PrivacyRisk(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id"), nullable=False)
-    data_source = relationship("DataSource", foreign_keys=[data_source_id],
-                               backref=backref(
-                                   "risks",
-                                   cascade="all, delete-orphan"))
+    data_source = relationship(
+        "DataSource",
+        foreign_keys=[data_source_id],
+        backref=backref("risks",
+                        cascade="all, delete-orphan"))
 
     def __unicode__(self):
         return self.type
@@ -390,10 +448,11 @@ class StoragePermission(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id"), nullable=False)
-    storage = relationship("Storage", foreign_keys=[storage_id],
-                           backref=backref(
-                               "permissions",
-                               cascade="all, delete-orphan"))
+    storage = relationship(
+        "Storage",
+        foreign_keys=[storage_id],
+        backref=backref("permissions",
+                        cascade="all, delete-orphan"))
 
     def __unicode__(self):
         return self.permission

@@ -53,6 +53,9 @@ class AttributeListResponseSchema(Schema):
     std_deviation = fields.Float(required=False, allow_none=True)
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
+    attribute_privacy = fields.Nested(
+        'limonero.schema.AttributePrivacyListResponseSchema',
+        allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -89,6 +92,9 @@ class AttributeItemResponseSchema(Schema):
     std_deviation = fields.Float(required=False, allow_none=True)
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
+    attribute_privacy = fields.Nested(
+        'limonero.schema.AttributePrivacyItemResponseSchema',
+        allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -125,12 +131,212 @@ class AttributeCreateRequestSchema(Schema):
     std_deviation = fields.Float(required=False, allow_none=True)
     missing_total = fields.String(required=False, allow_none=True)
     deciles = fields.String(required=False, allow_none=True)
+    attribute_privacy = fields.Nested(
+        'limonero.schema.AttributePrivacyCreateRequestSchema',
+        allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data):
         """ Deserialize data into an instance of Attribute"""
         return Attribute(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    attribute_privacy = fields.Nested(
+        'limonero.schema.AttributePrivacyItemResponseSchema',
+        allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of Attribute"""
+        return Attribute(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    attribute_name = fields.String(required=True)
+    data_type = fields.String(required=False, allow_none=True,
+                              validate=[OneOf(DataType.__dict__.keys())])
+    privacy_type = fields.String(required=True,
+                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+    category_technique = fields.String(required=False, allow_none=True)
+    anonymization_technique = fields.String(required=True,
+                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+    hierarchical_structure_type = fields.String(
+        required=False, allow_none=True)
+    privacy_model_technique = fields.String(required=False, allow_none=True)
+    hierarchy = fields.String(required=False, allow_none=True)
+    category_model = fields.String(required=False, allow_none=True)
+    privacy_model = fields.String(required=False, allow_none=True)
+    privacy_model_parameters = fields.String(required=False, allow_none=True)
+    unlock_privacy_key = fields.String(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True)
+    attribute = fields.Nested(
+        'limonero.schema.AttributeListResponseSchema',
+        allow_none=True)
+    attribute_privacy_group = fields.Nested(
+        'limonero.schema.AttributePrivacyGroupListResponseSchema',
+        allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacy"""
+        return AttributePrivacy(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    attribute_name = fields.String(required=True)
+    data_type = fields.String(required=False, allow_none=True,
+                              validate=[OneOf(DataType.__dict__.keys())])
+    privacy_type = fields.String(required=True,
+                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+    category_technique = fields.String(required=False, allow_none=True)
+    anonymization_technique = fields.String(required=True,
+                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+    hierarchical_structure_type = fields.String(
+        required=False, allow_none=True)
+    privacy_model_technique = fields.String(required=False, allow_none=True)
+    hierarchy = fields.String(required=False, allow_none=True)
+    category_model = fields.String(required=False, allow_none=True)
+    privacy_model = fields.String(required=False, allow_none=True)
+    privacy_model_parameters = fields.String(required=False, allow_none=True)
+    unlock_privacy_key = fields.String(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True)
+    attribute_privacy_group_id = fields.Integer(
+        required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacy"""
+        return AttributePrivacy(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyCreateRequestSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(allow_none=True)
+    attribute_name = fields.String(required=True)
+    data_type = fields.String(required=False, allow_none=True,
+                              validate=[OneOf(DataType.__dict__.keys())])
+    privacy_type = fields.String(required=True,
+                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+    category_technique = fields.String(required=False, allow_none=True)
+    anonymization_technique = fields.String(required=True,
+                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+    hierarchical_structure_type = fields.String(
+        required=False, allow_none=True)
+    privacy_model_technique = fields.String(required=False, allow_none=True)
+    hierarchy = fields.String(required=False, allow_none=True)
+    category_model = fields.String(required=False, allow_none=True)
+    privacy_model = fields.String(required=False, allow_none=True)
+    privacy_model_parameters = fields.String(required=False, allow_none=True)
+    unlock_privacy_key = fields.String(required=False, allow_none=True)
+    attribute_id = fields.Integer(required=False, allow_none=True)
+    attribute_privacy_group_id = fields.Integer(
+        required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacy"""
+        return AttributePrivacy(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyPrivacyResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    data_type = fields.String(required=False, allow_none=True,
+                              validate=[OneOf(DataType.__dict__.keys())])
+    privacy_type = fields.String(required=True,
+                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+    category_technique = fields.String(required=False, allow_none=True)
+    anonymization_technique = fields.String(required=True,
+                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+    hierarchical_structure_type = fields.String(
+        required=False, allow_none=True)
+    privacy_model_technique = fields.String(required=False, allow_none=True)
+    hierarchy = fields.String(required=False, allow_none=True)
+    category_model = fields.String(required=False, allow_none=True)
+    privacy_model = fields.String(required=False, allow_none=True)
+    privacy_model_parameters = fields.String(required=False, allow_none=True)
+    unlock_privacy_key = fields.String(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacy"""
+        return AttributePrivacy(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyGroupListResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacyGroup"""
+        return AttributePrivacyGroup(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyGroupItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacyGroup"""
+        return AttributePrivacyGroup(**data)
+
+    class Meta:
+        ordered = True
+
+
+class AttributePrivacyGroupCreateRequestSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(allow_none=True)
+    name = fields.String(required=True)
+    user_id = fields.Integer(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of AttributePrivacyGroup"""
+        return AttributePrivacyGroup(**data)
 
     class Meta:
         ordered = True
@@ -182,20 +388,23 @@ class DataSourceListResponseSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
+    text_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionListResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
         'limonero.schema.PrivacyRiskListResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
 
     # noinspection PyUnresolvedReferences
@@ -233,8 +442,15 @@ class DataSourceCreateRequestSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
+    text_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionCreateRequestSchema',
         allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
@@ -280,20 +496,44 @@ class DataSourceItemResponseSchema(Schema):
                                default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    attribute_delimiter = fields.String(required=False, allow_none=True)
+    record_delimiter = fields.String(required=False, allow_none=True)
+    text_delimiter = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionItemResponseSchema',
-        required=True,
+        allow_none=True,
         many=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
     privacy_risks = fields.Nested(
         'limonero.schema.PrivacyRiskItemResponseSchema',
-        required=True,
+        allow_none=True,
+        many=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSource"""
+        return DataSource(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePrivacyResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    privacy_aware = fields.Boolean(required=True, missing=False,
+                                   default=False)
+    attributes = fields.Nested(
+        'limonero.schema.AttributePrivacyResponseSchema',
+        allow_none=True,
         many=True)
 
     # noinspection PyUnresolvedReferences
@@ -326,6 +566,25 @@ class DataSourcePermissionListResponseSchema(Schema):
 
 
 class DataSourcePermissionItemResponseSchema(Schema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    permission = fields.String(required=True,
+                               validate=[OneOf(PermissionType.__dict__.keys())])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data):
+        """ Deserialize data into an instance of DataSourcePermission"""
+        return DataSourcePermission(**data)
+
+    class Meta:
+        ordered = True
+
+
+class DataSourcePermissionCreateRequestSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,

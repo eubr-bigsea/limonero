@@ -12,6 +12,7 @@ from flask import request, current_app
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import subqueryload
 
 from app_auth import requires_auth
 from schema import *
@@ -57,7 +58,7 @@ class DataSourceListApi(Resource):
                 only = None
             else:
                 only = ('id', 'name', 'description', 'created',
-                        'user_name', 'permissions', 'user_id')
+                        'user_name', 'permissions', 'user_id', 'privacy_aware')
 
             if request.args.get('fields'):
                 only = tuple(
@@ -183,11 +184,16 @@ class DataSourceDetailApi(Resource):
     @requires_auth
     def patch(data_source_id):
         result = dict(status="ERROR", message="Insufficient data")
-        result_code = 404
+        result_code = 400
         json_data = request.json or json.loads(request.data)
         if json_data:
             request_schema = partial_schema_factory(
                 DataSourceCreateRequestSchema)
+
+            # FIXME: Remove this code, ignore attribute_privacy
+            for attr in json_data['attributes']:
+                del attr['attribute_privacy']
+
             # Ignore missing fields to allow partial updates
             form = request_schema.load(json_data, partial=True)
             response_schema = DataSourceItemResponseSchema()
@@ -446,7 +452,7 @@ class DataSourceUploadApi(Resource):
                         format=DataSourceFormat.TEXT,
                         user_id=1,
                         estimated_size_in_mega_bytes=(
-                                                     total_size / 1024.0) / 1024.0,
+                                                         total_size / 1024.0) / 1024.0,
                         user_login='FIXME',
                         user_name='FIXME')
 
@@ -572,7 +578,7 @@ class DataSourceInferSchemaApi(Resource):
                         else:
                             attrs[i].size = max(attrs[i].size, len(value))
 
-        old_attrs = Attribute.query.filter(data_source_id == ds.id)
+        old_attrs = Attribute.query.filter(Attribute.data_source_id == ds.id)
         old_attrs.delete(synchronize_session=False)
         for attr in attrs:
 
@@ -595,3 +601,71 @@ class DataSourceInferSchemaApi(Resource):
         '''
         '''
         return {'status': 'OK'}
+
+
+class DataSourcePrivacyApi(Resource):
+    """ REST API for a managing data source privacy """
+
+    @staticmethod
+    @requires_auth
+    def get(data_source_id):
+
+        options = subqueryload(DataSource.attributes).subqueryload(
+            Attribute.attribute_privacy)
+
+        attr_privacy = DataSource.query \
+            .outerjoin(DataSource.attributes) \
+            .outerjoin(Attribute.attribute_privacy) \
+            .join(DataSource.attributes) \
+            .join(Attribute.attribute_privacy) \
+            .filter(DataSource.id == data_source_id) \
+            .filter(DataSource.enabled) \
+            .filter(DataSource.privacy_aware) \
+            .options(options) \
+            .all()
+        if attr_privacy:
+            return {'data': DataSourcePrivacyResponseSchema().dump(
+                attr_privacy[0], many=False).data}
+        else:
+            return dict(status="ERROR", message="Not found"), 404
+
+    @staticmethod
+    @requires_auth
+    def patch(data_source_id):
+        result = dict(status="ERROR", message="Insufficient data")
+        result_code = 400
+        json_data = request.json or json.loads(request.data)
+        # import pdb
+        # pdb.set_trace()
+        if json_data:
+            request_schema = partial_schema_factory(
+                DataSourceCreateRequestSchema)
+            # Ignore missing fields to allow partial updates
+            form = request_schema.load(json_data, partial=True)
+            response_schema = DataSourceItemResponseSchema()
+            if not form.errors:
+                try:
+                    form.data.id = data_source_id
+                    data_source = db.session.merge(form.data)
+                    db.session.commit()
+
+                    if data_source is not None:
+                        result, result_code = dict(
+                            status="OK", message="Updated",
+                            data=response_schema.dump(data_source).data), 200
+                    else:
+                        result = dict(status="ERROR", message="Not found")
+                except Exception as e:
+                    current_app.logger.exception(e)
+                    log.exception('Error in PATCH')
+                    result, result_code = dict(status="ERROR",
+                                               message="Internal error"), 500
+                    if current_app.debug:
+                        result['debug_detail'] = e.message
+                    db.session.rollback()
+            else:
+                result = dict(status="ERROR", message="Invalid data",
+                              errors=form.errors)
+        return result, result_code
+
+
