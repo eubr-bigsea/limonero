@@ -497,7 +497,7 @@ class DataSourceInferSchemaApi(Resource):
         buffered_reader = jvm.java.io.BufferedReader(
             jvm.java.io.InputStreamReader(input_stream))
 
-        delimiter = request_body.get('delimiter', ',')
+        delimiter = request_body.get('delimiter', ',').encode('latin1')
         quote_char = request_body.get('quote_char', None)
         quote_char = quote_char.encode('latin1') if quote_char else None
         use_header = request_body.get('use_header', False)
@@ -544,7 +544,8 @@ class DataSourceInferSchemaApi(Resource):
                                 v = value
                             # test if first char is zero to avoid python
                             # convertion of octal
-                            if any([(value[0] == '0' and value[1] != '.'),
+                            if any([(value[0] == '0' and len(value) > 1 and
+                                             value[1] != '.'),
                                     type(v) in [str, unicode]]):
                                 if type(v) not in [int, float, long]:
                                     # noinspection PyBroadException
@@ -667,5 +668,3 @@ class DataSourcePrivacyApi(Resource):
                 result = dict(status="ERROR", message="Invalid data",
                               errors=form.errors)
         return result, result_code
-
-
