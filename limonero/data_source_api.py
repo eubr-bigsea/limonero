@@ -3,6 +3,7 @@ import StringIO
 import csv
 import logging
 import math
+import uuid
 from ast import literal_eval
 from urlparse import urlparse
 
@@ -33,6 +34,7 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 def _filter_by_permissions(data_sources, permissions):
     if g.user.id != 0:  # It is not a inter service call
         conditions = or_(
+            DataSource.is_public,
             DataSource.user_id == g.user.id,
             and_(
                 DataSourcePermission.user_id == g.user.id,
@@ -88,7 +90,12 @@ class DataSourceListApi(Resource):
                 if page is not None and page.isdigit():
                     page_size = int(request.args.get('size', 20))
                     page = int(page)
-                    pagination = data_sources.paginate(page, page_size, True)
+                    if page > -1:
+                        pagination = data_sources.paginate(page, page_size,
+                                                           True)
+                    else:
+                        # No pagination
+                        pagination = data_sources
                     result = {
                         'data': DataSourceListResponseSchema(
                             many=True, only=only).dump(pagination.items).data,
@@ -408,56 +415,56 @@ class DataSourceUploadApi(Resource):
             conf.set('dfs.client.use.datanode.hostname', 'true')
 
             hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-            target_path = jvm.org.apache.hadoop.fs.Path(
-                u'{}/{}'.format(u'/limonero/data', filename))
-            if hdfs.exists(target_path):
-                result, result_code = \
-                    {"status": "error", "message": "File already exists"}, 500
-            else:
-                tmp_path = DataSourceUploadApi._get_tmp_path(
-                    jvm, hdfs, parsed, filename)
 
-                chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
-                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
-                current_app.logger.debug('Wrote chunk: %s', chunk_filename)
+            tmp_path = DataSourceUploadApi._get_tmp_path(
+                jvm, hdfs, parsed, filename)
 
-                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
+            chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
+                tmp=tmp_path.toString(), file=filename, part=chunk_number)
+            current_app.logger.debug('Wrote chunk: %s', chunk_filename)
 
-                output_stream = hdfs.create(chunk_path)
-                block = bytearray2(request.get_data())
-                output_stream.write(block, 0, len(block))
+            chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
 
-                output_stream.close()
+            output_stream = hdfs.create(chunk_path)
+            block = bytearray2(request.get_data())
+            output_stream.write(block, 0, len(block))
 
-                # Checks if all file's parts are present
-                full_path = tmp_path
-                list_iter = hdfs.listFiles(full_path, False)
-                counter = 0
-                while list_iter.hasNext():
-                    counter += 1
-                    list_iter.next()
+            output_stream.close()
 
-                if counter == total_chunks:
-                    # time to merge all files
-                    target_path = jvm.org.apache.hadoop.fs.Path(
-                        u'{}/{}'.format('/limonero/data', filename))
-                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
-                        hdfs, full_path, hdfs, target_path, True, conf, None)
-                    ds = DataSource(
-                        name=filename,
-                        storage_id=storage.id,
-                        description='Imported in Limonero',
-                        enabled=True,
-                        url='{}{}'.format(str_uri, target_path.toString()),
-                        format=DataSourceFormat.TEXT,
-                        user_id=1,
-                        estimated_size_in_mega_bytes=(
-                                                         total_size / 1024.0) / 1024.0,
-                        user_login='FIXME',
-                        user_name='FIXME')
+            # Checks if all file's parts are present
+            full_path = tmp_path
+            list_iter = hdfs.listFiles(full_path, False)
+            counter = 0
+            while list_iter.hasNext():
+                counter += 1
+                list_iter.next()
 
-                    db.session.add(ds)
-                    db.session.commit()
+            if counter == total_chunks:
+                final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
+
+                # time to merge all files
+                target_path = jvm.org.apache.hadoop.fs.Path(
+                    u'{}/{}'.format(u'/limonero/data', final_filename))
+                if hdfs.exists(target_path):
+                    result, result_code = {"status": "error",
+                                           "message": "File already exists"}, \
+                                          500
+                jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
+                    hdfs, full_path, hdfs, target_path, True, conf, None)
+                ds = DataSource(
+                    name=filename,
+                    storage_id=storage.id,
+                    description='Imported in Limonero',
+                    enabled=True,
+                    url='{}{}'.format(str_uri, target_path.toString()),
+                    format=DataSourceFormat.TEXT,
+                    user_id=1,
+                    estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
+                    user_login='FIXME',
+                    user_name='FIXME')
+
+                db.session.add(ds)
+                db.session.commit()
 
         return result, result_code, {
             'Content-Type': 'application/json; charset=utf-8'}

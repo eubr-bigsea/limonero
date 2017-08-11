@@ -149,8 +149,10 @@ class Attribute(db.Model):
     size = Column(Integer)
     precision = Column(Integer)
     scale = Column(Integer)
-    nullable = Column(Boolean, nullable=False)
-    enumeration = Column(Boolean, nullable=False)
+    nullable = Column(Boolean,
+                      default=False, nullable=False)
+    enumeration = Column(Boolean,
+                         default=False, nullable=False)
     missing_representation = Column(String(200))
     feature = Column(Boolean,
                      default=True, nullable=False)
@@ -205,7 +207,8 @@ class AttributePrivacy(db.Model):
     privacy_model = Column(Text)
     privacy_model_parameters = Column(Text)
     unlock_privacy_key = Column(String(400))
-    is_global_law = Column(Boolean)
+    is_global_law = Column(Boolean,
+                           default=False)
 
     # Associations
     attribute_id = Column(Integer,
@@ -267,7 +270,8 @@ class DataSource(db.Model):
     format = Column(Enum(*DataSourceFormat.values(),
                          name='DataSourceFormatEnumType'), nullable=False)
     provenience = Column(Text)
-    estimated_rows = Column(Integer)
+    estimated_rows = Column(Integer,
+                            default=0)
     estimated_size_in_mega_bytes = Column(Numeric(10, 2))
     expiration = Column(String(200))
     user_id = Column(Integer)
@@ -281,6 +285,9 @@ class DataSource(db.Model):
     attribute_delimiter = Column(String(4))
     record_delimiter = Column(String(4))
     text_delimiter = Column(String(4))
+    is_public = Column(Boolean,
+                       default=False, nullable=False)
+    treat_as_missing = Column(Text)
     __mapper_args__ = {
         'order_by': 'name'
     }
