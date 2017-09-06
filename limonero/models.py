@@ -288,6 +288,7 @@ class DataSource(db.Model):
     is_public = Column(Boolean,
                        default=False, nullable=False)
     treat_as_missing = Column(Text)
+    encoding = Column(String(200))
     __mapper_args__ = {
         'order_by': 'name'
     }

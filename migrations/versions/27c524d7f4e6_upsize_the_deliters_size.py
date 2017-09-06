@@ -28,6 +28,8 @@ def upgrade():
                     existing_type=sa.String(length=4),
                     type_=sa.VARCHAR(length=20),
                     existing_nullable=True)
+    op.add_column('data_source', sa.Column(
+        'encoding', sa.String(length=20), nullable=True))
 
 
 def downgrade():
@@ -43,3 +45,4 @@ def downgrade():
                     existing_type=sa.String(length=20),
                     type_=sa.VARCHAR(length=4),
                     existing_nullable=True)
+    op.drop_column('data_source', 'encoding')

@@ -390,6 +390,7 @@ class DataSourceListResponseSchema(Schema):
     text_delimiter = fields.String(required=False, allow_none=True)
     is_public = fields.Boolean(required=True)
     treat_as_missing = fields.String(required=False, allow_none=True)
+    encoding = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -446,6 +447,7 @@ class DataSourceCreateRequestSchema(Schema):
     text_delimiter = fields.String(required=False, allow_none=True)
     is_public = fields.Boolean(required=True)
     treat_as_missing = fields.String(required=False, allow_none=True)
+    encoding = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
@@ -502,6 +504,7 @@ class DataSourceItemResponseSchema(Schema):
     text_delimiter = fields.String(required=False, allow_none=True)
     is_public = fields.Boolean(required=True)
     treat_as_missing = fields.String(required=False, allow_none=True)
+    encoding = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
