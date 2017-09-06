@@ -31,6 +31,10 @@ def upgrade():
     op.add_column('data_source', sa.Column(
         'encoding', sa.String(length=20), nullable=True))
 
+    op.add_column('data_source',
+                  sa.Column('is_first_line_header', sa.Boolean(),
+                            nullable=False, server_default='0'))
+
 
 def downgrade():
     op.alter_column('data_source', 'attribute_delimiter',
@@ -46,3 +50,4 @@ def downgrade():
                     type_=sa.VARCHAR(length=4),
                     existing_nullable=True)
     op.drop_column('data_source', 'encoding')
+    op.drop_column('data_source', 'is_first_line_header')

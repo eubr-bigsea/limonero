@@ -289,6 +289,8 @@ class DataSource(db.Model):
                        default=False, nullable=False)
     treat_as_missing = Column(Text)
     encoding = Column(String(200))
+    is_first_line_header = Column(Boolean,
+                                  default=0, nullable=False)
     __mapper_args__ = {
         'order_by': 'name'
     }
