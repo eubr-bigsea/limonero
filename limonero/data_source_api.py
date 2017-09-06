@@ -3,6 +3,7 @@ import StringIO
 import csv
 import logging
 import math
+import unicodedata
 import uuid
 from ast import literal_eval
 from urlparse import urlparse
@@ -19,6 +20,11 @@ from app_auth import requires_auth
 from schema import *
 
 log = logging.getLogger(__name__)
+
+
+def strip_accents(s):
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn')
 
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
@@ -502,19 +508,27 @@ class DataSourceInferSchemaApi(Resource):
         hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
         input_stream = hdfs.open(jvm.org.apache.hadoop.fs.Path(ds.url))
         buffered_reader = jvm.java.io.BufferedReader(
-            jvm.java.io.InputStreamReader(input_stream))
+            jvm.java.io.InputStreamReader(input_stream, "ISO-8859-1"))
 
         delimiter = request_body.get('delimiter', ',').encode('latin1')
+        # If there is a delimiter set in data_source, use it instead
+        if ds.attribute_delimiter:
+            delimiter = ds.attribute_delimiter
+
+        special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
+        delimiter = special_delimiters.get(delimiter, delimiter)
+
         quote_char = request_body.get('quote_char', None)
         quote_char = quote_char.encode('latin1') if quote_char else None
         use_header = request_body.get('use_header', False)
 
         # Read 100 lines, may be enough to infer schema
         lines = StringIO.StringIO()
-        for _ in range(100):
+        for _ in range(1000):
             line = buffered_reader.readLine()
             if line is None:
                 break
+            line = line.replace('\0', '')
             lines.write(line.encode('utf8'))
             lines.write('\n')
 
@@ -529,6 +543,7 @@ class DataSourceInferSchemaApi(Resource):
         for row in csv_reader:
             if use_header and len(attrs) == 0:
                 for attr in row:
+                    attr = strip_accents(attr.replace(' ', '_').decode('utf8'))
                     attrs.append(
                         Attribute(name=attr, nullable=False, enumeration=False))
             else:
@@ -576,13 +591,24 @@ class DataSourceInferSchemaApi(Resource):
                             elif type(v) in [int]:
                                 attrs[i].type = DataType.INTEGER
                             elif type(v) in [float]:
-                                left, right = value.split('.')
-                                attrs[i].type = DataType.DECIMAL
-                                attrs[i].precision = max(
-                                    attrs[i].precision,
-                                    len(left) + len(right))
-                                attrs[i].scale = max(attrs[i].scale,
-                                                     len(right))
+                                change_to_str = False
+                                parts = value.split('.')
+                                left, right = None, None
+                                if len(parts) == 2:
+                                    left, right = parts
+                                elif len(parts) == 1 and parts[0].isdigit():
+                                    left, right = parts[0], ''
+                                else:
+                                    change_to_str = True
+                                if not change_to_str:
+                                    attrs[i].type = DataType.DECIMAL
+                                    attrs[i].precision = max(
+                                        attrs[i].precision,
+                                        len(left) + len(right))
+                                    attrs[i].scale = max(attrs[i].scale,
+                                                         len(right))
+                                else:
+                                    attrs[i].type = DataType.TEXT
                         else:
                             attrs[i].size = max(attrs[i].size, len(value))
 

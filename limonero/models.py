@@ -282,9 +282,9 @@ class DataSource(db.Model):
                        default=False, nullable=False)
     workflow_id = Column(Integer)
     task_id = Column(String(200))
-    attribute_delimiter = Column(String(4))
-    record_delimiter = Column(String(4))
-    text_delimiter = Column(String(4))
+    attribute_delimiter = Column(String(20))
+    record_delimiter = Column(String(20))
+    text_delimiter = Column(String(20))
     is_public = Column(Boolean,
                        default=False, nullable=False)
     treat_as_missing = Column(Text)
