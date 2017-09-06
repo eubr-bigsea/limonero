@@ -488,7 +488,7 @@ class DataSourceInferSchemaApi(Resource):
     def post(data_source_id):
 
         ds = DataSource.query.get_or_404(data_source_id)
-
+        encoding = ds.encoding or 'UTF-8'
         request_body = {}
         if request.data:
             request_body = json.loads(request.data)
@@ -508,7 +508,7 @@ class DataSourceInferSchemaApi(Resource):
         hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
         input_stream = hdfs.open(jvm.org.apache.hadoop.fs.Path(ds.url))
         buffered_reader = jvm.java.io.BufferedReader(
-            jvm.java.io.InputStreamReader(input_stream, "ISO-8859-1"))
+            jvm.java.io.InputStreamReader(input_stream, encoding))
 
         delimiter = request_body.get('delimiter', ',').encode('latin1')
         # If there is a delimiter set in data_source, use it instead
@@ -519,8 +519,10 @@ class DataSourceInferSchemaApi(Resource):
         delimiter = special_delimiters.get(delimiter, delimiter)
 
         quote_char = request_body.get('quote_char', None)
-        quote_char = quote_char.encode('latin1') if quote_char else None
-        use_header = request_body.get('use_header', False)
+
+        quote_char = quote_char.encode(encoding) if quote_char else None
+        use_header = request_body.get('use_header',
+                                      False) or ds.is_first_line_header
 
         # Read 100 lines, may be enough to infer schema
         lines = StringIO.StringIO()
