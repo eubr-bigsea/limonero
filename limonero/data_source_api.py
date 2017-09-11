@@ -11,6 +11,8 @@ from urlparse import urlparse
 from dateutil import parser as date_parser
 from flask import g
 from flask import request, current_app
+from flask import stream_with_context, Response
+from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
@@ -476,6 +478,72 @@ class DataSourceUploadApi(Resource):
             'Content-Type': 'application/json; charset=utf-8'}
 
 
+class DataSourceDownload(MethodView):
+    """ Entry point for downloading a DataSource """
+
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    @requires_auth
+    def get(data_source_id):
+        data_source = DataSource.query.get_or_404(ident=data_source_id)
+
+        parsed = urlparse(data_source.url)
+
+        # noinspection PyUnresolvedReferences
+        jvm = current_app.gateway.jvm
+
+        str_uri = '{proto}://{host}:{port}'.format(
+            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+
+        try:
+            uri = jvm.java.net.URI(str_uri)
+
+            conf = jvm.org.apache.hadoop.conf.Configuration()
+            conf.set('dfs.client.use.datanode.hostname', 'true')
+
+            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+
+            chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
+            if not hdfs.exists(chunk_path):
+                result, result_code = 'Not found', 404
+            else:
+                buf = jvm.java.nio.ByteBuffer.allocate(4096)
+                input_in = hdfs.open(chunk_path)
+
+                def do_download():
+                    total = 0
+                    done = False
+                    while not done:
+                        lido = input_in.read(buf)
+                        total += lido
+                        buf.position(0)
+                        if lido != 4096:
+                            done = True
+                            yield bytes(buf.array())[:lido]
+                        else:
+                            yield bytes(buf.array())
+
+                name = '{}.{}'.format(data_source.name.replace(' ', '-'),
+                                      data_source.format.lower())
+                result = Response(stream_with_context(
+                    do_download()), mimetype='text/csv')
+
+                result.headers[
+                    'Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                result.headers['Pragma'] = 'no-cache'
+                result.headers[
+                    "Content-Disposition"] = "attachment; filename={}".format(
+                    name)
+                result_code = 200
+        except Exception as e:
+            result = json.dumps(
+                {'status': 'ERROR', 'message': 'Internal error'})
+            result_code = 500
+            log.exception(e.message)
+
+        return result, result_code
+
+
 class DataSourceInferSchemaApi(Resource):
     tests = {
         DataType.DATETIME: lambda x: date_parser.parse(x),
@@ -516,7 +584,7 @@ class DataSourceInferSchemaApi(Resource):
             delimiter = ds.attribute_delimiter
 
         special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
-        delimiter = special_delimiters.get(delimiter, delimiter)
+        delimiter = special_delimiters.get(delimiter, delimiter).encode('utf8')
 
         quote_char = request_body.get('quote_char', None)
 

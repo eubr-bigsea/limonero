@@ -38,6 +38,7 @@ def init_jvm(flask_app, logger):
             '{0}/jars'.format(spark_home): [
                 'hadoop-common-*.jar',
                 'commons-logging-*.jar',
+                'commons-io-2.4.jar',
                 'guava-*.jar',
                 'commons-collections-*.jar',
                 'commons-configuration-*.jar',
