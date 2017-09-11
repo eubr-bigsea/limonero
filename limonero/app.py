@@ -19,12 +19,12 @@ from flask_restful import Api, abort
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi
-from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
+    DataSourcePrivacyApi, DataSourceDownload
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
+from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
 from py4j_init import init_jvm
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
@@ -68,6 +68,10 @@ grouped_mappings = itertools.groupby(sorted(mappings.items()),
 for view, g in grouped_mappings:
     v = list(g)
     api.add_resource(view, *[x[0] for x in v])
+
+app.add_url_rule('/datasources/<int:data_source_id>/download',
+                 methods=['GET'],
+                 view_func=DataSourceDownload.as_view('download'))
 
 
 # for route in app.url_map.iter_rules():
