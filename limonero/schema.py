@@ -624,6 +624,7 @@ class ModelListResponseSchema(Schema):
     created = fields.DateTime(required=True, missing=func.now(),
                               default=func.now())
     path = fields.String(required=True)
+    class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
                          default=ModelType.UNSPECIFIED,
                          validate=[OneOf(ModelType.__dict__.keys())])
@@ -650,6 +651,7 @@ class ModelCreateRequestSchema(Schema):
     enabled = fields.Boolean(required=True, missing=True,
                              default=True)
     path = fields.String(required=True)
+    class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
                          default=ModelType.UNSPECIFIED,
                          validate=[OneOf(ModelType.__dict__.keys())])
@@ -677,6 +679,7 @@ class ModelItemResponseSchema(Schema):
     created = fields.DateTime(required=True, missing=func.now(),
                               default=func.now())
     path = fields.String(required=True)
+    class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
                          default=ModelType.UNSPECIFIED,
                          validate=[OneOf(ModelType.__dict__.keys())])

@@ -349,6 +349,7 @@ class Model(db.Model):
     created = Column(DateTime,
                      default=func.now(), nullable=False)
     path = Column(String(500), nullable=False)
+    class_name = Column(String(500), nullable=False)
     type = Column(Enum(*ModelType.values(),
                        name='ModelTypeEnumType'),
                   default=ModelType.UNSPECIFIED, nullable=False)
