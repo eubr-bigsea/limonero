@@ -18,7 +18,7 @@ from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload
 
-from app_auth import requires_auth
+from app_auth import requires_auth, User
 from schema import *
 
 log = logging.getLogger(__name__)
@@ -459,6 +459,17 @@ class DataSourceUploadApi(Resource):
                                           500
                 jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
                     hdfs, full_path, hdfs, target_path, True, conf, None)
+
+                # noinspection PyBroadException
+                try:
+                    user = getattr(g, 'user')
+                except:
+                    user = User(id=1, login='admin',
+                                email='admin@lemonade',
+                                first_name='admin',
+                                last_name='admin',
+                                locale='en')
+
                 ds = DataSource(
                     name=filename,
                     storage_id=storage.id,
@@ -466,10 +477,10 @@ class DataSourceUploadApi(Resource):
                     enabled=True,
                     url='{}{}'.format(str_uri, target_path.toString()),
                     format=DataSourceFormat.TEXT,
-                    user_id=1,
                     estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
-                    user_login='FIXME',
-                    user_name='FIXME')
+                    user_id=user.id,
+                    user_login=user.login,
+                    user_name=user.name)
 
                 db.session.add(ds)
                 db.session.commit()
