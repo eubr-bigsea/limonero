@@ -49,7 +49,7 @@ class ModelListApi(Resource):
             if request.args.get('simple') != 'true':
                 only = None
             else:
-                only = ('id', 'name', 'description', 'created',
+                only = ('id', 'name', 'created',
                         'user_name', 'permissions', 'user_id')
 
             if request.args.get('fields'):
