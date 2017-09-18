@@ -33,14 +33,7 @@ def requires_auth(f):
         authorization = request.headers.get('authorization')
         user_id = request.headers.get('x-user-id')
 
-        if internal_token:
-            if internal_token == str(config['secret']):
-                # System user being used
-                setattr(flask_g, 'user', User(0, '', '', '', '', ''))
-                return f(*_args, **kwargs)
-            else:
-                return authenticate(MSG2, {"message": "Invalid X-Auth-Token"})
-        elif authorization:
+        if authorization:
             expr = re.compile(r'Token token="(.+?)", email="(.+)?"')
             token, email = expr.findall(authorization)[0]
             # It is using Thorn
@@ -76,6 +69,13 @@ def requires_auth(f):
                                               last_name=user_data['lastname'],
                                               locale=user_data['locale']))
                 return f(*_args, **kwargs)
+        elif internal_token:
+            if internal_token == str(config['secret']):
+                # System user being used
+                setattr(flask_g, 'user', User(0, '', '', '', '', ''))
+                return f(*_args, **kwargs)
+            else:
+                return authenticate(MSG2, {"message": "Invalid X-Auth-Token"})
         else:
             return authenticate(MSG1, {'message': 'Invalid authentication'})
 
