@@ -480,7 +480,8 @@ class DataSourceUploadApi(Resource):
                     estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                     user_id=user.id,
                     user_login=user.login,
-                    user_name=user.name)
+                    user_name='{} {}'.format(user.first_name,
+                                             user.last_name).strip())
 
                 db.session.add(ds)
                 db.session.commit()
