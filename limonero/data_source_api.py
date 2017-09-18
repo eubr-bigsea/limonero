@@ -9,9 +9,9 @@ from ast import literal_eval
 from urlparse import urlparse
 
 from dateutil import parser as date_parser
-from flask import g
-from flask import request, current_app
-from flask import stream_with_context, Response
+from flask import g as flask_g
+from flask import request, Response, current_app
+from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
@@ -40,12 +40,12 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 
 def _filter_by_permissions(data_sources, permissions):
-    if g.user.id != 0:  # It is not a inter service call
+    if flask_g.user.id != 0:  # It is not a inter service call
         conditions = or_(
             DataSource.is_public,
-            DataSource.user_id == g.user.id,
+            DataSource.user_id == flask_g.user.id,
             and_(
-                DataSourcePermission.user_id == g.user.id,
+                DataSourcePermission.user_id == flask_g.user.id,
                 DataSourcePermission.permission.in_(permissions)
             )
         )
@@ -462,7 +462,7 @@ class DataSourceUploadApi(Resource):
 
                 # noinspection PyBroadException
                 try:
-                    user = getattr(g, 'user')
+                    user = getattr(flask_g, 'user')
                 except:
                     user = User(id=1, login='admin',
                                 email='admin@lemonade',

@@ -3,8 +3,9 @@ import json
 from collections import namedtuple
 from functools import wraps
 
+import re
 import requests
-from flask import request, Response, g, current_app
+from flask import request, Response, current_app, g as flask_g
 
 User = namedtuple("User", "id, login, email, first_name, last_name, locale")
 
@@ -26,46 +27,56 @@ def authenticate(msg, params):
 def requires_auth(f):
     @wraps(f)
     def decorated(*_args, **kwargs):
-        access_token = request.headers.get('access-token')
-        user_id = request.args.get('user_id') or \
-                  request.headers.get('x-user-id') or (
-                      request.json and (request.json.get('user_id') or
-                                        request.json.get('user', {}).get('id')))
-        client = request.headers.get('client')
-
         config = current_app.config[CONFIG_KEY]
-        internal_token = request.args.get('token',
-                                          request.headers.get('x-auth-token'))
+        internal_token = request.args.get(
+            'token', request.headers.get('x-auth-token'))
+        authorization = request.headers.get('authorization')
+        user_id = request.headers.get('x-user-id')
+
         if internal_token:
             if internal_token == str(config['secret']):
-                setattr(g, 'user',
-                        User(0, '', '', '', '', ''))  # System user
+                # System user being used
+                setattr(flask_g, 'user', User(0, '', '', '', '', ''))
                 return f(*_args, **kwargs)
             else:
-                return authenticate(MSG2, {'client': client,
-                                           'access_token': access_token,
-                                           'user_id': user_id})
-        elif access_token and user_id and client:
+                return authenticate(MSG2, {"message": "Invalid X-Auth-Token"})
+        elif authorization:
+            expr = re.compile(r'Token token="(.+?)", email="(.+)?"')
+            token, email = expr.findall(authorization)[0]
             # It is using Thorn
-            url = '{}/users/valid_token'.format(
-                config['services']['thorn']['url'])
-            result = requests.post(url, data={'access-token': access_token,
-                                              'user_id': user_id,
-                                              'client': client})
-            if result.status_code != 200:
+            url = '{}/api/tokens'.format(config['services']['thorn']['url'])
+            payload = json.dumps({
+                'data': {
+                    'attributes': {
+                        'authenticity-token': token,
+                        'email': email
+                    },
+                    'type': 'tokens',
+                    'id': str(user_id)
+                }
+            })
+            headers = {
+                'content-type': "application/json",
+                'authorization': authorization,
+                'cache-control': "no-cache",
+            }
+            r = requests.request("POST", url, data=payload,
+                                 headers=headers)
+
+            if r.status_code != 200:
                 return authenticate(MSG2, {})
             else:
-                user_data = json.loads(result.text)
-                setattr(g, 'user', User(id=user_data['id'],
-                                        login=user_data['uid'],
-                                        email=user_data['email'],
-                                        first_name=user_data['firstname'],
-                                        last_name=user_data['lastname'],
-                                        locale=user_data['locale']))
+                import pdb
+                pdb.set_trace()
+                user_data = json.loads(r.text)
+                setattr(flask_g, 'user', User(id=user_data['id'],
+                                              login=user_data['uid'],
+                                              email=user_data['email'],
+                                              first_name=user_data['firstname'],
+                                              last_name=user_data['lastname'],
+                                              locale=user_data['locale']))
                 return f(*_args, **kwargs)
         else:
-            return authenticate(MSG1, {'client': client,
-                                       'access_token': access_token,
-                                       'user_id': user_id})
+            return authenticate(MSG1, {'message': 'Invalid authentication'})
 
     return decorated
