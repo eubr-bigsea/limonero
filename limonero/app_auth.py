@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-}
 import json
+import logging
+
 from collections import namedtuple
 from functools import wraps
 
@@ -17,6 +19,7 @@ MSG2 = 'Could not verify your access level for that URL. ' \
 
 CONFIG_KEY = 'LIMONERO_CONFIG'
 
+log = logging.getLogger(__name__)
 
 def authenticate(msg, params):
     """Sends a 403 response that enables basic auth"""
@@ -33,8 +36,8 @@ def requires_auth(f):
         authorization = request.headers.get('authorization')
         user_id = request.headers.get('x-user-id')
 
-        if authorization:
-            expr = re.compile(r'Token token="(.+?)", email="(.+)?"')
+        if authorization and user_id:
+            expr = re.compile(r'Token token="?(.+?)"?, email="?(.+?)(?:"|$)')
             found = expr.findall(authorization)
             if not found:
                 return authenticate(MSG2, {})
@@ -48,7 +51,7 @@ def requires_auth(f):
                         'email': email
                     },
                     'type': 'tokens',
-                    'id': str(user_id)
+                    'id': user_id
                 }
             })
             headers = {
@@ -59,6 +62,10 @@ def requires_auth(f):
             r = requests.request("POST", url, data=payload,
                                  headers=headers)
             if r.status_code != 200:
+                print('Error in authentication ({}, {}, {}): {}'.format(
+                    authorization, user_id, url, r.text))        
+                log.error('Error in authentication ({}, {}, {}): {}'.format(
+                    authorization, user_id, url, r.text))
                 return authenticate(MSG2, {})
             else:
                 user_data = json.loads(r.text)
@@ -66,7 +73,7 @@ def requires_auth(f):
                     id=user_id,
                     login=user_data['data']['attributes']['email'],
                     email=user_data['data']['attributes']['email'],
-                    first_name='FIXME',
+                    first_name=user_data['data']['attributes']['email'],
                     last_name='',
                     locale=''))
                 return f(*_args, **kwargs)
