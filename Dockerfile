@@ -11,6 +11,7 @@ ENV PYTHONPATH $PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
 
 RUN apt-get update && apt-get install -y  \
      python-pip \
+     vim \
      curl \
      openjdk-8-jdk \
    && rm -rf /var/lib/apt/lists/* \
@@ -18,7 +19,8 @@ RUN apt-get update && apt-get install -y  \
    && mv /usr/local/$SPARK_HADOOP_PKG $SPARK_HOME
 
 WORKDIR $LIMONERO_HOME
-COPY . $LIMONERO_HOME
+COPY requirements.txt $LIMONERO_HOME/requirements.txt
 RUN pip install -r $LIMONERO_HOME/requirements.txt
+COPY . $LIMONERO_HOME
 
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "startf"]
