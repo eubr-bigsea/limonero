@@ -9,11 +9,11 @@ ENV SPARK_HADOOP_URL http://www-eu.apache.org/dist/spark/spark-2.2.0/${SPARK_HAD
 ENV SPARK_HOME /usr/local/spark
 ENV PYTHONPATH $PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
 
-RUN apt-get install -y curl \
+RUN apt-get update && apt-get install -y curl \
    && curl -s ${SPARK_HADOOP_URL} | tar -xz -C /usr/local/  \
    && mv /usr/local/$SPARK_HADOOP_PKG $SPARK_HOME
 
-RUN apt-get update && apt-get install -y  \
+RUN apt-get install -y  \
      python-pip \
      vim \
      curl \
