@@ -404,8 +404,6 @@ class DataSourceUploadApi(Resource):
         result, result_code = 'OK', 200
         if not identifier or not filename or not chunk_number:
             # Parameters are missing or invalid
-            import pdb
-            pdb.set_trace()
             result, result_code = 'Missing arguments', 500
         else:
             storage = Storage.query.get(
@@ -751,8 +749,6 @@ class DataSourcePrivacyApi(Resource):
         result = dict(status="ERROR", message="Insufficient data")
         result_code = 400
         json_data = request.json or json.loads(request.data)
-        # import pdb
-        # pdb.set_trace()
         if json_data:
             request_schema = partial_schema_factory(
                 DataSourceCreateRequestSchema)

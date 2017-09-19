@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-}
 import json
 import logging
-
 from collections import namedtuple
 from functools import wraps
 
@@ -20,6 +19,7 @@ MSG2 = 'Could not verify your access level for that URL. ' \
 CONFIG_KEY = 'LIMONERO_CONFIG'
 
 log = logging.getLogger(__name__)
+
 
 def authenticate(msg, params):
     """Sends a 403 response that enables basic auth"""
@@ -62,11 +62,16 @@ def requires_auth(f):
             r = requests.request("POST", url, data=payload,
                                  headers=headers)
             if r.status_code != 200:
-                print('Error in authentication ({}, {}, {}): {}'.format(
-                    authorization, user_id, url, r.text))        
-                log.error('Error in authentication ({}, {}, {}): {}'.format(
-                    authorization, user_id, url, r.text))
-                return authenticate(MSG2, {})
+                if internal_token and internal_token == str(config['secret']):
+                    setattr(flask_g, 'user', User(0, '', '', '', '', ''))
+                    log.warn('Using Authorization and token is incorrect!')
+                    return f(*_args, **kwargs)
+                else:
+                    print('Error in authentication ({}, {}, {}): {}'.format(
+                        authorization, user_id, url, r.text))
+                    log.error('Error in authentication ({}, {}, {}): {}'.format(
+                        authorization, user_id, url, r.text))
+                    return authenticate(MSG2, {})
             else:
                 user_data = json.loads(r.text)
                 setattr(flask_g, 'user', User(
