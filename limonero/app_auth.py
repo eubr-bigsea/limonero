@@ -19,8 +19,8 @@ CONFIG_KEY = 'LIMONERO_CONFIG'
 
 
 def authenticate(msg, params):
-    """Sends a 401 response that enables basic auth"""
-    return Response(json.dumps({'status': 'ERROR', 'message': msg}), 401,
+    """Sends a 403 response that enables basic auth"""
+    return Response(json.dumps({'status': 'ERROR', 'message': msg}), 403,
                     mimetype="application/json")
 
 
@@ -35,7 +35,10 @@ def requires_auth(f):
 
         if authorization:
             expr = re.compile(r'Token token="(.+?)", email="(.+)?"')
-            token, email = expr.findall(authorization)[0]
+            found = expr.findall(authorization)
+            if not found:
+                return authenticate(MSG2, {})
+            token, email = found[0]
             # It is using Thorn
             url = '{}/api/tokens'.format(config['services']['thorn']['url'])
             payload = json.dumps({
@@ -55,19 +58,17 @@ def requires_auth(f):
             }
             r = requests.request("POST", url, data=payload,
                                  headers=headers)
-
             if r.status_code != 200:
                 return authenticate(MSG2, {})
             else:
-                import pdb
-                pdb.set_trace()
                 user_data = json.loads(r.text)
-                setattr(flask_g, 'user', User(id=user_data['id'],
-                                              login=user_data['uid'],
-                                              email=user_data['email'],
-                                              first_name=user_data['firstname'],
-                                              last_name=user_data['lastname'],
-                                              locale=user_data['locale']))
+                setattr(flask_g, 'user', User(
+                    id=user_id,
+                    login=user_data['data']['attributes']['email'],
+                    email=user_data['data']['attributes']['email'],
+                    first_name='FIXME',
+                    last_name='',
+                    locale=''))
                 return f(*_args, **kwargs)
         elif internal_token:
             if internal_token == str(config['secret']):
