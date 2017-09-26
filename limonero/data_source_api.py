@@ -142,8 +142,22 @@ class DataSourceListApi(Resource):
                     errors=form.errors), 400
             else:
                 try:
-                    data_source = form.data
-                    db.session.add(data_source)
+                    data_source_id = None
+                    data_source = None
+                    if request.args.get('mode') == 'overwrite':
+                        # Try to retrieve existing data source
+                        data_source = DataSource.query.filter(
+                            DataSource.url == form.data.url).first()
+                        if data_source:
+                            data_source_id = data_source.id
+                            data_source = form.data
+                            data_source.id = data_source_id
+                            db.session.merge(data_source)
+
+                    if data_source_id is None:
+                        data_source = form.data
+                        db.session.add(data_source)
+
                     db.session.commit()
                     result, result_code = response_schema.dump(
                         data_source).data, 200
