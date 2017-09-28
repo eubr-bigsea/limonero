@@ -580,7 +580,6 @@ class DataSourceInferSchemaApi(Resource):
     def post(data_source_id):
 
         ds = DataSource.query.get_or_404(data_source_id)
-        encoding = ds.encoding or 'UTF-8'
         request_body = {}
         if request.data:
             request_body = json.loads(request.data)
@@ -599,8 +598,18 @@ class DataSourceInferSchemaApi(Resource):
 
         hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
         input_stream = hdfs.open(jvm.org.apache.hadoop.fs.Path(ds.url))
+
+        # Handle UTF-8 with BOM
+        # See https://stackoverflow.com/a/44862536/1646932
+        bom_input_stream = jvm.org.apache.commons.io.input.BOMInputStream(
+            input_stream)
+
+        if bom_input_stream.getBOM() is not None:
+            encoding = bom_input_stream.getBOM().getCharsetName()
+        else:
+            encoding = ds.encoding or 'UTF-8'
         buffered_reader = jvm.java.io.BufferedReader(
-            jvm.java.io.InputStreamReader(input_stream, encoding))
+            jvm.java.io.InputStreamReader(bom_input_stream, encoding))
 
         delimiter = request_body.get('delimiter', ',').encode('latin1')
         # If there is a delimiter set in data_source, use it instead
@@ -633,102 +642,121 @@ class DataSourceInferSchemaApi(Resource):
                                 quotechar=quote_char)
 
         attrs = []
-
-        for row in csv_reader:
-            if use_header and len(attrs) == 0:
-                for attr in row:
-                    attr = strip_accents(attr.replace(' ', '_').decode('utf8'))
-                    attrs.append(
-                        Attribute(name=attr, nullable=False, enumeration=False))
-            else:
-                if len(attrs) == 0:
-                    for i, attr in enumerate(row):
-                        # Default name is attrX
-                        attrs.append(
-                            Attribute(name='attr{}'.format(i), nullable=False,
-                                      enumeration=False))
-                for i, value in enumerate(row):
-                    if value is None or value == '':
-                        attrs[i].nullable = True
-                    else:
-                        if attrs[i].type != DataType.CHARACTER:
-                            try:
-                                v = literal_eval(value)
-                            except ValueError:
-                                v = value
-                            except SyntaxError:
-                                v = value
-                            # test if first char is zero to avoid python
-                            # convertion of octal
-                            if any([(value[0] == '0' and len(value) > 1 and
-                                             value[1] != '.'),
-                                    type(v) in [str, unicode]]):
-                                if type(v) not in [int, float, long]:
-                                    # noinspection PyBroadException
-                                    try:
-                                        date_parser.parse(value)
-                                        attrs[i].type = DataType.DATETIME
-                                    except:
-                                        attrs[i].type = DataType.CHARACTER
-                                        attrs[i].size = len(value)
-                                        attrs[i].precision = None
-                                        attrs[i].scale = None
-                                else:
-                                    attrs[i].type = DataType.CHARACTER
-                                    attrs[i].size = len(value)
-                                    attrs[i].precision = None
-                                    attrs[i].scale = None
-                            elif type(v) in [int]:
-                                attrs[i].type = DataType.INTEGER
-                            elif type(v) in [long]:
-                                attrs[i].type = DataType.LONG
-                            elif type(v) in [int]:
-                                attrs[i].type = DataType.INTEGER
-                            elif type(v) in [float]:
-                                change_to_str = False
-                                parts = value.split('.')
-                                left, right = None, None
-                                if len(parts) == 2:
-                                    left, right = parts
-                                elif len(parts) == 1 and parts[0].isdigit():
-                                    left, right = parts[0], ''
-                                else:
-                                    change_to_str = True
-                                if not change_to_str:
-                                    attrs[i].type = DataType.DECIMAL
-                                    attrs[i].precision = max(
-                                        attrs[i].precision,
-                                        len(left) + len(right))
-                                    attrs[i].scale = max(attrs[i].scale,
-                                                         len(right))
-                                else:
-                                    attrs[i].type = DataType.TEXT
+        # noinspection PyBroadException
+        try:
+            for row in csv_reader:
+                if use_header and len(attrs) == 0:
+                    attrs = DataSourceInferSchemaApi._get_header(row)
+                else:
+                    if len(attrs) == 0:
+                        attrs = DataSourceInferSchemaApi._get_default_header(
+                            row)
+                    for i, value in enumerate(row):
+                        if value is None or value == '':
+                            attrs[i].nullable = True
                         else:
-                            attrs[i].size = max(attrs[i].size, len(value))
+                            if attrs[i].type != DataType.CHARACTER:
+                                DataSourceInferSchemaApi._infer_attr(attrs, i,
+                                                                     value)
+                            else:
+                                attrs[i].size = max(attrs[i].size, len(value))
 
-        old_attrs = Attribute.query.filter(Attribute.data_source_id == ds.id)
-        old_attrs.delete(synchronize_session=False)
-        for attr in attrs:
+            old_attrs = Attribute.query.filter(
+                Attribute.data_source_id == ds.id)
+            old_attrs.delete(synchronize_session=False)
+            for attr in attrs:
 
-            if attr.type is None:
-                attr.type = DataType.CHARACTER
-            if attr.type == DataType.CHARACTER:
-                if attr.size > 1000:
-                    attr.type = DataType.TEXT
-            attr.data_source = ds
-            attr.feature = False
-            attr.label = False
-            db.session.add(attr)
+                if attr.type is None:
+                    attr.type = DataType.CHARACTER
+                if attr.type == DataType.CHARACTER:
+                    if attr.size > 1000:
+                        attr.type = DataType.TEXT
+                attr.data_source = ds
+                attr.feature = False
+                attr.label = False
+                db.session.add(attr)
 
-        db.session.commit()
-        '''
-        return [(x.name, x.type, x.nullable, x.size, x.precision, x.scale)
-                for x
-                in attrs]
-        '''
-        '''
-        '''
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {'status': 'ERROR', 'message': 'Invalid CSV format'}
         return {'status': 'OK'}
+
+    @staticmethod
+    def _infer_attr(attrs, i, value):
+        try:
+            v = literal_eval(value)
+        except ValueError:
+            v = value
+        except SyntaxError:
+            v = value
+        # test if first char is zero to avoid python
+        # convertion of octal
+        if any([(value[0] == '0' and len(value) > 1 and value[1] != '.'),
+                type(v) in [str, unicode]]):
+            if type(v) not in [int, float, long]:
+                # noinspection PyBroadException
+                try:
+                    date_parser.parse(value)
+                    if len(value) > 5:
+                        attrs[
+                            i].type = DataType.DATETIME
+                    else:
+                        attrs[
+                            i].type = DataType.CHARACTER
+                except:
+                    attrs[i].type = DataType.CHARACTER
+                    attrs[i].size = len(value)
+                    attrs[i].precision = None
+                    attrs[i].scale = None
+            else:
+                attrs[i].type = DataType.CHARACTER
+                attrs[i].size = len(value)
+                attrs[i].precision = None
+                attrs[i].scale = None
+        elif type(v) in [int]:
+            attrs[i].type = DataType.INTEGER
+        elif type(v) in [long]:
+            attrs[i].type = DataType.LONG
+        elif type(v) in [int]:
+            attrs[i].type = DataType.INTEGER
+        elif type(v) in [float]:
+            change_to_str = False
+            parts = value.split('.')
+            left, right = None, None
+            if len(parts) == 2:
+                left, right = parts
+            elif len(parts) == 1 and parts[0].isdigit():
+                left, right = parts[0], ''
+            else:
+                change_to_str = True
+            if not change_to_str:
+                attrs[i].type = DataType.DECIMAL
+                attrs[i].precision = max(attrs[i].precision,
+                                         len(left) + len(right))
+                attrs[i].scale = max(attrs[i].scale, len(right))
+            else:
+                attrs[i].type = DataType.TEXT
+
+    @staticmethod
+    def _get_default_header(row):
+        attrs = []
+        for i, attr in enumerate(row):
+            # Default name is attrX
+            attrs.append(
+                Attribute(name='attr{}'.format(i),
+                          nullable=False,
+                          enumeration=False))
+        return attrs
+
+    @staticmethod
+    def _get_header(row):
+        attrs = []
+        for attr in row:
+            attr = strip_accents(attr.replace(' ', '_').decode('utf8'))
+            attrs.append(
+                Attribute(name=attr, nullable=False, enumeration=False))
+        return attrs
 
 
 class DataSourcePrivacyApi(Resource):
