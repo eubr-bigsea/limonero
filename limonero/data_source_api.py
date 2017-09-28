@@ -16,7 +16,7 @@ from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
 from schema import *
@@ -49,8 +49,7 @@ def _filter_by_permissions(data_sources, permissions):
                 DataSourcePermission.permission.in_(permissions)
             )
         )
-        data_sources = data_sources.join(
-            DataSource.permissions, isouter=True).filter(conditions)
+        data_sources = data_sources.filter(conditions)
     return data_sources
 
 
@@ -63,7 +62,6 @@ class DataSourceListApi(Resource):
         result, result_code = 'Internal error', 500
         # noinspection PyBroadException
         try:
-
             if request.args.get('simple') != 'true':
                 only = None
             else:
@@ -79,6 +77,10 @@ class DataSourceListApi(Resource):
             for f, transform in possible_filters.items():
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
+
+            data_sources = data_sources.join(
+                DataSource.permissions, isouter=True).options(
+                joinedload('permissions'))
 
             data_sources = _filter_by_permissions(
                 data_sources, PermissionType.values())
@@ -123,6 +125,7 @@ class DataSourceListApi(Resource):
             db.session.commit()
             result_code = 200
         except Exception as ex:
+            print ex
             log.exception(ex.message)
 
         return result, result_code
