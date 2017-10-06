@@ -682,7 +682,7 @@ class DataSourceInferSchemaApi(Resource):
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            return {'status': 'ERROR', 'message': 'Invalid CSV format'}
+            return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
         return {'status': 'OK'}
 
     @staticmethod
