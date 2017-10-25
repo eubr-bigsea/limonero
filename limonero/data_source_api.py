@@ -40,7 +40,7 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 
 def _filter_by_permissions(data_sources, permissions):
-    if flask_g.user.id != 0:  # It is not a inter service call
+    if flask_g.user.id not in (0, 1):  # It is not a inter service call
         conditions = or_(
             DataSource.is_public,
             DataSource.user_id == flask_g.user.id,
@@ -682,6 +682,7 @@ class DataSourceInferSchemaApi(Resource):
             db.session.commit()
         except Exception as e:
             db.session.rollback()
+            log.exception('Invalid CSV format')
             return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
         return {'status': 'OK'}
 
