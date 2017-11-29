@@ -591,16 +591,25 @@ class DataSourceInferSchemaApi(Resource):
 
         # noinspection PyUnresolvedReferences
         jvm = current_app.gateway.jvm
-
+        hadoop_pkg = jvm.org.apache.hadoop
         str_uri = '{proto}://{host}:{port}'.format(
             proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
         uri = jvm.java.net.URI(str_uri)
 
-        conf = jvm.org.apache.hadoop.conf.Configuration()
+        conf = hadoop_pkg.conf.Configuration()
         conf.set('dfs.client.use.datanode.hostname', 'true')
 
-        hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-        input_stream = hdfs.open(jvm.org.apache.hadoop.fs.Path(ds.url))
+        hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
+        path = hadoop_pkg.fs.Path(ds.url)
+
+        # Support to Gzip'ed files. Spark also supports gzip transparently.
+        codec_factory = hadoop_pkg.io.compress.CompressionCodecFactory(conf)
+        codec = codec_factory.getCodec(path)
+
+        if codec is None:
+            input_stream = hdfs.open(path)
+        else:
+            input_stream = codec.createInputStream(hdfs.open(path))
 
         # Handle UTF-8 with BOM
         # See https://stackoverflow.com/a/44862536/1646932
