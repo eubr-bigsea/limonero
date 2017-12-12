@@ -73,7 +73,11 @@ class DataSourceListApi(Resource):
                     [x.strip() for x in request.args.get('fields').split(',')])
 
             possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
-            data_sources = DataSource.query
+            data_sources = DataSource.query.join(DataSource.storage).join(
+                DataSource.attributes, isouter=True).join(
+                Attribute.attribute_privacy, isouter=True).join(
+                DataSource.permissions, isouter=True)
+
             for f, transform in possible_filters.items():
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
@@ -181,9 +185,17 @@ class DataSourceDetailApi(Resource):
     @staticmethod
     @requires_auth
     def get(data_source_id):
-        filtered = _filter_by_permissions(DataSource.query,
-                                          PermissionType.values())
-        data_source = filtered.filter(DataSource.id == data_source_id).first()
+
+        data_source = DataSource.query.join(DataSource.storage).join(
+            DataSource.attributes, isouter=True).join(
+            Attribute.attribute_privacy, isouter=True).join(
+            DataSource.permissions, isouter=True)
+
+        data_source = _filter_by_permissions(data_source,
+                                             PermissionType.values())
+
+        data_source = data_source.filter(
+            DataSource.id == data_source_id).first()
         if data_source is not None:
             return DataSourceItemResponseSchema().dump(data_source).data
         else:
