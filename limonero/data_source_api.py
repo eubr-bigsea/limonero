@@ -73,14 +73,15 @@ class DataSourceListApi(Resource):
                     [x.strip() for x in request.args.get('fields').split(',')])
 
             possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
-            data_sources = DataSource.query.join(DataSource.storage).join(
-                DataSource.attributes, isouter=True).join(
-                Attribute.attribute_privacy, isouter=True).join(
-                DataSource.permissions, isouter=True)
-
+            data_sources = DataSource.query
             for f, transform in possible_filters.items():
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
+
+            data_sources = data_sources.join(DataSource.storage).join(
+                DataSource.attributes, isouter=True).join(
+                Attribute.attribute_privacy, isouter=True).join(
+                DataSource.permissions, isouter=True)
 
             data_sources = data_sources.join(
                 DataSource.permissions, isouter=True).options(
