@@ -10,7 +10,7 @@ from urlparse import urlparse
 
 from dateutil import parser as date_parser
 from flask import g as flask_g
-from flask import request, Response, current_app
+from flask import request, Response, current_app, session
 from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
@@ -19,6 +19,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
+from limonero.py4j_init import create_gateway
 from schema import *
 
 log = logging.getLogger(__name__)
@@ -79,9 +80,11 @@ class DataSourceListApi(Resource):
                                             transform, lambda field: field)
 
             data_sources = data_sources.join(DataSource.storage).join(
-                DataSource.attributes, isouter=True).join(
-                Attribute.attribute_privacy, isouter=True).join(
-                DataSource.permissions, isouter=True)
+                DataSource.attributes, isouter=True).options(
+                joinedload(DataSource.attributes),
+                joinedload(DataSource.permissions),
+                joinedload(DataSource.storage)
+            )
 
             data_sources = data_sources.join(
                 DataSource.permissions, isouter=True).options(
@@ -188,15 +191,19 @@ class DataSourceDetailApi(Resource):
     def get(data_source_id):
 
         data_source = DataSource.query.join(DataSource.storage).join(
-            DataSource.attributes, isouter=True).join(
-            Attribute.attribute_privacy, isouter=True).join(
-            DataSource.permissions, isouter=True)
+            DataSource.attributes, isouter=True).options(
+            joinedload(DataSource.attributes),
+            joinedload(DataSource.permissions),
+            joinedload(DataSource.storage)
+        )
 
         data_source = _filter_by_permissions(data_source,
                                              PermissionType.values())
 
+        data_source = data_source.order_by(DataSource.name)
         data_source = data_source.filter(
             DataSource.id == data_source_id).first()
+
         if data_source is not None:
             return DataSourceItemResponseSchema().dump(data_source).data
         else:
@@ -380,142 +387,168 @@ class DataSourceUploadApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        identifier = request.args.get('resumableIdentifier', type=str)
-        filename = request.args.get('resumableFilename', type=str)
-        chunk_number = request.args.get('resumableChunkNumber', type=int)
+        gateway_key = None
+        # noinspection PyBroadException
+        try:
+            identifier = request.args.get('resumableIdentifier', type=str)
+            filename = request.args.get('resumableFilename', type=str)
+            chunk_number = request.args.get('resumableChunkNumber', type=int)
 
-        result, result_code = 'OK', 200
+            result, result_code = 'OK', 200
 
-        if not identifier or not filename or not chunk_number:
-            # Parameters are missing or invalid
-            result, result_code = 'Missing arguments', 500
-        else:
-            storage = Storage.query.get(
-                request.args.get('storage_id', type=int))
-            parsed = urlparse(storage.url)
+            if not identifier or not filename or not chunk_number:
+                # Parameters are missing or invalid
+                result, result_code = 'Missing arguments', 500
+            else:
+                storage = Storage.query.get(
+                    request.args.get('storage_id', type=int))
+                parsed = urlparse(storage.url)
 
-            # noinspection PyUnresolvedReferences
-            jvm = current_app.gateway.jvm
+                gateway_key = 'jvm_{}'.format(identifier)
+                gateway = session.get(gateway_key)
+                jvm = None
+                if gateway is None:
+                    gateway = create_gateway(log)
+                    session[gateway_key] = gateway
+                    jvm = gateway.jvm
 
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-            uri = jvm.java.net.URI(str_uri)
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                uri = jvm.java.net.URI(str_uri)
 
-            conf = jvm.org.apache.hadoop.conf.Configuration()
-            conf.set('dfs.client.use.datanode.hostname', 'true')
+                conf = jvm.org.apache.hadoop.conf.Configuration()
+                conf.set('dfs.client.use.datanode.hostname', 'true')
 
-            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
-            tmp_path = DataSourceUploadApi._get_tmp_path(
-                jvm, hdfs, parsed, filename)
+                tmp_path = DataSourceUploadApi._get_tmp_path(
+                    jvm, hdfs, parsed, filename)
 
-            chunk_filename = "{tmp}/{file}.part{part:09d}".format(
-                tmp=tmp_path.toString(), file=filename, part=chunk_number)
-            current_app.logger.debug('Creating chunk: %s', chunk_filename)
+                chunk_filename = "{tmp}/{file}.part{part:09d}".format(
+                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
+                current_app.logger.debug('Creating chunk: %s', chunk_filename)
 
-            # time.sleep(1)
-            chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
-            if not hdfs.exists(chunk_path):
-                # Let resumable.js know this chunk does not exists
-                #  and needs to be uploaded
-                result, result_code = 'Not found', 404
+                # time.sleep(1)
+                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
+                if not hdfs.exists(chunk_path):
+                    # Let resumable.js know this chunk does not exists
+                    #  and needs to be uploaded
+                    result, result_code = 'Not found', 404
 
-        return result, result_code
+            return result, result_code
+        except:
+            if gateway_key is not None and gateway_key in session:
+                del session[gateway_key]
+            raise
 
     @staticmethod
     @requires_auth
     def post():
-        identifier = request.args.get('resumableIdentifier', type=str)
-        filename = request.args.get('resumableFilename', type=unicode)
-        chunk_number = request.args.get('resumableChunkNumber', type=int)
-        total_chunks = request.args.get('resumableTotalChunks', type=int)
-        total_size = request.args.get('resumableTotalSize', type=int)
+        gateway_key = None
+        try:
+            identifier = request.args.get('resumableIdentifier', type=str)
+            filename = request.args.get('resumableFilename', type=unicode)
+            chunk_number = request.args.get('resumableChunkNumber', type=int)
+            total_chunks = request.args.get('resumableTotalChunks', type=int)
+            total_size = request.args.get('resumableTotalSize', type=int)
 
-        result, result_code = 'OK', 200
-        if not identifier or not filename or not chunk_number:
-            # Parameters are missing or invalid
-            result, result_code = 'Missing arguments', 500
-        else:
-            storage = Storage.query.get(
-                request.args.get('storage_id', type=int))
-            parsed = urlparse(storage.url)
+            result, result_code = 'OK', 200
+            if not identifier or not filename or not chunk_number:
+                # Parameters are missing or invalid
+                result, result_code = 'Missing arguments', 500
+            else:
+                storage = Storage.query.get(
+                    request.args.get('storage_id', type=int))
+                parsed = urlparse(storage.url)
 
-            # noinspection PyUnresolvedReferences
-            jvm = current_app.gateway.jvm
+                gateway_key = 'jvm_{}'.format(identifier)
+                gateway = session.get(gateway_key)
+                jvm = None
+                if gateway is None:
+                    gateway = create_gateway(log)
+                    session[gateway_key] = gateway
+                    jvm = gateway.jvm
 
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-            uri = jvm.java.net.URI(str_uri)
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                uri = jvm.java.net.URI(str_uri)
 
-            conf = jvm.org.apache.hadoop.conf.Configuration()
-            conf.set('dfs.client.use.datanode.hostname', 'true')
+                conf = jvm.org.apache.hadoop.conf.Configuration()
+                conf.set('dfs.client.use.datanode.hostname', 'true')
 
-            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
-            tmp_path = DataSourceUploadApi._get_tmp_path(
-                jvm, hdfs, parsed, filename)
+                tmp_path = DataSourceUploadApi._get_tmp_path(
+                    jvm, hdfs, parsed, filename)
 
-            chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
-                tmp=tmp_path.toString(), file=filename, part=chunk_number)
-            current_app.logger.debug('Wrote chunk: %s', chunk_filename)
+                chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
+                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
+                current_app.logger.debug('Wrote chunk: %s', chunk_filename)
 
-            chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
+                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
 
-            output_stream = hdfs.create(chunk_path)
-            block = bytearray2(request.get_data())
-            output_stream.write(block, 0, len(block))
+                output_stream = hdfs.create(chunk_path)
+                block = bytearray2(request.get_data())
+                output_stream.write(block, 0, len(block))
 
-            output_stream.close()
+                output_stream.close()
 
-            # Checks if all file's parts are present
-            full_path = tmp_path
-            list_iter = hdfs.listFiles(full_path, False)
-            counter = 0
-            while list_iter.hasNext():
-                counter += 1
-                list_iter.next()
+                # Checks if all file's parts are present
+                full_path = tmp_path
+                list_iter = hdfs.listFiles(full_path, False)
+                counter = 0
+                while list_iter.hasNext():
+                    counter += 1
+                    list_iter.next()
 
-            if counter == total_chunks:
-                final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
+                if counter == total_chunks:
+                    final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
 
-                # time to merge all files
-                target_path = jvm.org.apache.hadoop.fs.Path(
-                    u'{}/{}'.format(u'/limonero/data', final_filename))
-                if hdfs.exists(target_path):
-                    result, result_code = {"status": "error",
-                                           "message": "File already exists"}, \
-                                          500
-                jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
-                    hdfs, full_path, hdfs, target_path, True, conf, None)
+                    # time to merge all files
+                    target_path = jvm.org.apache.hadoop.fs.Path(
+                        u'{}/{}'.format(u'/limonero/data', final_filename))
+                    if hdfs.exists(target_path):
+                        result = {"status": "error",
+                                  "message": "File already exists"}
+                        result_code = 500
+                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
+                        hdfs, full_path, hdfs, target_path, True, conf, None)
 
-                # noinspection PyBroadException
-                try:
-                    user = getattr(flask_g, 'user')
-                except:
-                    user = User(id=1, login='admin',
-                                email='admin@lemonade',
-                                first_name='admin',
-                                last_name='admin',
-                                locale='en')
+                    # noinspection PyBroadException
+                    try:
+                        user = getattr(flask_g, 'user')
+                    except:
+                        user = User(id=1, login='admin',
+                                    email='admin@lemonade',
+                                    first_name='admin',
+                                    last_name='admin',
+                                    locale='en')
 
-                ds = DataSource(
-                    name=filename,
-                    storage_id=storage.id,
-                    description='Imported in Limonero',
-                    enabled=True,
-                    url='{}{}'.format(str_uri, target_path.toString()),
-                    format=DataSourceFormat.TEXT,
-                    estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
-                    user_id=user.id,
-                    user_login=user.login,
-                    user_name='{} {}'.format(user.first_name,
-                                             user.last_name).strip())
+                    ds = DataSource(
+                        name=filename,
+                        storage_id=storage.id,
+                        description='Imported in Limonero',
+                        enabled=True,
+                        url='{}{}'.format(str_uri, target_path.toString()),
+                        format=DataSourceFormat.TEXT,
+                        estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
+                        user_id=user.id,
+                        user_login=user.login,
+                        user_name='{} {}'.format(user.first_name,
+                                                 user.last_name).strip())
 
-                db.session.add(ds)
-                db.session.commit()
+                    if gateway_key in session:
+                        del session[gateway_key]
+                    gateway.shutdown()
+                    db.session.add(ds)
+                    db.session.commit()
 
-        return result, result_code, {
-            'Content-Type': 'application/json; charset=utf-8'}
+            return result, result_code, {
+                'Content-Type': 'application/json; charset=utf-8'}
+        except:
+            if gateway_key is not None and gateway_key in session:
+                del session[gateway_key]
+            raise
 
 
 class DataSourceDownload(MethodView):

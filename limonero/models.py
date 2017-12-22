@@ -177,7 +177,7 @@ class Attribute(db.Model):
                         cascade="all, delete-orphan"))
     attribute_privacy = relationship(
         "AttributePrivacy", uselist=False,
-        back_populates="attribute")
+        back_populates="attribute", lazy='joined')
 
     def __unicode__(self):
         return self.name
