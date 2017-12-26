@@ -2,13 +2,19 @@ import glob
 import sys
 
 import os
-from py4j.java_gateway import JavaGateway
+from py4j.java_gateway import JavaGateway, GatewayParameters, launch_gateway
 
 
 def init_jvm(flask_app, logger):
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        flask_app.gateway_port = create_jvm(logger)
+
+
+def create_jvm(logger):
     hadoop_home = os.environ.get('HADOOP_HOME')
     spark_home = os.environ.get('SPARK_HOME')
     cp = {}
+    port = None
 
     if hadoop_home:
         cp.update({
@@ -63,9 +69,13 @@ def init_jvm(flask_app, logger):
             logger.warn('Hadoop JARs not found. Data source upload will not '
                         'work. Set HADOOP_HOME and/or SPARK_HOME environment '
                         'variables to the correct path.')
-            flask_app.gateway = None
         else:
-            flask_app.gateway = JavaGateway.launch_gateway(
-                classpath=":".join(final_cp), redirect_stdout=sys.stdout,
-                redirect_stderr=sys.stderr, die_on_exit=True)
+            port = launch_gateway(classpath=":".join(final_cp),
+                                  redirect_stdout=sys.stdout,
+                                  redirect_stderr=sys.stderr, die_on_exit=True)
+    return port
 
+
+def create_gateway(port):
+    params = GatewayParameters(port=port, eager_load=True)
+    return JavaGateway(gateway_parameters=params)

@@ -636,7 +636,9 @@ class DataSourceInferSchemaApi(Resource):
         parsed = urlparse(ds.storage.url)
 
         # noinspection PyUnresolvedReferences
-        jvm = current_app.gateway.jvm
+        gateway = create_gateway(current_app.gateway_port)
+        jvm = gateway.jvm
+
         hadoop_pkg = jvm.org.apache.hadoop
         str_uri = '{proto}://{host}:{port}'.format(
             proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
@@ -736,9 +738,11 @@ class DataSourceInferSchemaApi(Resource):
 
             db.session.commit()
         except Exception as e:
+
             db.session.rollback()
             log.exception('Invalid CSV format')
             return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
+        gateway.shutdown()
         return {'status': 'OK'}
 
     @staticmethod
