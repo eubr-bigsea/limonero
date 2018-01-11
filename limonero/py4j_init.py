@@ -6,8 +6,7 @@ from py4j.java_gateway import JavaGateway, GatewayParameters, launch_gateway
 
 
 def init_jvm(flask_app, logger):
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        flask_app.gateway_port = create_jvm(logger)
+    flask_app.gateway_port = create_jvm(logger)
 
 
 def create_jvm(logger):
