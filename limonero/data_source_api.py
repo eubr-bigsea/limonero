@@ -410,13 +410,8 @@ class DataSourceUploadApi(Resource):
                     request.args.get('storage_id', type=int))
                 parsed = urlparse(storage.url)
 
-                gateway_key = 'jvm_{}'.format(identifier)
-                gateway = session.get(gateway_key)
-                jvm = None
-                if gateway is None:
-                    gateway = create_gateway(log, current_app.gateway_port)
-                    session[gateway_key] = gateway
-                    jvm = gateway.jvm
+                gateway = create_gateway(log, current_app.gateway_port)
+                jvm = gateway.jvm
 
                 str_uri = '{proto}://{host}:{port}'.format(
                     proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
@@ -443,14 +438,11 @@ class DataSourceUploadApi(Resource):
 
             return result, result_code
         except:
-            if gateway_key is not None and gateway_key in session:
-                del session[gateway_key]
             raise
 
     @staticmethod
     @requires_auth
     def post():
-        gateway_key = None
         try:
             identifier = request.args.get('resumableIdentifier', type=str)
             filename = request.args.get('resumableFilename', type=unicode)
@@ -467,13 +459,8 @@ class DataSourceUploadApi(Resource):
                     request.args.get('storage_id', type=int))
                 parsed = urlparse(storage.url)
 
-                gateway_key = 'jvm_{}'.format(identifier)
-                gateway = session.get(gateway_key)
-                jvm = None
-                if gateway is None:
-                    gateway = create_gateway(log, current_app.gateway_port)
-                    session[gateway_key] = gateway
-                    jvm = gateway.jvm
+                gateway = create_gateway(log, current_app.gateway_port)
+                jvm = gateway.jvm
 
                 str_uri = '{proto}://{host}:{port}'.format(
                     proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
@@ -555,8 +542,6 @@ class DataSourceUploadApi(Resource):
                         user_name='{} {}'.format(user.first_name,
                                                  user.last_name).strip())
 
-                    if gateway_key in session:
-                        del session[gateway_key]
                     # gateway.shutdown()
                     db.session.add(ds)
                     db.session.commit()
@@ -564,8 +549,6 @@ class DataSourceUploadApi(Resource):
             return result, result_code, {
                 'Content-Type': 'application/json; charset=utf-8'}
         except:
-            if gateway_key is not None and gateway_key in session:
-                del session[gateway_key]
             raise
 
 
@@ -580,8 +563,8 @@ class DataSourceDownload(MethodView):
 
         parsed = urlparse(data_source.url)
 
-        # noinspection PyUnresolvedReferences
-        jvm = current_app.gateway.jvm
+        gateway = create_gateway(log, current_app.gateway_port)
+        jvm = gateway.jvm
 
         str_uri = '{proto}://{host}:{port}'.format(
             proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
