@@ -414,7 +414,7 @@ class DataSourceUploadApi(Resource):
                 gateway = session.get(gateway_key)
                 jvm = None
                 if gateway is None:
-                    gateway = create_gateway(log)
+                    gateway = create_gateway(log, current_app.gateway_port)
                     session[gateway_key] = gateway
                     jvm = gateway.jvm
 
@@ -471,7 +471,7 @@ class DataSourceUploadApi(Resource):
                 gateway = session.get(gateway_key)
                 jvm = None
                 if gateway is None:
-                    gateway = create_gateway(log)
+                    gateway = create_gateway(log, current_app.gateway_port)
                     session[gateway_key] = gateway
                     jvm = gateway.jvm
 
@@ -530,13 +530,25 @@ class DataSourceUploadApi(Resource):
                                     last_name='admin',
                                     locale='en')
 
+                    extension = filename[-3:].lower()
+                    infer = False
+                    if extension == 'csv':
+                        ds_format = DataSourceFormat.CSV
+                        infer = True
+                    elif extension == 'json':
+                        ds_format = DataSourceFormat.JSON
+                    elif extension == 'xml':
+                        ds_format = DataSourceFormat.XML_FILE
+                    else:
+                        ds_format = DataSourceFormat.TEXT
+
                     ds = DataSource(
+                        format=ds_format,
                         name=filename,
                         storage_id=storage.id,
                         description='Imported in Limonero',
                         enabled=True,
                         url='{}{}'.format(str_uri, target_path.toString()),
-                        format=DataSourceFormat.TEXT,
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
@@ -545,7 +557,7 @@ class DataSourceUploadApi(Resource):
 
                     if gateway_key in session:
                         del session[gateway_key]
-                    gateway.shutdown()
+                    # gateway.shutdown()
                     db.session.add(ds)
                     db.session.commit()
 
@@ -631,18 +643,11 @@ class DataSourceInferSchemaApi(Resource):
     }
 
     @staticmethod
-    @requires_auth
-    def post(data_source_id):
-
-        ds = DataSource.query.get_or_404(data_source_id)
-        request_body = {}
-        if request.data:
-            request_body = json.loads(request.data)
-
+    def infer_schema(ds, options):
         parsed = urlparse(ds.storage.url)
 
         # noinspection PyUnresolvedReferences
-        gateway = create_gateway(current_app.gateway_port)
+        gateway = create_gateway(log, current_app.gateway_port)
         jvm = gateway.jvm
 
         hadoop_pkg = jvm.org.apache.hadoop
@@ -657,9 +662,9 @@ class DataSourceInferSchemaApi(Resource):
         path = hadoop_pkg.fs.Path(ds.url)
 
         if ds.format == DataSourceFormat.CSV:
-            use_header = request_body.get('use_header',
-                                          False) or ds.is_first_line_header
-            delimiter = request_body.get('delimiter', ',').encode('latin1')
+            use_header = options.get('use_header',
+                                     False) or ds.is_first_line_header
+            delimiter = options.get('delimiter', ',').encode('latin1')
             # If there is a delimiter set in data_source, use it instead
             if ds.attribute_delimiter:
                 delimiter = ds.attribute_delimiter
@@ -671,7 +676,7 @@ class DataSourceInferSchemaApi(Resource):
             buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
                 conf, ds, hadoop_pkg, hdfs, jvm, path)
 
-            quote_char = request_body.get('quote_char', None)
+            quote_char = options.get('quote_char', None)
             quote_char = quote_char.encode(encoding) if quote_char else None
 
             # Read 100 lines, may be enough to infer schema
@@ -681,8 +686,8 @@ class DataSourceInferSchemaApi(Resource):
                 if line is None:
                     break
                 line = line.replace('\0', '')
-                lines.write(line.encode('utf8'))
-                lines.write('\n')
+                lines.write(line)
+                lines.write(u'\n')
 
             buffered_reader.close()
             lines.seek(0)
@@ -758,7 +763,18 @@ class DataSourceInferSchemaApi(Resource):
         else:
             raise ValueError(
                 'Cannot infer the schema for format {}'.format(ds.format))
-        gateway.shutdown()
+        # gateway.shutdown()
+
+    @staticmethod
+    @requires_auth
+    def post(data_source_id):
+
+        ds = DataSource.query.get_or_404(data_source_id)
+        request_body = {}
+        if request.data:
+            request_body = json.loads(request.data)
+
+        DataSourceInferSchemaApi.infer_schema(ds, request_body)
         return {'status': 'OK'}
 
     @staticmethod

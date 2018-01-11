@@ -77,6 +77,6 @@ def create_jvm(logger):
     return port
 
 
-def create_gateway(port):
+def create_gateway(logger, port):
     params = GatewayParameters(port=port, eager_load=True)
     return JavaGateway(gateway_parameters=params)
