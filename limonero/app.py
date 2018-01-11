@@ -125,10 +125,6 @@ def main(is_main_module):
         app.config.update(config.get('config', {}))
 
         db.init_app(app)
-        # redis_store.init_app(app)
-
-        # with app.app_context():
-        #    db.create_all()
 
         port = int(config.get('port', 5000))
         logger.debug('Running in %s mode', config.get('environment'))
