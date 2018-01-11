@@ -26,6 +26,7 @@ def create_jvm(logger):
                 'guava-*.jar',
                 'commons-collections-*.jar',
                 'commons-configuration-*.jar',
+                'commons-io-*.jar',
                 'commons-lang-*.jar',
                 'hadoop-auth-*.jar',
                 'slf4j-api-*.jar',

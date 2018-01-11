@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-}
-import StringIO
 import csv
+import io
 import logging
 import math
 import unicodedata
 import uuid
 from ast import literal_eval
+from io import BytesIO
 from urlparse import urlparse
 
+import re
 from dateutil import parser as date_parser
+from dbfpy import dbf
 from flask import g as flask_g
 from flask import request, Response, current_app, session
 from flask import stream_with_context
@@ -63,9 +66,11 @@ class DataSourceListApi(Resource):
         result, result_code = 'Internal error', 500
         # noinspection PyBroadException
         try:
+            simple = False
             if request.args.get('simple') != 'true':
                 only = None
             else:
+                simple = True
                 only = ('id', 'name', 'description', 'created',
                         'user_name', 'permissions', 'user_id', 'privacy_aware')
 
@@ -79,16 +84,12 @@ class DataSourceListApi(Resource):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
-            data_sources = data_sources.join(DataSource.storage).join(
-                DataSource.attributes, isouter=True).options(
-                joinedload(DataSource.attributes),
+            data_sources = data_sources.options(
                 joinedload(DataSource.permissions),
-                joinedload(DataSource.storage)
             )
-
-            data_sources = data_sources.join(
-                DataSource.permissions, isouter=True).options(
-                joinedload('permissions'))
+            if not simple:
+                data_sources = data_sources.options(
+                    joinedload(DataSource.attributes))
 
             data_sources = _filter_by_permissions(
                 data_sources, PermissionType.values())
@@ -190,11 +191,16 @@ class DataSourceDetailApi(Resource):
     @requires_auth
     def get(data_source_id):
 
-        data_source = DataSource.query.join(DataSource.storage).join(
-            DataSource.attributes, isouter=True).options(
+        # data_source = DataSource.query.join(DataSource.storage).join(
+        #     DataSource.attributes, isouter=True).options(
+        #     joinedload(DataSource.attributes),
+        #     joinedload(DataSource.permissions),
+        #     joinedload(DataSource.storage)
+        # )
+
+        data_source = DataSource.query.join(DataSource.storage).options(
             joinedload(DataSource.attributes),
             joinedload(DataSource.permissions),
-            joinedload(DataSource.storage)
         )
 
         data_source = _filter_by_permissions(data_source,
@@ -650,10 +656,116 @@ class DataSourceInferSchemaApi(Resource):
         hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
         path = hadoop_pkg.fs.Path(ds.url)
 
+        if ds.format == DataSourceFormat.CSV:
+            use_header = request_body.get('use_header',
+                                          False) or ds.is_first_line_header
+            delimiter = request_body.get('delimiter', ',').encode('latin1')
+            # If there is a delimiter set in data_source, use it instead
+            if ds.attribute_delimiter:
+                delimiter = ds.attribute_delimiter
+
+            special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
+            delimiter = special_delimiters.get(delimiter, delimiter).encode(
+                'utf8')
+
+            buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
+                conf, ds, hadoop_pkg, hdfs, jvm, path)
+
+            quote_char = request_body.get('quote_char', None)
+            quote_char = quote_char.encode(encoding) if quote_char else None
+
+            # Read 100 lines, may be enough to infer schema
+            lines = io.StringIO()
+            for _ in range(1000):
+                line = buffered_reader.readLine()
+                if line is None:
+                    break
+                line = line.replace('\0', '')
+                lines.write(line.encode('utf8'))
+                lines.write('\n')
+
+            buffered_reader.close()
+            lines.seek(0)
+
+            csv_reader = csv.reader(lines, delimiter=delimiter,
+                                    quotechar=quote_char)
+
+            attrs = []
+            # noinspection PyBroadException
+            try:
+                attrs = DataSourceInferSchemaApi._get_csv_attributes(
+                    attrs, csv_reader, use_header)
+
+                old_attrs = Attribute.query.filter(
+                    Attribute.data_source_id == ds.id)
+                old_attrs.delete(synchronize_session=False)
+                for attr in attrs:
+                    if attr.type is None:
+                        attr.type = DataType.CHARACTER
+                    if attr.type == DataType.CHARACTER:
+                        if attr.size > 1000:
+                            attr.type = DataType.TEXT
+                    attr.data_source = ds
+                    attr.feature = False
+                    attr.label = False
+                    db.session.add(attr)
+
+                db.session.commit()
+            except Exception as e:
+
+                db.session.rollback()
+                log.exception('Invalid CSV format')
+                return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
+        elif ds.format == DataSourceFormat.SHAPEFILE:
+            old_attrs = Attribute.query.filter(
+                Attribute.data_source_id == ds.id)
+            old_attrs.delete(synchronize_session=False)
+
+            path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
+            input_stream_dbf = jvm.java.io.BufferedInputStream(hdfs.open(path2))
+
+            dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
+                input_stream_dbf)
+
+            dbf_io = BytesIO(dbf_content)
+            handler = dbf.Dbf(dbf_io)
+
+            types = {
+                'C': DataType.CHARACTER,
+                'B': DataType.DOUBLE,
+                'D': DataType.DATETIME,
+                'F': DataType.FLOAT,
+                'I': DataType.INTEGER,
+                'L': DataType.INTEGER,
+                'M': DataType.TEXT,
+                'N': DataType.FLOAT,
+                'O': DataType.DOUBLE,
+                'V': DataType.CHARACTER,
+                'Y': DataType.DECIMAL
+            }
+            for definition in handler.fieldDefs:
+                data_type = types[definition.typeCode]
+                attr = Attribute(name=definition.name, nullable=True,
+                                 enumeration=False, type=data_type,
+                                 feature=False, label=False,
+                                 size=definition.length,
+                                 scale=definition.decimalCount)
+                attr.data_source = ds
+                attr.feature = False
+                attr.label = False
+                db.session.add(attr)
+            db.session.commit()
+        else:
+            raise ValueError(
+                'Cannot infer the schema for format {}'.format(ds.format))
+        gateway.shutdown()
+        return {'status': 'OK'}
+
+    @staticmethod
+    def _get_reader(conf, ds, hadoop_pkg, hdfs, jvm, path):
         # Support to Gzip'ed files. Spark also supports gzip transparently.
         codec_factory = hadoop_pkg.io.compress.CompressionCodecFactory(conf)
         codec = codec_factory.getCodec(path)
-
         if codec is None:
             input_stream = hdfs.open(path)
         else:
@@ -663,87 +775,34 @@ class DataSourceInferSchemaApi(Resource):
         # See https://stackoverflow.com/a/44862536/1646932
         bom_input_stream = jvm.org.apache.commons.io.input.BOMInputStream(
             input_stream)
-
         if bom_input_stream.getBOM() is not None:
             encoding = bom_input_stream.getBOM().getCharsetName()
         else:
             encoding = ds.encoding or 'UTF-8'
         buffered_reader = jvm.java.io.BufferedReader(
             jvm.java.io.InputStreamReader(bom_input_stream, encoding))
+        return buffered_reader, encoding
 
-        delimiter = request_body.get('delimiter', ',').encode('latin1')
-        # If there is a delimiter set in data_source, use it instead
-        if ds.attribute_delimiter:
-            delimiter = ds.attribute_delimiter
-
-        special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
-        delimiter = special_delimiters.get(delimiter, delimiter).encode('utf8')
-
-        quote_char = request_body.get('quote_char', None)
-
-        quote_char = quote_char.encode(encoding) if quote_char else None
-        use_header = request_body.get('use_header',
-                                      False) or ds.is_first_line_header
-
-        # Read 100 lines, may be enough to infer schema
-        lines = StringIO.StringIO()
-        for _ in range(1000):
-            line = buffered_reader.readLine()
-            if line is None:
-                break
-            line = line.replace('\0', '')
-            lines.write(line.encode('utf8'))
-            lines.write('\n')
-
-        buffered_reader.close()
-        lines.seek(0)
-
-        csv_reader = csv.reader(lines, delimiter=delimiter,
-                                quotechar=quote_char)
-
-        attrs = []
-        # noinspection PyBroadException
-        try:
-            for row in csv_reader:
-                if use_header and len(attrs) == 0:
-                    attrs = DataSourceInferSchemaApi._get_header(row)
-                else:
-                    if len(attrs) == 0:
-                        attrs = DataSourceInferSchemaApi._get_default_header(
-                            row)
-                    for i, value in enumerate(row):
-                        if value is None or value == '':
-                            attrs[i].nullable = True
+    @staticmethod
+    def _get_csv_attributes(attrs, csv_reader, use_header):
+        for row in csv_reader:
+            if use_header and len(attrs) == 0:
+                attrs = DataSourceInferSchemaApi._get_header(row)
+            else:
+                if len(attrs) == 0:
+                    attrs = DataSourceInferSchemaApi._get_default_header(
+                        row)
+                for i, value in enumerate(row):
+                    if value is None or value == '':
+                        attrs[i].nullable = True
+                    else:
+                        if attrs[i].type != DataType.CHARACTER:
+                            DataSourceInferSchemaApi._infer_attr(
+                                attrs, i, value)
                         else:
-                            if attrs[i].type != DataType.CHARACTER:
-                                DataSourceInferSchemaApi._infer_attr(attrs, i,
-                                                                     value)
-                            else:
-                                attrs[i].size = max(attrs[i].size, len(value))
-
-            old_attrs = Attribute.query.filter(
-                Attribute.data_source_id == ds.id)
-            old_attrs.delete(synchronize_session=False)
-            for attr in attrs:
-
-                if attr.type is None:
-                    attr.type = DataType.CHARACTER
-                if attr.type == DataType.CHARACTER:
-                    if attr.size > 1000:
-                        attr.type = DataType.TEXT
-                attr.data_source = ds
-                attr.feature = False
-                attr.label = False
-                db.session.add(attr)
-
-            db.session.commit()
-        except Exception as e:
-
-            db.session.rollback()
-            log.exception('Invalid CSV format')
-            return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
-        gateway.shutdown()
-        return {'status': 'OK'}
+                            attrs[i].size = max(
+                                attrs[i].size, len(value))
+        return attrs
 
     @staticmethod
     def _infer_attr(attrs, i, value):
