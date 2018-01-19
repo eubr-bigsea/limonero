@@ -647,7 +647,7 @@ class DataSourceInferSchemaApi(Resource):
         if ds.format == DataSourceFormat.CSV:
             use_header = options.get('use_header',
                                      False) or ds.is_first_line_header
-            delimiter = options.get('delimiter', ',').encode('latin1')
+            delimiter = (options.get('delimiter', ',') or ',').encode('latin1')
             # If there is a delimiter set in data_source, use it instead
             if ds.attribute_delimiter:
                 delimiter = ds.attribute_delimiter
