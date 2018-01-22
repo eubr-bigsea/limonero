@@ -744,9 +744,10 @@ class DataSourceInferSchemaApi(Resource):
                 db.session.add(attr)
             db.session.commit()
         else:
+            gateway.shutdown()
             raise ValueError(
                 'Cannot infer the schema for format {}'.format(ds.format))
-        # gateway.shutdown()
+        gateway.shutdown()
 
     @staticmethod
     @requires_auth

@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import argparse
 import itertools
 import logging
 import logging.config
+import signal
 
 import eventlet
 import eventlet.wsgi
 import os
 import sqlalchemy_utils
+import sys
 import yaml
 from flask import Flask, request
 from flask_admin import Admin
@@ -30,7 +33,7 @@ from py4j_init import init_jvm
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
 
-eventlet.monkey_patch(all=True)
+eventlet.monkey_patch(all=True, thread=False)
 app = Flask(__name__, static_url_path='')
 
 babel = Babel(app)
@@ -94,8 +97,14 @@ def get_locale():
     return request.args.get('lang', 'en')
 
 
+# noinspection PyUnusedLocal
+def exit_gracefully(s, frame):
+    os.kill(os.getpid(), signal.SIGTERM)
+
+
 def main(is_main_module):
     config_file = None
+    signal.signal(signal.SIGINT, exit_gracefully)
     if is_main_module:
         parser = argparse.ArgumentParser()
         parser.add_argument("-c", "--config", type=str,
