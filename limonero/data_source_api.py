@@ -105,6 +105,7 @@ class DataSourceListApi(Resource):
             data_sources = data_sources.order_by(sort_option)
 
             page = request.args.get('page') or '1'
+
             if request.args.get('list') is None:
                 if page is not None and page.isdigit():
                     page_size = int(request.args.get('size', 20))
@@ -129,6 +130,7 @@ class DataSourceListApi(Resource):
                         'data': DataSourceListResponseSchema(
                             many=True, only=only).dump(data_sources).data}
             else:
+                only = ('id', 'name')
                 result = DataSourceListResponseSchema(
                     many=True, only=only).dump(data_sources).data
             db.session.commit()
