@@ -1,5 +1,5 @@
-FROM ubuntu:16.04
-MAINTAINER Vinicius Dias <viniciusvdias@dcc.ufmg.br>
+FROM openjdk:8-jre
+LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf <guimalufb@gmail.com>"
 
 ENV LIMONERO_HOME /usr/local/limonero
 ENV LIMONERO_CONFIG $LIMONERO_HOME/conf/limonero-config.yaml
@@ -15,9 +15,6 @@ RUN apt-get update && apt-get install -y curl \
 
 RUN apt-get install -y  \
      python-pip \
-     vim \
-     curl \
-     openjdk-8-jdk \
    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR $LIMONERO_HOME

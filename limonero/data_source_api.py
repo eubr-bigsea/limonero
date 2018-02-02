@@ -84,9 +84,7 @@ class DataSourceListApi(Resource):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
-            data_sources = data_sources.options(
-                joinedload(DataSource.permissions),
-            )
+            data_sources = data_sources.join(DataSourcePermission, isouter=True)
             if not simple:
                 data_sources = data_sources.options(
                     joinedload(DataSource.attributes))
