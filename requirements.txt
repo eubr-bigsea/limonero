@@ -21,13 +21,13 @@ Flask-Script==2.0.6
 Flask-SQLAlchemy==2.3.2
 greenlet==0.4.13
 idna==2.6
+hdfs3==0.3.0
 itsdangerous==0.24
 Jinja2==2.10
 Mako==1.0.7
 MarkupSafe==1.0
 marshmallow==2.15.0
 packaging==16.8
-py4j==0.10.6
 pyaml==17.12.1
 PyMySQL==0.8.0
 pyparsing==2.2.0

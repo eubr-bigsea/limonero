@@ -1,37 +1,58 @@
 # -*- coding: utf-8 -*-}
+import codecs
 import csv
-import io
 import logging
 import math
 import re
 import unicodedata
-import uuid
+import StringIO
 from ast import literal_eval
 from io import BytesIO
 from urlparse import urlparse
 
 from dateutil import parser as date_parser
 from dbfpy import dbf
+from werkzeug.exceptions import NotFound
 from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
-from py4j.compat import bytearray2
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
-from limonero.py4j_init import create_gateway
 from schema import *
+
+from hdfs3 import HDFileSystem
 
 log = logging.getLogger(__name__)
 
+def create_hdfs_from_url(url, user = "root"):
+    parsed = urlparse(url)
+
+    str_uri = '{proto}://{host}'.format(
+        proto=parsed.scheme, host=parsed.hostname)
+
+    return HDFileSystem(host=str_uri, port=parsed.port, user=user)
+
+def create_hdfs(storage, user = "root"):
+    return create_hdfs_from_url(storage.url, user=user)
+
+def create_tmp_path(hdfs, identifier):
+    tmp_path = '/tmp/upload/{}'.format(identifier)
+    if not hdfs.exists(tmp_path):
+        hdfs.mkdir(tmp_path)
+    return tmp_path
+
+def create_chunk_name(hdfs, identifier, filename, chunk_number):
+    tmp_path = create_tmp_path(hdfs, identifier)
+    return "{tmp}/{file}.part{part:09d}".format(
+        tmp=tmp_path, file=filename, part=chunk_number)
 
 def strip_accents(s):
     return ''.join(c for c in unicodedata.normalize('NFD', s)
                    if unicodedata.category(c) != 'Mn')
-
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
     result = query
@@ -133,6 +154,10 @@ class DataSourceListApi(Resource):
                     many=True, only=only).dump(data_sources).data
             db.session.commit()
             result_code = 200
+        except NotFound as ex:
+            print ex
+            log.exception(ex.message)
+            raise(ex)
         except Exception as ex:
             print ex
             log.exception(ex.message)
@@ -382,23 +407,14 @@ class DataSourceUploadApi(Resource):
     """ REST API for upload a DataSource """
 
     @staticmethod
-    def _get_tmp_path(jvm, hdfs, parsed, filename):
-        tmp_dir = u'{}/tmp/upload/{}'.format(parsed.path.replace('//', '/'),
-                                             filename)
-        tmp_path = jvm.org.apache.hadoop.fs.Path(tmp_dir)
-        if not hdfs.exists(tmp_path):
-            hdfs.mkdirs(tmp_path)
-        return tmp_path
-
-    @staticmethod
     @requires_auth
     def get():
-        gateway_key = None
         # noinspection PyBroadException
         try:
             identifier = request.args.get('resumableIdentifier', type=str)
             filename = request.args.get('resumableFilename', type=str)
             chunk_number = request.args.get('resumableChunkNumber', type=int)
+            storage_id = request.args.get('storage_id', type=int)
 
             result, result_code = 'OK', 200
 
@@ -406,32 +422,13 @@ class DataSourceUploadApi(Resource):
                 # Parameters are missing or invalid
                 result, result_code = 'Missing arguments', 500
             else:
-                storage = Storage.query.get(
-                    request.args.get('storage_id', type=int))
-                parsed = urlparse(storage.url)
+                storage = Storage.query.get(storage_id)
+                hdfs = create_hdfs(storage)
 
-                gateway = create_gateway(log, current_app.gateway_port)
-                jvm = gateway.jvm
+                chunk_filename = create_chunk_name(hdfs, identifier, filename, chunk_number)
+                current_app.logger.debug('Checking for chunk: %s', chunk_filename)
 
-                str_uri = '{proto}://{host}:{port}'.format(
-                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-                uri = jvm.java.net.URI(str_uri)
-
-                conf = jvm.org.apache.hadoop.conf.Configuration()
-                conf.set('dfs.client.use.datanode.hostname', 'true')
-
-                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-
-                tmp_path = DataSourceUploadApi._get_tmp_path(
-                    jvm, hdfs, parsed, filename)
-
-                chunk_filename = "{tmp}/{file}.part{part:09d}".format(
-                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
-                current_app.logger.debug('Creating chunk: %s', chunk_filename)
-
-                # time.sleep(1)
-                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
-                if not hdfs.exists(chunk_path):
+                if not hdfs.exists(chunk_filename):
                     # Let resumable.js know this chunk does not exists
                     #  and needs to be uploaded
                     result, result_code = 'Not found', 404
@@ -449,65 +446,53 @@ class DataSourceUploadApi(Resource):
             chunk_number = request.args.get('resumableChunkNumber', type=int)
             total_chunks = request.args.get('resumableTotalChunks', type=int)
             total_size = request.args.get('resumableTotalSize', type=int)
+            storage_id = request.args.get('storage_id', type=int)
 
             result, result_code = 'OK', 200
             if not identifier or not filename or not chunk_number:
                 # Parameters are missing or invalid
                 result, result_code = 'Missing arguments', 500
             else:
-                storage = Storage.query.get(
-                    request.args.get('storage_id', type=int))
-                parsed = urlparse(storage.url)
+                storage = Storage.query.get(storage_id)
+                hdfs = create_hdfs(storage)
 
-                gateway = create_gateway(log, current_app.gateway_port)
-                jvm = gateway.jvm
+                chunk_filename = create_chunk_name(hdfs, identifier, filename, chunk_number)
 
-                str_uri = '{proto}://{host}:{port}'.format(
-                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-                uri = jvm.java.net.URI(str_uri)
+                with hdfs.open(chunk_filename, 'wb') as f:
+                    f.write(request.get_data())
 
-                conf = jvm.org.apache.hadoop.conf.Configuration()
-                conf.set('dfs.client.use.datanode.hostname', 'true')
-
-                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-
-                tmp_path = DataSourceUploadApi._get_tmp_path(
-                    jvm, hdfs, parsed, filename)
-
-                chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
-                    tmp=tmp_path.toString(), file=filename, part=chunk_number)
                 current_app.logger.debug('Wrote chunk: %s', chunk_filename)
 
-                chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
-
-                output_stream = hdfs.create(chunk_path)
-                block = bytearray2(request.get_data())
-                output_stream.write(block, 0, len(block))
-
-                output_stream.close()
-
                 # Checks if all file's parts are present
-                full_path = tmp_path
-                list_iter = hdfs.listFiles(full_path, False)
-                counter = 0
-                while list_iter.hasNext():
-                    counter += 1
-                    list_iter.next()
+                full_path = create_tmp_path(hdfs, identifier)
+
+                counter = len(hdfs.ls(full_path))
 
                 if counter == total_chunks:
-                    final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
+                    final_filename = '{}_{}'.format(identifier, filename)
 
+                    if not hdfs.exists("/limonero/data"):
+                        hdfs.mkdir("/limonero/data")
                     # time to merge all files
-                    target_path = jvm.org.apache.hadoop.fs.Path(
-                        u'{}/{}'.format(u'/limonero/data', final_filename))
+                    target_path = u'{}/{}'.format(u'/limonero/data',
+                        final_filename)
+
                     if hdfs.exists(target_path):
                         result = {"status": "error",
                                   "message": "File already exists"}
                         result_code = 500
-                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
-                        hdfs, full_path, hdfs, target_path, True, conf, None)
-
-                    # noinspection PyBroadException
+                        return result, result_code, {
+                            'Content-Type': 'application/json; charset=utf-8'}
+                    else:
+                        files = hdfs.ls(full_path)
+                        with hdfs.open(target_path, 'wb') as f2:
+                            for apath in files:
+                                with hdfs.open(apath, 'rb') as f:
+                                    out = 1
+                                    while out:
+                                        out = f.read(2**16)
+                                        f2.write(out)
+                                    # noinspection PyBroadException
                     try:
                         user = getattr(flask_g, 'user')
                     except:
@@ -535,14 +520,13 @@ class DataSourceUploadApi(Resource):
                         storage_id=storage.id,
                         description='Imported in Limonero',
                         enabled=True,
-                        url='{}{}'.format(str_uri, target_path.toString()),
+                        url='{}{}'.format(storage.url, target_path),
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
                         user_name='{} {}'.format(user.first_name,
                                                  user.last_name).strip())
 
-                    # gateway.shutdown()
                     db.session.add(ds)
                     db.session.commit()
 
@@ -561,41 +545,26 @@ class DataSourceDownload(MethodView):
     def get(data_source_id):
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 
-        parsed = urlparse(data_source.url)
-
-        gateway = create_gateway(log, current_app.gateway_port)
-        jvm = gateway.jvm
-
-        str_uri = '{proto}://{host}:{port}'.format(
-            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-
         try:
-            uri = jvm.java.net.URI(str_uri)
+            hdfs = create_hdfs_from_url(data_source.url)
+            file_path = urlparse(data_source.url).path
 
-            conf = jvm.org.apache.hadoop.conf.Configuration()
-            conf.set('dfs.client.use.datanode.hostname', 'true')
-
-            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-
-            chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
-            if not hdfs.exists(chunk_path):
+            if not hdfs.exists(file_path):
                 result, result_code = 'Not found', 404
             else:
-                buf = jvm.java.nio.ByteBuffer.allocate(4096)
-                input_in = hdfs.open(chunk_path)
+                input_in = hdfs.open(file_path)
 
                 def do_download():
                     total = 0
                     done = False
+                    chunk_size = 4096
                     while not done:
-                        lido = input_in.read(buf)
-                        total += lido
-                        buf.position(0)
-                        if lido != 4096:
+                        buf = input_in.read(chunk_size)
+                        read = len(buf)
+                        total += read
+                        if read != chunk_size:
                             done = True
-                            yield bytes(buf.array())[:lido]
-                        else:
-                            yield bytes(buf.array())
+                        yield buf
 
                 name = '{}.{}'.format(data_source.name.replace(' ', '-'),
                                       data_source.format.lower())
@@ -610,6 +579,7 @@ class DataSourceDownload(MethodView):
                     name)
                 result_code = 200
         except Exception as e:
+            print e
             result = json.dumps(
                 {'status': 'ERROR', 'message': 'Internal error'})
             result_code = 500
@@ -630,19 +600,9 @@ class DataSourceInferSchemaApi(Resource):
         parsed = urlparse(ds.storage.url)
 
         # noinspection PyUnresolvedReferences
-        gateway = create_gateway(log, current_app.gateway_port)
-        jvm = gateway.jvm
+        hdfs = create_hdfs_from_url(ds.storage.url)
 
-        hadoop_pkg = jvm.org.apache.hadoop
-        str_uri = '{proto}://{host}:{port}'.format(
-            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-        uri = jvm.java.net.URI(str_uri)
-
-        conf = hadoop_pkg.conf.Configuration()
-        conf.set('dfs.client.use.datanode.hostname', 'true')
-
-        hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
-        path = hadoop_pkg.fs.Path(ds.url)
+        path = urlparse(ds.url).path
 
         if ds.format == DataSourceFormat.CSV:
             use_header = options.get('use_header',
@@ -657,22 +617,22 @@ class DataSourceInferSchemaApi(Resource):
                 'utf8')
 
             buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
-                conf, ds, hadoop_pkg, hdfs, jvm, path)
+                hdfs, ds, path)
 
             quote_char = options.get('quote_char', None)
             quote_char = quote_char.encode(encoding) if quote_char else None
 
+            i = 1
+            lines = StringIO.StringIO()
             # Read 100 lines, may be enough to infer schema
-            lines = io.StringIO()
-            for _ in range(1000):
-                line = buffered_reader.readLine()
-                if line is None:
+            for line in buffered_reader:
+                if i == 100:
                     break
                 line = line.replace('\0', '')
                 lines.write(line)
                 lines.write(u'\n')
+                i += 1
 
-            buffered_reader.close()
             lines.seek(0)
 
             csv_reader = csv.reader(lines, delimiter=delimiter,
@@ -709,11 +669,10 @@ class DataSourceInferSchemaApi(Resource):
                 Attribute.data_source_id == ds.id)
             old_attrs.delete(synchronize_session=False)
 
-            path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
-            input_stream_dbf = jvm.java.io.BufferedInputStream(hdfs.open(path2))
+            path2 = urlparse(re.sub('.shp$', '.dbf', ds.url))
+            input_stream_dbf = hdfs.open(path2)
 
-            dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
-                input_stream_dbf)
+            dbf_content = path2.read()
 
             dbf_io = BytesIO(dbf_content)
             handler = dbf.Dbf(dbf_io)
@@ -744,10 +703,8 @@ class DataSourceInferSchemaApi(Resource):
                 db.session.add(attr)
             db.session.commit()
         else:
-            # gateway.shutdown()
             raise ValueError(
                 'Cannot infer the schema for format {}'.format(ds.format))
-            # gateway.shutdown()
 
     @staticmethod
     @requires_auth
@@ -762,26 +719,22 @@ class DataSourceInferSchemaApi(Resource):
         return {'status': 'OK'}
 
     @staticmethod
-    def _get_reader(conf, ds, hadoop_pkg, hdfs, jvm, path):
-        # Support to Gzip'ed files. Spark also supports gzip transparently.
-        codec_factory = hadoop_pkg.io.compress.CompressionCodecFactory(conf)
-        codec = codec_factory.getCodec(path)
-        if codec is None:
-            input_stream = hdfs.open(path)
-        else:
-            input_stream = codec.createInputStream(hdfs.open(path))
+    def _get_reader(hdfs, ds, path):
+        #FIXME support gzip and check encoding
+
+        input_stream = hdfs.open(path)
 
         # Handle UTF-8 with BOM
-        # See https://stackoverflow.com/a/44862536/1646932
-        bom_input_stream = jvm.org.apache.commons.io.input.BOMInputStream(
-            input_stream)
-        if bom_input_stream.getBOM() is not None:
-            encoding = bom_input_stream.getBOM().getCharsetName()
+        # See https://stackoverflow.com/a/13591421/4245898
+        raw = input_stream.read(4)
+
+        if raw.startswith(codecs.BOM_UTF8):
+            encoding = 'utf-8-sig'
         else:
+            input_stream.seek(0)
             encoding = ds.encoding or 'UTF-8'
-        buffered_reader = jvm.java.io.BufferedReader(
-            jvm.java.io.InputStreamReader(bom_input_stream, encoding))
-        return buffered_reader, encoding
+
+        return input_stream, encoding
 
     @staticmethod
     def _get_csv_attributes(attrs, csv_reader, use_header):
