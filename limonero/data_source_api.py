@@ -3,17 +3,17 @@ import csv
 import io
 import logging
 import math
+import re
 import unicodedata
 import uuid
 from ast import literal_eval
 from io import BytesIO
 from urlparse import urlparse
 
-import re
 from dateutil import parser as date_parser
 from dbfpy import dbf
 from flask import g as flask_g
-from flask import request, Response, current_app, session
+from flask import request, Response, current_app
 from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
@@ -744,10 +744,10 @@ class DataSourceInferSchemaApi(Resource):
                 db.session.add(attr)
             db.session.commit()
         else:
-            gateway.shutdown()
+            # gateway.shutdown()
             raise ValueError(
                 'Cannot infer the schema for format {}'.format(ds.format))
-        gateway.shutdown()
+            # gateway.shutdown()
 
     @staticmethod
     @requires_auth
