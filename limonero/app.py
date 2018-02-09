@@ -28,7 +28,6 @@ from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
 from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
-from py4j_init import init_jvm
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
@@ -41,7 +40,7 @@ babel = Babel(app)
 logging.config.fileConfig('logging_config.ini')
 
 app.secret_key = 'l3m0n4d1'
-# Flask Admin 
+# Flask Admin
 admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
 
 # CORS
@@ -139,8 +138,6 @@ def main(is_main_module):
         logger.debug('Running in %s mode', config.get('environment'))
 
         if is_main_module:
-            # JVM, used to interact with HDFS.
-            init_jvm(app, logger)
             if config.get('environment', 'dev') == 'dev':
                 admin.add_view(DataSourceModelView(DataSource, db.session))
                 admin.add_view(StorageModelView(Storage, db.session))
