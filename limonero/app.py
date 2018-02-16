@@ -23,6 +23,7 @@ from flask_restful import Api, abort
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
     DataSourcePrivacyApi, DataSourceDownload
+from limonero.cache import cache
 from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
@@ -43,6 +44,10 @@ logging.config.fileConfig('logging_config.ini')
 app.secret_key = 'l3m0n4d1'
 # Flask Admin 
 admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
+
+
+# Cache
+cache.init_app(app)
 
 # CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
