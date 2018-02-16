@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-}
-import csv
-import io
 import logging
 import math
 import re
 import unicodedata
 import uuid
+from StringIO import StringIO
 from ast import literal_eval
 from io import BytesIO
 from urlparse import urlparse
 
+from backports import csv
 from dateutil import parser as date_parser
 from dbfpy import dbf
 from flask import g as flask_g
@@ -22,6 +22,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
+from limonero.cache import cache
 from limonero.py4j_init import create_gateway
 from schema import *
 
@@ -189,6 +190,7 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
+    @cache.memoize(30, make_name=lambda f: request.url)
     def get(data_source_id):
 
         # data_source = DataSource.query.join(DataSource.storage).join(
@@ -653,8 +655,7 @@ class DataSourceInferSchemaApi(Resource):
                 delimiter = ds.attribute_delimiter
 
             special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
-            delimiter = special_delimiters.get(delimiter, delimiter).encode(
-                'utf8')
+            delimiter = special_delimiters.get(delimiter, delimiter)
 
             buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
                 conf, ds, hadoop_pkg, hdfs, jvm, path)
@@ -663,47 +664,47 @@ class DataSourceInferSchemaApi(Resource):
             quote_char = quote_char.encode(encoding) if quote_char else None
 
             # Read 100 lines, may be enough to infer schema
-            lines = io.StringIO()
+            lines = StringIO()
+            import pdb
+            pdb.set_trace()
             for _ in range(1000):
                 line = buffered_reader.readLine()
                 if line is None:
                     break
+                line = line.encode(encoding).decode('utf8')
                 line = line.replace('\0', '')
                 lines.write(line)
                 lines.write(u'\n')
 
             buffered_reader.close()
             lines.seek(0)
-
-            csv_reader = csv.reader(lines, delimiter=delimiter,
-                                    quotechar=quote_char)
+            pdb.set_trace()
+            if quote_char:
+                csv_reader = csv.reader(lines, delimiter=delimiter,
+                                        quotechar=quote_char)
+            else:
+                csv_reader = csv.reader(lines, delimiter=delimiter)
 
             attrs = []
             # noinspection PyBroadException
-            try:
-                attrs = DataSourceInferSchemaApi._get_csv_attributes(
-                    attrs, csv_reader, use_header)
+            attrs = DataSourceInferSchemaApi._get_csv_attributes(
+                attrs, csv_reader, use_header)
 
-                old_attrs = Attribute.query.filter(
-                    Attribute.data_source_id == ds.id)
-                old_attrs.delete(synchronize_session=False)
-                for attr in attrs:
-                    if attr.type is None:
-                        attr.type = DataType.CHARACTER
-                    if attr.type == DataType.CHARACTER:
-                        if attr.size > 1000:
-                            attr.type = DataType.TEXT
-                    attr.data_source = ds
-                    attr.feature = False
-                    attr.label = False
-                    db.session.add(attr)
+            old_attrs = Attribute.query.filter(
+                Attribute.data_source_id == ds.id)
+            old_attrs.delete(synchronize_session=False)
+            for attr in attrs:
+                if attr.type is None:
+                    attr.type = DataType.CHARACTER
+                if attr.type == DataType.CHARACTER:
+                    if attr.size > 1000:
+                        attr.type = DataType.TEXT
+                attr.data_source = ds
+                attr.feature = False
+                attr.label = False
+                db.session.add(attr)
 
-                db.session.commit()
-            except Exception as e:
-
-                db.session.rollback()
-                log.exception('Invalid CSV format')
-                return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
+            db.session.commit()
         elif ds.format == DataSourceFormat.SHAPEFILE:
             old_attrs = Attribute.query.filter(
                 Attribute.data_source_id == ds.id)
@@ -758,7 +759,16 @@ class DataSourceInferSchemaApi(Resource):
         if request.data:
             request_body = json.loads(request.data)
 
-        DataSourceInferSchemaApi.infer_schema(ds, request_body)
+        # noinspection PyBroadException
+        try:
+            DataSourceInferSchemaApi.infer_schema(ds, request_body)
+        except UnicodeEncodeError:
+            log.exception('Invalid CSV encoding')
+            return {'status': 'ERROR', 'message': 'Invalid CSV encoding'}, 400
+        except Exception:
+            db.session.rollback()
+            log.exception('Invalid CSV format')
+            return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
         return {'status': 'OK'}
 
     @staticmethod
@@ -874,8 +884,10 @@ class DataSourceInferSchemaApi(Resource):
     @staticmethod
     def _get_header(row):
         attrs = []
+        import pdb
+        pdb.set_trace()
         for attr in row:
-            attr = strip_accents(attr.replace(' ', '_').decode('utf8'))
+            attr = strip_accents(attr.replace(' ', '_'))  # .decode('utf8'))
             attrs.append(
                 Attribute(name=attr, nullable=False, enumeration=False))
         return attrs
