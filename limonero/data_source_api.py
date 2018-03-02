@@ -694,9 +694,10 @@ class DataSourceInferSchemaApi(Resource):
 
                 buffered_reader.close()
                 lines.seek(0)
+
                 if quote_char:
                     csv_reader = csv.reader(lines, delimiter=delimiter,
-                                            quotechar=quote_char)
+                                            quotechar=quote_char.decode('utf8'))
                 else:
                     csv_reader = csv.reader(lines, delimiter=delimiter)
 
