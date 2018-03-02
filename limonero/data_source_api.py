@@ -23,7 +23,6 @@ from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
-from limonero.cache import cache
 from limonero.py4j_init import create_gateway
 from schema import *
 
@@ -193,7 +192,6 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
-    @cache.memoize(30, make_name=lambda f: request.url)
     def get(data_source_id):
 
         data_sources = DataSource.query
