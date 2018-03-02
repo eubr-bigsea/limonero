@@ -663,61 +663,66 @@ class DataSourceInferSchemaApi(Resource):
         path = hadoop_pkg.fs.Path(ds.url)
 
         if ds.format == DataSourceFormat.CSV:
-            use_header = options.get('use_header',
-                                     False) or ds.is_first_line_header
-            delimiter = (options.get('delimiter', ',') or ',').encode('latin1')
-            # If there is a delimiter set in data_source, use it instead
-            if ds.attribute_delimiter:
-                delimiter = ds.attribute_delimiter
+            try:
+                use_header = options.get('use_header',
+                                         False) or ds.is_first_line_header
+                delimiter = (options.get('delimiter', ',') or ',').encode(
+                    'latin1')
+                # If there is a delimiter set in data_source, use it instead
+                if ds.attribute_delimiter:
+                    delimiter = ds.attribute_delimiter
 
-            special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
-            delimiter = special_delimiters.get(delimiter, delimiter)
+                special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
+                delimiter = special_delimiters.get(delimiter, delimiter)
 
-            buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
-                conf, ds, hadoop_pkg, hdfs, jvm, path)
+                buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
+                    conf, ds, hadoop_pkg, hdfs, jvm, path)
 
-            quote_char = options.get('quote_char', None)
-            quote_char = quote_char.encode(encoding) if quote_char else None
+                quote_char = options.get('quote_char', None)
+                quote_char = quote_char.encode(encoding) if quote_char else None
 
-            # Read 100 lines, may be enough to infer schema
-            lines = StringIO()
-            for _ in range(1000):
-                line = buffered_reader.readLine()
-                if line is None:
-                    break
-                line = line.encode(encoding).decode('utf8')
-                line = line.replace('\0', '')
-                lines.write(line)
-                lines.write(u'\n')
+                # Read 100 lines, may be enough to infer schema
+                lines = StringIO()
+                for _ in range(1000):
+                    line = buffered_reader.readLine()
+                    if line is None:
+                        break
+                    line = line.encode(encoding).decode('utf8')
+                    line = line.replace('\0', '')
+                    lines.write(line)
+                    lines.write(u'\n')
 
-            buffered_reader.close()
-            lines.seek(0)
-            if quote_char:
-                csv_reader = csv.reader(lines, delimiter=delimiter,
-                                        quotechar=quote_char)
-            else:
-                csv_reader = csv.reader(lines, delimiter=delimiter)
+                buffered_reader.close()
+                lines.seek(0)
+                if quote_char:
+                    csv_reader = csv.reader(lines, delimiter=delimiter,
+                                            quotechar=quote_char)
+                else:
+                    csv_reader = csv.reader(lines, delimiter=delimiter)
 
-            attrs = []
-            # noinspection PyBroadException
-            attrs = DataSourceInferSchemaApi._get_csv_attributes(
-                attrs, csv_reader, use_header)
+                attrs = []
+                # noinspection PyBroadException
+                attrs = DataSourceInferSchemaApi._get_csv_attributes(
+                    attrs, csv_reader, use_header)
 
-            old_attrs = Attribute.query.filter(
-                Attribute.data_source_id == ds.id)
-            old_attrs.delete(synchronize_session=False)
-            for attr in attrs:
-                if attr.type is None:
-                    attr.type = DataType.CHARACTER
-                if attr.type == DataType.CHARACTER:
-                    if attr.size > 1000:
-                        attr.type = DataType.TEXT
-                attr.data_source = ds
-                attr.feature = False
-                attr.label = False
-                db.session.add(attr)
+                old_attrs = Attribute.query.filter(
+                    Attribute.data_source_id == ds.id)
+                old_attrs.delete(synchronize_session=False)
+                for attr in attrs:
+                    if attr.type is None:
+                        attr.type = DataType.CHARACTER
+                    if attr.type == DataType.CHARACTER:
+                        if attr.size > 1000:
+                            attr.type = DataType.TEXT
+                    attr.data_source = ds
+                    attr.feature = False
+                    attr.label = False
+                    db.session.add(attr)
 
-            db.session.commit()
+                db.session.commit()
+            except Exception as ex:
+                raise ValueError(
+                    'Cannot infer the schema: {}'.format(ex))
         elif ds.format == DataSourceFormat.SHAPEFILE:
             old_attrs = Attribute.query.filter(
                 Attribute.data_source_id == ds.id)
