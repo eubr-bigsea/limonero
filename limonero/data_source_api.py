@@ -18,6 +18,7 @@ from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
+from py4j.protocol import Py4JJavaError
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
@@ -27,6 +28,9 @@ from limonero.py4j_init import create_gateway
 from schema import *
 
 log = logging.getLogger(__name__)
+
+WRONG_HDFS_CONFIG = "Limonero HDFS access not correctly configured (see " \
+                    "config 'dfs.client.use.datanode.hostname')"
 
 
 def strip_accents(s):
@@ -135,7 +139,6 @@ class DataSourceListApi(Resource):
             db.session.commit()
             result_code = 200
         except Exception as ex:
-            print ex
             log.exception(ex.message)
 
         return result, result_code
@@ -193,24 +196,15 @@ class DataSourceDetailApi(Resource):
     @cache.memoize(30, make_name=lambda f: request.url)
     def get(data_source_id):
 
-        # data_source = DataSource.query.join(DataSource.storage).join(
-        #     DataSource.attributes, isouter=True).options(
-        #     joinedload(DataSource.attributes),
-        #     joinedload(DataSource.permissions),
-        #     joinedload(DataSource.storage)
-        # )
-
-        data_source = DataSource.query.join(DataSource.storage).options(
-            joinedload(DataSource.attributes),
-            joinedload(DataSource.permissions),
-        )
-
-        data_source = _filter_by_permissions(data_source,
+        data_sources = DataSource.query
+        data_sources = data_sources.join(DataSourcePermission, isouter=True)
+        data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
 
         data_source = data_source.order_by(DataSource.name)
         data_source = data_source.filter(
-            DataSource.id == data_source_id).first()
+            DataSource.id == data_source_id)
+        data_source = data_source.first()
 
         if data_source is not None:
             return DataSourceItemResponseSchema().dump(data_source).data
@@ -395,7 +389,6 @@ class DataSourceUploadApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        gateway_key = None
         # noinspection PyBroadException
         try:
             identifier = request.args.get('resumableIdentifier', type=str)
@@ -420,8 +413,12 @@ class DataSourceUploadApi(Resource):
                 uri = jvm.java.net.URI(str_uri)
 
                 conf = jvm.org.apache.hadoop.conf.Configuration()
-                conf.set('dfs.client.use.datanode.hostname', 'true')
+                conf.set('dfs.client.use.datanode.hostname',
+                         "true" if current_app.config.get(
+                             'dfs.client.use.datanode.hostname',
+                             True) else "false")
 
+                log.error('=======> %s', uri)
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
                 tmp_path = DataSourceUploadApi._get_tmp_path(
@@ -439,6 +436,11 @@ class DataSourceUploadApi(Resource):
                     result, result_code = 'Not found', 404
 
             return result, result_code
+        except Py4JJavaError as java_ex:
+            if 'Could not obtain block' in java_ex.java_exception.getMessage():
+                return {'status': 'ERROR',
+                        'message': WRONG_HDFS_CONFIG}, 400
+            log.exception('Java error')
         except:
             raise
 
@@ -469,9 +471,13 @@ class DataSourceUploadApi(Resource):
                 uri = jvm.java.net.URI(str_uri)
 
                 conf = jvm.org.apache.hadoop.conf.Configuration()
-                conf.set('dfs.client.use.datanode.hostname', 'true')
+                conf.set('dfs.client.use.datanode.hostname',
+                         "true" if current_app.config.get(
+                             'dfs.client.use.datanode.hostname',
+                             True) else "false")
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+                log.error('================== %s', uri)
 
                 tmp_path = DataSourceUploadApi._get_tmp_path(
                     jvm, hdfs, parsed, filename)
@@ -520,10 +526,8 @@ class DataSourceUploadApi(Resource):
                                     locale='en')
 
                     extension = filename[-3:].lower()
-                    infer = False
                     if extension == 'csv':
                         ds_format = DataSourceFormat.CSV
-                        infer = True
                     elif extension == 'json':
                         ds_format = DataSourceFormat.JSON
                     elif extension == 'xml':
@@ -550,6 +554,11 @@ class DataSourceUploadApi(Resource):
 
             return result, result_code, {
                 'Content-Type': 'application/json; charset=utf-8'}
+        except Py4JJavaError as java_ex:
+            if 'Could not obtain block' in java_ex.java_exception.getMessage():
+                return {'status': 'ERROR',
+                        'message': WRONG_HDFS_CONFIG}, 400
+            log.exception('Java error')
         except:
             raise
 
@@ -575,7 +584,9 @@ class DataSourceDownload(MethodView):
             uri = jvm.java.net.URI(str_uri)
 
             conf = jvm.org.apache.hadoop.conf.Configuration()
-            conf.set('dfs.client.use.datanode.hostname', 'true')
+            conf.set('dfs.client.use.datanode.hostname',
+                     "true" if current_app.config.get(
+                         'dfs.client.use.datanode.hostname', True) else "false")
 
             hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
@@ -611,6 +622,11 @@ class DataSourceDownload(MethodView):
                     "Content-Disposition"] = "attachment; filename={}".format(
                     name)
                 result_code = 200
+        except Py4JJavaError as java_ex:
+            if 'Could not obtain block' in java_ex.java_exception.getMessage():
+                return {'status': 'ERROR',
+                        'message': WRONG_HDFS_CONFIG}, 400
+            log.exception('Java error')
         except Exception as e:
             result = json.dumps(
                 {'status': 'ERROR', 'message': 'Internal error'})
@@ -641,7 +657,9 @@ class DataSourceInferSchemaApi(Resource):
         uri = jvm.java.net.URI(str_uri)
 
         conf = hadoop_pkg.conf.Configuration()
-        conf.set('dfs.client.use.datanode.hostname', 'true')
+        conf.set('dfs.client.use.datanode.hostname',
+                 "true" if current_app.config.get(
+                     'dfs.client.use.datanode.hostname', True) else "false")
 
         hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
         path = hadoop_pkg.fs.Path(ds.url)
@@ -654,7 +672,7 @@ class DataSourceInferSchemaApi(Resource):
             if ds.attribute_delimiter:
                 delimiter = ds.attribute_delimiter
 
-            special_delimiters = {'{tab}': '\t', '{new_line}': '\n'}
+            special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
             delimiter = special_delimiters.get(delimiter, delimiter)
 
             buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
@@ -665,8 +683,6 @@ class DataSourceInferSchemaApi(Resource):
 
             # Read 100 lines, may be enough to infer schema
             lines = StringIO()
-            import pdb
-            pdb.set_trace()
             for _ in range(1000):
                 line = buffered_reader.readLine()
                 if line is None:
@@ -678,7 +694,6 @@ class DataSourceInferSchemaApi(Resource):
 
             buffered_reader.close()
             lines.seek(0)
-            pdb.set_trace()
             if quote_char:
                 csv_reader = csv.reader(lines, delimiter=delimiter,
                                         quotechar=quote_char)
@@ -765,7 +780,14 @@ class DataSourceInferSchemaApi(Resource):
         except UnicodeEncodeError:
             log.exception('Invalid CSV encoding')
             return {'status': 'ERROR', 'message': 'Invalid CSV encoding'}, 400
-        except Exception:
+        except ValueError as ve:
+            return {'status': 'ERROR', 'message': ve.message}, 400
+        except Py4JJavaError as java_ex:
+            if 'Could not obtain block' in java_ex.java_exception.getMessage():
+                return {'status': 'ERROR',
+                        'message': WRONG_HDFS_CONFIG}, 400
+            log.exception('Java error')
+        except Exception as ex:
             db.session.rollback()
             log.exception('Invalid CSV format')
             return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
@@ -884,8 +906,6 @@ class DataSourceInferSchemaApi(Resource):
     @staticmethod
     def _get_header(row):
         attrs = []
-        import pdb
-        pdb.set_trace()
         for attr in row:
             attr = strip_accents(attr.replace(' ', '_'))  # .decode('utf8'))
             attrs.append(
