@@ -636,7 +636,7 @@ class DataSourceInferSchemaApi(Resource):
             lines.seek(0)
 
             csv_reader = csv.reader(lines, delimiter=delimiter,
-                                    quotechar=quote_char)
+                    quotechar=quote_char.decode("utf8"))
 
             attrs = []
             # noinspection PyBroadException
@@ -660,7 +660,6 @@ class DataSourceInferSchemaApi(Resource):
 
                 db.session.commit()
             except Exception as e:
-
                 db.session.rollback()
                 log.exception('Invalid CSV format')
                 return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
