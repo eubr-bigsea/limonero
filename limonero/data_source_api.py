@@ -33,7 +33,10 @@ def create_hdfs_from_url(url, user = "root"):
     str_uri = '{proto}://{host}'.format(
         proto=parsed.scheme, host=parsed.hostname)
 
-    return HDFileSystem(host=str_uri, port=parsed.port, user=user)
+    conf = { 'dfs.client.use.datanode.hostname': str(current_app.config.get(
+        'dfs.client.use.datanode.hostname', False)) }
+
+    return HDFileSystem(host=str_uri, port=parsed.port, user=user, pars=conf)
 
 def create_hdfs(storage, user = "root"):
     return create_hdfs_from_url(storage.url, user=user)
@@ -238,6 +241,8 @@ class DataSourceDetailApi(Resource):
         data_sources = data_sources.join(DataSourcePermission, isouter=True)
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
+        data_source = data_source.filter(
+            DataSource.id == data_source_id)
         data_source = data_source.first()
 
         if data_source is not None:
