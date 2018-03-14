@@ -1,34 +1,34 @@
 # -*- coding: utf-8 -*-}
+import StringIO
 import codecs
 import csv
 import logging
 import math
 import re
 import unicodedata
-import StringIO
 from ast import literal_eval
 from io import BytesIO
 from urlparse import urlparse
 
 from dateutil import parser as date_parser
 from dbfpy import dbf
-from werkzeug.exceptions import NotFound
 from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
 from flask.views import MethodView
 from flask_restful import Resource
+from hdfs3 import HDFileSystem
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
+from werkzeug.exceptions import NotFound
 
 from app_auth import requires_auth, User
 from schema import *
 
-from hdfs3 import HDFileSystem
-
 log = logging.getLogger(__name__)
 
-def create_hdfs_from_url(url, user = "root"):
+
+def create_hdfs_from_url(url, user="root"):
     parsed = urlparse(url)
 
     str_uri = '{proto}://{host}'.format(
@@ -36,8 +36,10 @@ def create_hdfs_from_url(url, user = "root"):
 
     return HDFileSystem(host=str_uri, port=parsed.port, user=user)
 
-def create_hdfs(storage, user = "root"):
+
+def create_hdfs(storage, user="root"):
     return create_hdfs_from_url(storage.url, user=user)
+
 
 def create_tmp_path(hdfs, identifier):
     tmp_path = '/tmp/upload/{}'.format(identifier)
@@ -45,14 +47,17 @@ def create_tmp_path(hdfs, identifier):
         hdfs.mkdir(tmp_path)
     return tmp_path
 
+
 def create_chunk_name(hdfs, identifier, filename, chunk_number):
     tmp_path = create_tmp_path(hdfs, identifier)
     return "{tmp}/{file}.part{part:09d}".format(
         tmp=tmp_path, file=filename, part=chunk_number)
 
+
 def strip_accents(s):
     return ''.join(c for c in unicodedata.normalize('NFD', s)
                    if unicodedata.category(c) != 'Mn')
+
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
     result = query
@@ -155,11 +160,9 @@ class DataSourceListApi(Resource):
             db.session.commit()
             result_code = 200
         except NotFound as ex:
-            print ex
             log.exception(ex.message)
-            raise(ex)
+            raise
         except Exception as ex:
-            print ex
             log.exception(ex.message)
 
         return result, result_code
@@ -425,8 +428,10 @@ class DataSourceUploadApi(Resource):
                 storage = Storage.query.get(storage_id)
                 hdfs = create_hdfs(storage)
 
-                chunk_filename = create_chunk_name(hdfs, identifier, filename, chunk_number)
-                current_app.logger.debug('Checking for chunk: %s', chunk_filename)
+                chunk_filename = create_chunk_name(hdfs, identifier, filename,
+                                                   chunk_number)
+                current_app.logger.debug('Checking for chunk: %s',
+                                         chunk_filename)
 
                 if not hdfs.exists(chunk_filename):
                     # Let resumable.js know this chunk does not exists
@@ -456,7 +461,8 @@ class DataSourceUploadApi(Resource):
                 storage = Storage.query.get(storage_id)
                 hdfs = create_hdfs(storage)
 
-                chunk_filename = create_chunk_name(hdfs, identifier, filename, chunk_number)
+                chunk_filename = create_chunk_name(hdfs, identifier, filename,
+                                                   chunk_number)
 
                 with hdfs.open(chunk_filename, 'wb') as f:
                     f.write(request.get_data())
@@ -475,7 +481,7 @@ class DataSourceUploadApi(Resource):
                         hdfs.mkdir("/limonero/data")
                     # time to merge all files
                     target_path = u'{}/{}'.format(u'/limonero/data',
-                        final_filename)
+                                                  final_filename)
 
                     if hdfs.exists(target_path):
                         result = {"status": "error",
@@ -490,9 +496,10 @@ class DataSourceUploadApi(Resource):
                                 with hdfs.open(apath, 'rb') as f:
                                     out = 1
                                     while out:
-                                        out = f.read(2**16)
+                                        out = f.read(2 ** 16)
                                         f2.write(out)
-                                    # noinspection PyBroadException
+                                        # noinspection PyBroadException
+                    # noinspection PyBroadException
                     try:
                         user = getattr(flask_g, 'user')
                     except:
@@ -503,10 +510,8 @@ class DataSourceUploadApi(Resource):
                                     locale='en')
 
                     extension = filename[-3:].lower()
-                    infer = False
                     if extension == 'csv':
                         ds_format = DataSourceFormat.CSV
-                        infer = True
                     elif extension == 'json':
                         ds_format = DataSourceFormat.JSON
                     elif extension == 'xml':
@@ -579,7 +584,6 @@ class DataSourceDownload(MethodView):
                     name)
                 result_code = 200
         except Exception as e:
-            print e
             result = json.dumps(
                 {'status': 'ERROR', 'message': 'Internal error'})
             result_code = 500
@@ -597,8 +601,6 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = urlparse(ds.storage.url)
-
         # noinspection PyUnresolvedReferences
         hdfs = create_hdfs_from_url(ds.storage.url)
 
@@ -636,7 +638,7 @@ class DataSourceInferSchemaApi(Resource):
             lines.seek(0)
 
             csv_reader = csv.reader(lines, delimiter=delimiter,
-                    quotechar=quote_char.decode("utf8"))
+                                    quotechar=quote_char.decode("utf8"))
 
             attrs = []
             # noinspection PyBroadException
@@ -659,7 +661,7 @@ class DataSourceInferSchemaApi(Resource):
                     db.session.add(attr)
 
                 db.session.commit()
-            except Exception as e:
+            except Exception:
                 db.session.rollback()
                 log.exception('Invalid CSV format')
                 return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
@@ -669,7 +671,7 @@ class DataSourceInferSchemaApi(Resource):
             old_attrs.delete(synchronize_session=False)
 
             path2 = urlparse(re.sub('.shp$', '.dbf', ds.url))
-            input_stream_dbf = hdfs.open(path2)
+            hdfs.open(path2)
 
             dbf_content = path2.read()
 
@@ -719,7 +721,7 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def _get_reader(hdfs, ds, path):
-        #FIXME support gzip and check encoding
+        # FIXME support gzip and check encoding
 
         input_stream = hdfs.open(path)
 
