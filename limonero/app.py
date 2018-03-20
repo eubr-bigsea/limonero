@@ -33,7 +33,7 @@ from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
 
-eventlet.monkey_patch(all=True, thread=False)
+eventlet.monkey_patch(all=True)
 app = Flask(__name__, static_url_path='')
 
 babel = Babel(app)

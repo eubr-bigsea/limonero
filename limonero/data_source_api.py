@@ -225,12 +225,18 @@ class DataSourceDetailApi(Resource):
         data_source = data_source.order_by(DataSource.name)
         data_source = data_source.filter(
             DataSource.id == data_source_id)
-        data_source = data_source.first()
 
-        if data_source is not None:
-            return DataSourceItemResponseSchema().dump(data_source).data
+        if request.args.get('attributes_name') in ('true', True):
+            if data_source.count():
+                data_source = data_source.join(DataSource.attributes).with_entities(
+                    Attribute.name)
+                return {'attributes': data_source.all()}
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            data_source = data_source.first()
+            if data_source is not None:
+                return DataSourceItemResponseSchema().dump(data_source).data
+            else:
+                return dict(status="ERROR", message="Not found"), 404
 
     @staticmethod
     @requires_auth
