@@ -208,7 +208,7 @@ class DataSourceDetailApi(Resource):
 
         if data_source is not None:
             if names_only:
-                attributes = {'attributes': [attr.name for attr in
+                attributes = {'attributes': [{'name': attr.name} for attr in
                                              data_source.attributes]}
                 return attributes
             else:
