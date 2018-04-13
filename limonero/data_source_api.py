@@ -194,18 +194,24 @@ class DataSourceDetailApi(Resource):
     @requires_auth
     def get(data_source_id):
 
+        names_only = request.args.get('attributes_name') == 'true'
+
         data_sources = DataSource.query
+
         data_sources = data_sources.join(DataSourcePermission, isouter=True)
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
 
-        data_source = data_source.order_by(DataSource.name)
-        data_source = data_source.filter(
-            DataSource.id == data_source_id)
+        # data_source = data_source.order_by(DataSource.name)
+        data_source = data_source.filter(DataSource.id == data_source_id)
         data_source = data_source.first()
 
         if data_source is not None:
-            return DataSourceItemResponseSchema().dump(data_source).data
+            if names_only:
+                attributes = [attr.name for attr in data_source.attributes]
+                return attributes
+            else:
+                return DataSourceItemResponseSchema().dump(data_source).data
         else:
             return dict(status="ERROR", message="Not found"), 404
 
