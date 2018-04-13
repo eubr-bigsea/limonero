@@ -751,7 +751,7 @@ class DataSourceInferSchemaApi(Resource):
                 'D': DataType.DATETIME,
                 'F': DataType.FLOAT,
                 'I': DataType.INTEGER,
-                'L': DataType.INTEGER,
+                'L': DataType.LONG,
                 'M': DataType.TEXT,
                 'N': DataType.FLOAT,
                 'O': DataType.DOUBLE,
@@ -879,12 +879,10 @@ class DataSourceInferSchemaApi(Resource):
                 attrs[i].size = len(value)
                 attrs[i].precision = None
                 attrs[i].scale = None
-        elif type(v) in [int]:
+        elif type(v) in [int] and -2147483648 < v < 2147483647:
             attrs[i].type = DataType.INTEGER
         elif type(v) in [long]:
             attrs[i].type = DataType.LONG
-        elif type(v) in [int]:
-            attrs[i].type = DataType.INTEGER
         elif type(v) in [float]:
             change_to_str = False
             parts = value.split('.')
