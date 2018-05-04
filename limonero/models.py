@@ -26,6 +26,7 @@ class DataSourceFormat:
     TEXT = 'TEXT'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
+    GEO_JSON = 'GEO_JSON'
     CSV = 'CSV'
     PICKLE = 'PICKLE'
 
