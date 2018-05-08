@@ -25,9 +25,4 @@ COPY requirements.txt $LIMONERO_HOME/requirements.txt
 RUN pip install -r $LIMONERO_HOME/requirements.txt
 COPY . $LIMONERO_HOME
 
-# Java dependencies
-ENV CLASSPATH $LIMONERO_HOME/jars/*.jar
-RUN mkdir -p $LIMONERO_HOME/jars \
-   && for u in `cat java_libs.dep`; do cd jars && curl -s -O $u && cd ..; done
-
-CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "startf"]
+CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
