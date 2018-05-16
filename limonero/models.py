@@ -304,8 +304,6 @@ class DataSource(db.Model):
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
-    privacy_risks = relationship("PrivacyRisk", back_populates="data_source",
-                                 cascade="all, delete-orphan")
 
     def __unicode__(self):
         return self.name

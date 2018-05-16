@@ -394,6 +394,8 @@ class DataSourceListResponseSchema(Schema):
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
                                           default=0)
+    is_multiline = fields.Boolean(required=True, missing=0,
+                                  default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -402,9 +404,6 @@ class DataSourceListResponseSchema(Schema):
         'limonero.schema.DataSourcePermissionListResponseSchema',
         allow_none=True,
         many=True)
-
-    is_multiline = fields.Boolean(required=True, missing=0,
-                                  default=0)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
@@ -517,14 +516,13 @@ class DataSourceItemResponseSchema(Schema):
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
     attributes = fields.Nested(
-        'limonero.schema.AttributeListResponseSchema',
+        'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
-        'limonero.schema.DataSourcePermissionListResponseSchema',
+        'limonero.schema.DataSourcePermissionItemResponseSchema',
         allow_none=True,
         many=True)
-
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
@@ -545,6 +543,10 @@ class DataSourcePrivacyResponseSchema(Schema):
     name = fields.String(required=True)
     privacy_aware = fields.Boolean(required=True, missing=False,
                                    default=False)
+    attributes = fields.Nested(
+        'limonero.schema.AttributePrivacyResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
