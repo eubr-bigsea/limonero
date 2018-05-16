@@ -394,6 +394,15 @@ class DataSourceListResponseSchema(Schema):
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
                                           default=0)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeListResponseSchema',
+        allow_none=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionListResponseSchema',
+        allow_none=True,
+        many=True)
+
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
     storage = fields.Nested(
@@ -449,6 +458,14 @@ class DataSourceCreateRequestSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionCreateRequestSchema',
+        allow_none=True,
+        many=True)
     storage_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
