@@ -520,6 +520,15 @@ class DataSourceItemResponseSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
+    attributes = fields.Nested(
+        'limonero.schema.AttributeListResponseSchema',
+        allow_none=True,
+        many=True)
+    permissions = fields.Nested(
+        'limonero.schema.DataSourcePermissionListResponseSchema',
+        allow_none=True,
+        many=True)
+
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
