@@ -299,10 +299,6 @@ class DataSource(db.Model):
     }
 
     # Associations
-    attributes = relationship("Attribute", back_populates="data_source",
-                              cascade="all, delete-orphan")
-    permissions = relationship("DataSourcePermission", back_populates="data_source",
-                               cascade="all, delete-orphan")
     storage_id = Column(Integer,
                         ForeignKey("storage.id"), nullable=False)
     storage = relationship(
@@ -372,8 +368,6 @@ class Model(db.Model):
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
-    permissions = relationship("ModelPermission", back_populates="model",
-                               cascade="all, delete-orphan")
 
     def __unicode__(self):
         return self.name
