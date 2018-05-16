@@ -408,10 +408,6 @@ class DataSourceListResponseSchema(Schema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
-    privacy_risks = fields.Nested(
-        'limonero.schema.PrivacyRiskListResponseSchema',
-        allow_none=True,
-        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
