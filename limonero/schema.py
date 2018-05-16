@@ -373,7 +373,8 @@ class DataSourceListResponseSchema(Schema):
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
-    estimated_rows = fields.Integer(required=False, allow_none=True)
+    estimated_rows = fields.Integer(required=False, allow_none=True, missing=0,
+                                    default=0)
     estimated_size_in_mega_bytes = fields.Decimal(
         required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
@@ -393,6 +394,8 @@ class DataSourceListResponseSchema(Schema):
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
                                           default=0)
+    is_multiline = fields.Boolean(required=True, missing=0,
+                                  default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -452,6 +455,8 @@ class DataSourceCreateRequestSchema(Schema):
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
                                           default=0)
+    is_multiline = fields.Boolean(required=True, missing=0,
+                                  default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
@@ -491,7 +496,8 @@ class DataSourceItemResponseSchema(Schema):
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
-    estimated_rows = fields.Integer(required=False, allow_none=True)
+    estimated_rows = fields.Integer(required=False, allow_none=True, missing=0,
+                                    default=0)
     estimated_size_in_mega_bytes = fields.Decimal(
         required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
@@ -511,6 +517,8 @@ class DataSourceItemResponseSchema(Schema):
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
                                           default=0)
+    is_multiline = fields.Boolean(required=True, missing=0,
+                                  default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,

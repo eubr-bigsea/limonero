@@ -729,6 +729,7 @@ class DataSourceInferSchemaApi(Resource):
 
                 db.session.commit()
             except Exception as ex:
+                raise
                 raise ValueError(
                     'Cannot infer the schema: {}'.format(ex))
         elif ds.format == DataSourceFormat.SHAPEFILE:
@@ -836,15 +837,16 @@ class DataSourceInferSchemaApi(Resource):
                     attrs = DataSourceInferSchemaApi._get_default_header(
                         row)
                 for i, value in enumerate(row):
-                    if value is None or value == '':
-                        attrs[i].nullable = True
-                    else:
-                        if attrs[i].type != DataType.CHARACTER:
-                            DataSourceInferSchemaApi._infer_attr(
-                                attrs, i, value)
+                    if i < len(attrs):
+                        if value is None or value == '':
+                            attrs[i].nullable = True
                         else:
-                            attrs[i].size = max(
-                                attrs[i].size, len(value))
+                            if attrs[i].type != DataType.CHARACTER:
+                                DataSourceInferSchemaApi._infer_attr(
+                                    attrs, i, value)
+                            else:
+                                attrs[i].size = max(
+                                    attrs[i].size, len(value))
         return attrs
 
     @staticmethod

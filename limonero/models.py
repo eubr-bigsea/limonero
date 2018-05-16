@@ -9,7 +9,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
-
+from sqlalchemy.dialects.mysql import LONGTEXT
 make_translatable(options={'locales': ['pt', 'en', 'es'],
                            'auto_create_locales': True,
                            'fallback_locale': 'en'})
@@ -166,7 +166,7 @@ class Attribute(db.Model):
     min_value = Column(String(200))
     std_deviation = Column(Float)
     missing_total = Column(String(200))
-    deciles = Column(Text)
+    deciles = Column(LONGTEXT)
 
     # Associations
     data_source_id = Column(Integer,
@@ -203,10 +203,10 @@ class AttributePrivacy(db.Model):
                                           name='AnonymizationTechniqueEnumType'), nullable=False)
     hierarchical_structure_type = Column(String(100))
     privacy_model_technique = Column(String(100))
-    hierarchy = Column(Text)
-    category_model = Column(Text)
-    privacy_model = Column(Text)
-    privacy_model_parameters = Column(Text)
+    hierarchy = Column(LONGTEXT)
+    category_model = Column(LONGTEXT)
+    privacy_model = Column(LONGTEXT)
+    privacy_model_parameters = Column(LONGTEXT)
     unlock_privacy_key = Column(String(400))
     is_global_law = Column(Boolean,
                            default=False)
@@ -270,7 +270,7 @@ class DataSource(db.Model):
                      default=func.now(), nullable=False)
     format = Column(Enum(*DataSourceFormat.values(),
                          name='DataSourceFormatEnumType'), nullable=False)
-    provenience = Column(Text)
+    provenience = Column(LONGTEXT)
     estimated_rows = Column(Integer,
                             default=0)
     estimated_size_in_mega_bytes = Column(Numeric(10, 2))
@@ -288,20 +288,28 @@ class DataSource(db.Model):
     text_delimiter = Column(String(20))
     is_public = Column(Boolean,
                        default=False, nullable=False)
-    treat_as_missing = Column(Text)
+    treat_as_missing = Column(LONGTEXT)
     encoding = Column(String(200))
     is_first_line_header = Column(Boolean,
                                   default=0, nullable=False)
+    is_multiline = Column(Boolean,
+                          default=0, nullable=False)
     __mapper_args__ = {
         'order_by': 'name'
     }
 
     # Associations
+    attributes = relationship("Attribute", back_populates="data_source",
+                              cascade="all, delete-orphan")
+    permissions = relationship("DataSourcePermission", back_populates="data_source",
+                               cascade="all, delete-orphan")
     storage_id = Column(Integer,
                         ForeignKey("storage.id"), nullable=False)
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
+    privacy_risks = relationship("PrivacyRisk", back_populates="data_source",
+                                 cascade="all, delete-orphan")
 
     def __unicode__(self):
         return self.name
@@ -364,6 +372,8 @@ class Model(db.Model):
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
+    permissions = relationship("ModelPermission", back_populates="model",
+                               cascade="all, delete-orphan")
 
     def __unicode__(self):
         return self.name
@@ -411,7 +421,7 @@ class PrivacyRisk(db.Model):
     probability = Column(Float)
     impact = Column(Float)
     value = Column(Float, nullable=False)
-    detail = Column(Text, nullable=False)
+    detail = Column(LONGTEXT, nullable=False)
 
     # Associations
     data_source_id = Column(Integer,
