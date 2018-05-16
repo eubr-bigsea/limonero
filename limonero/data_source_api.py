@@ -250,7 +250,7 @@ class DataSourceDetailApi(Resource):
                 DataSourceCreateRequestSchema)
 
             # FIXME: Remove this code, ignore attribute_privacy
-            for attr in json_data['attributes']:
+            for attr in json_data.get('attributes', ''):
                 del attr['attribute_privacy']
 
             # Ignore missing fields to allow partial updates
