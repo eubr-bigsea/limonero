@@ -120,7 +120,9 @@ class DataSourceListApi(Resource):
                         pagination = data_sources
                     result = {
                         'data': DataSourceListResponseSchema(
-                            many=True, only=only).dump(pagination.items).data,
+                            many=True, only=only,
+                            exclude=('permissions',)).dump(
+                            pagination.items).data,
                         'pagination': {
                             'page': page, 'size': page_size,
                             'total': pagination.total,
@@ -668,7 +670,6 @@ class DataSourceInferSchemaApi(Resource):
 
         hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
         path = hadoop_pkg.fs.Path(ds.url)
-
         if ds.format == DataSourceFormat.CSV:
             try:
                 use_header = options.get('use_header',
@@ -918,7 +919,7 @@ class DataSourceInferSchemaApi(Resource):
     def _get_header(row):
         attrs = []
         for attr in row:
-            attr = strip_accents(attr.replace(' ', '_'))  # .decode('utf8'))
+            attr = strip_accents(attr.replace(' ', '_'))[:100]
             attrs.append(
                 Attribute(name=attr, nullable=False, enumeration=False))
         return attrs
