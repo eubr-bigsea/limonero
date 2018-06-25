@@ -513,8 +513,10 @@ class DataSourceUploadApi(Resource):
                     final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
 
                     # time to merge all files
+                    instance = current_app.config.get('instance', 'unnamed')
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        u'{}/{}'.format(u'/limonero/data', final_filename))
+                        u'{}/{}/{}'.format(u'/limonero/data', instance,
+                                           final_filename ))
                     if hdfs.exists(target_path):
                         result = {"status": "error",
                                   "message": "File already exists"}
