@@ -52,6 +52,7 @@ class ModelType:
 # noinspection PyClassHasNoInit
 class StorageType:
     HDFS = 'HDFS'
+    JDBC = 'JDBC'
     OPHIDIA = 'OPHIDIA'
     ELASTIC_SEARCH = 'ELASTIC_SEARCH'
     MONGODB = 'MONGODB'
@@ -294,6 +295,7 @@ class DataSource(db.Model):
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
+    command = Column(LONGTEXT, nullable=False)
     __mapper_args__ = {
         'order_by': 'name'
     }
