@@ -19,6 +19,7 @@ db = SQLAlchemy()
 
 # noinspection PyClassHasNoInit
 class DataSourceFormat:
+    JDBC = 'JDBC'
     XML_FILE = 'XML_FILE'
     NETCDF4 = 'NETCDF4'
     HDF5 = 'HDF5'
@@ -52,6 +53,7 @@ class ModelType:
 # noinspection PyClassHasNoInit
 class StorageType:
     HDFS = 'HDFS'
+    JDBC = 'JDBC'
     OPHIDIA = 'OPHIDIA'
     ELASTIC_SEARCH = 'ELASTIC_SEARCH'
     MONGODB = 'MONGODB'
@@ -294,6 +296,7 @@ class DataSource(db.Model):
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
+    command = Column(LONGTEXT, nullable=False)
     __mapper_args__ = {
         'order_by': 'name'
     }
@@ -440,6 +443,8 @@ class Storage(db.Model):
     name = Column(String(100), nullable=False)
     type = Column(Enum(*StorageType.values(),
                        name='StorageTypeEnumType'), nullable=False)
+    enabled = Column(Boolean,
+                     default=True, nullable=False)
     url = Column(String(1000), nullable=False)
 
     def __unicode__(self):

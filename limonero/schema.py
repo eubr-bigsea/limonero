@@ -396,6 +396,7 @@ class DataSourceListResponseSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
+    command = fields.String(required=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -453,6 +454,7 @@ class DataSourceCreateRequestSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
+    command = fields.String(required=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
@@ -515,6 +517,7 @@ class DataSourceItemResponseSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
+    command = fields.String(required=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
@@ -744,6 +747,8 @@ class StorageListResponseSchema(Schema):
     name = fields.String(required=True)
     type = fields.String(required=True,
                          validate=[OneOf(StorageType.__dict__.keys())])
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -762,6 +767,8 @@ class StorageItemResponseSchema(Schema):
     name = fields.String(required=True)
     type = fields.String(required=True,
                          validate=[OneOf(StorageType.__dict__.keys())])
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -777,6 +784,8 @@ class StorageItemResponseSchema(Schema):
 class StorageCreateRequestSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
