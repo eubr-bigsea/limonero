@@ -19,6 +19,7 @@ db = SQLAlchemy()
 
 # noinspection PyClassHasNoInit
 class DataSourceFormat:
+    JDBC = 'JDBC'
     XML_FILE = 'XML_FILE'
     NETCDF4 = 'NETCDF4'
     HDF5 = 'HDF5'
