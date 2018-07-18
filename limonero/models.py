@@ -442,6 +442,8 @@ class Storage(db.Model):
     name = Column(String(100), nullable=False)
     type = Column(Enum(*StorageType.values(),
                        name='StorageTypeEnumType'), nullable=False)
+    enabled = Column(Boolean,
+                     default=True, nullable=False)
     url = Column(String(1000), nullable=False)
 
     def __unicode__(self):

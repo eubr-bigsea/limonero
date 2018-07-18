@@ -747,6 +747,8 @@ class StorageListResponseSchema(Schema):
     name = fields.String(required=True)
     type = fields.String(required=True,
                          validate=[OneOf(StorageType.__dict__.keys())])
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -765,6 +767,8 @@ class StorageItemResponseSchema(Schema):
     name = fields.String(required=True)
     type = fields.String(required=True,
                          validate=[OneOf(StorageType.__dict__.keys())])
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -780,6 +784,8 @@ class StorageItemResponseSchema(Schema):
 class StorageCreateRequestSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
+    enabled = fields.Boolean(required=True, missing=True,
+                             default=True)
     url = fields.String(required=True)
 
     # noinspection PyUnresolvedReferences
