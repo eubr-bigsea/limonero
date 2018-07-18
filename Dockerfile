@@ -4,8 +4,8 @@ LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf <gu
 ENV LIMONERO_HOME /usr/local/limonero
 ENV LIMONERO_CONFIG $LIMONERO_HOME/conf/limonero-config.yaml
 
-ENV SPARK_HADOOP_PKG spark-2.2.0-bin-hadoop2.6
-ENV SPARK_HADOOP_URL http://www-us.apache.org/dist/spark/spark-2.0.2/spark-2.0.2-bin-hadoop2.6.tgz
+ENV SPARK_HADOOP_PKG spark-2.2.2-bin-hadoop2.6
+ENV SPARK_HADOOP_URL http://www-us.apache.org/dist/spark/spark-2.2.2/${SPARK_HADOOP_PKG}.tgz
 ENV SPARK_HOME /usr/local/spark
 ENV PYTHONPATH $PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
 
