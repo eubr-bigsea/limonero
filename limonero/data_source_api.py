@@ -19,6 +19,7 @@ from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
+from sqlalchemy import inspect
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
@@ -516,7 +517,7 @@ class DataSourceUploadApi(Resource):
                     instance = current_app.config.get('instance', 'unnamed')
                     target_path = jvm.org.apache.hadoop.fs.Path(
                         u'{}/{}/{}'.format(u'/limonero/data', instance,
-                                           final_filename ))
+                                           final_filename))
                     if hdfs.exists(target_path):
                         result = {"status": "error",
                                   "message": "File already exists"}
@@ -989,3 +990,16 @@ class DataSourcePrivacyApi(Resource):
                 result = dict(status="ERROR", message="Invalid data",
                               errors=form.errors)
         return result, result_code
+
+
+# Events
+@event.listens_for(inspect(DataSource).relationships['attributes'], 'append')
+@event.listens_for(inspect(DataSource).relationships['attributes'], 'remove')
+def receive_append_or_remove(target, value, initiator):
+    target.updated = datetime.datetime.utcnow()
+
+
+@event.listens_for(Attribute, 'after_update')
+def receive_attribute_change(mapper, connection, target):
+    if target.data_source:
+        target.data_source.updated = datetime.datetime.utcnow()
