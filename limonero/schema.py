@@ -434,8 +434,6 @@ class DataSourceCreateRequestSchema(Schema):
     privacy_aware = fields.Boolean(required=True, missing=False,
                                    default=False)
     url = fields.String(required=True)
-    updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow,
-                              default=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
