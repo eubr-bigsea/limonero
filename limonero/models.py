@@ -270,6 +270,9 @@ class DataSource(db.Model):
     url = Column(String(200), nullable=False)
     created = Column(DateTime,
                      default=func.now(), nullable=False)
+    updated = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False,
+                     onupdate=datetime.datetime.utcnow)
     format = Column(Enum(*DataSourceFormat.values(),
                          name='DataSourceFormatEnumType'), nullable=False)
     provenience = Column(LONGTEXT)

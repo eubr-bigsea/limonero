@@ -370,6 +370,8 @@ class DataSourceListResponseSchema(Schema):
     url = fields.String(required=True)
     created = fields.DateTime(required=True, missing=func.now(),
                               default=func.now())
+    updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow,
+                              default=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
@@ -432,6 +434,8 @@ class DataSourceCreateRequestSchema(Schema):
     privacy_aware = fields.Boolean(required=True, missing=False,
                                    default=False)
     url = fields.String(required=True)
+    updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow,
+                              default=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
@@ -491,6 +495,8 @@ class DataSourceItemResponseSchema(Schema):
     url = fields.String(required=True)
     created = fields.DateTime(required=True, missing=func.now(),
                               default=func.now())
+    updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow,
+                              default=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(DataSourceFormat.__dict__.keys())])
     provenience = fields.String(required=False, allow_none=True)
