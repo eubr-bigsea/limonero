@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-}
-from app_auth import requires_auth
-from flask import request, current_app
+from flask import g as flask_g
+from flask import request
 from flask_restful import Resource
+
+from app_auth import requires_auth
 from schema import *
 
 
@@ -13,10 +15,14 @@ class StorageListApi(Resource):
     def get():
         only = ('id', 'name') \
             if request.args.get('simple', 'false') == 'true' else None
-        storages = Storage.query.all()
+        storages = Storage.query.filter(Storage.enabled)
+        user = getattr(flask_g, 'user')
 
-        return StorageListResponseSchema(
-            many=True, only=only).dump(storages).data
+        # Administrative have access to URL
+        exclude = tuple() if user.id == 1 else tuple(['url'])
+
+        return StorageListResponseSchema(many=True, only=only,
+                                         exclude=exclude).dump(storages).data
 
 
 class StorageDetailApi(Resource):
@@ -25,8 +31,12 @@ class StorageDetailApi(Resource):
     @staticmethod
     @requires_auth
     def get(storage_id):
-        storage = Storage.query.get(storage_id)
+        user = getattr(flask_g, 'user')
+        exclude = tuple() if user.id == 1 else tuple(['url'])
+
+        storage = Storage.query.filter(Storage.enabled,
+                                       Storage.id == storage_id)
         if storage is not None:
-            return StorageItemResponseSchema().dump(storage).data
+            return StorageItemResponseSchema(exclude=exclude).dump(storage).data
         else:
             return dict(status="ERROR", message="Not found"), 404

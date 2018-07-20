@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+
 import argparse
 import itertools
 import logging
 import logging.config
+import os
 import signal
 
 import eventlet
 import eventlet.wsgi
-import os
 import sqlalchemy_utils
-import sys
 import yaml
 from flask import Flask, request
+from flask import render_template
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_cors import CORS
@@ -23,8 +24,9 @@ from flask_restful import Api, abort
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
     DataSourcePrivacyApi, DataSourceDownload
+from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
+    init_login, AuthenticatedMenuLink
 from limonero.cache import cache
-from limonero.admin import DataSourceModelView, StorageModelView
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
@@ -35,7 +37,7 @@ os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
 
 eventlet.monkey_patch(all=True, thread=False)
-app = Flask(__name__, static_url_path='')
+app = Flask(__name__, static_url_path='', static_folder='static')
 
 babel = Babel(app)
 
@@ -43,8 +45,12 @@ logging.config.fileConfig('logging_config.ini')
 
 app.secret_key = 'l3m0n4d1'
 # Flask Admin 
-admin = Admin(app, name='Lemonade', template_mode='bootstrap3')
+admin = Admin(app, name='Lemonade Limonero', template_mode='bootstrap3',
+              url="/control-panel", base_template='admin/master.html',
+              index_view=HomeView(url='/control-panel'))
 
+admin.add_link(AuthenticatedMenuLink(name='Logout',
+                                     endpoint='admin.logout_view'))
 
 # Cache
 cache.init_app(app)
@@ -54,6 +60,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 api = Api(app)
 
 redis_store = FlaskRedis()
+
+# Initialize flask-login
+init_login(app)
+
 
 mappings = {
     '/datasources': DataSourceListApi,
@@ -95,6 +105,11 @@ def before():
 @app.route('/static/<path:path>')
 def static_file(path):
     return app.send_static_file(path)
+
+
+# @app.route('/teste')
+# def teste():
+#     return render_template('admin/master.html')
 
 
 @babel.localeselector
