@@ -35,7 +35,7 @@ class StorageDetailApi(Resource):
         exclude = tuple() if user.id == 1 else tuple(['url'])
 
         storage = Storage.query.filter(Storage.enabled,
-                                       Storage.id == storage_id)
+                                       Storage.id == storage_id).first()
         if storage is not None:
             return StorageItemResponseSchema(exclude=exclude).dump(storage).data
         else:
