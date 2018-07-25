@@ -9,6 +9,7 @@ from ast import literal_eval
 from io import BytesIO
 from urlparse import urlparse
 
+import pymysql
 from backports import csv
 from dateutil import parser as date_parser
 from dbfpy import dbf
@@ -19,6 +20,7 @@ from flask.views import MethodView
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
+from requests import compat as req_compat
 from sqlalchemy import inspect
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
@@ -31,6 +33,23 @@ log = logging.getLogger(__name__)
 
 WRONG_HDFS_CONFIG = "Limonero HDFS access not correctly configured (see " \
                     "config 'dfs.client.use.datanode.hostname')"
+
+
+def _get_mysql_data_type(d, dtype):
+    if d[dtype] in ('TINY', 'SHORT', 'INT24', 'YEAR', 'BIT'):
+        final_type = DataType.INTEGER
+    elif d[dtype] in ('LONGLONG',):
+        final_type = DataType.LONG
+    elif d[dtype] in ('NEWDATE',):
+        final_type = DataType.DATETIME
+    elif d[dtype] in ('NEWDECIMAL',):
+        final_type = DataType.DECIMAL
+    elif d[dtype] in ('DECIMAL', 'FLOAT', 'DOUBLE', 'DATE', 'TIME', 'DATETIME',
+                      'LONG', 'TIMESTAMP'):
+        final_type = d[dtype]
+    else:
+        final_type = DataType.CHARACTER
+    return final_type
 
 
 def strip_accents(s):
@@ -654,127 +673,179 @@ class DataSourceInferSchemaApi(Resource):
     }
 
     @staticmethod
+    def _infer_schema_from_db(ds, options):
+        pass
+
+    @staticmethod
     def infer_schema(ds, options):
         parsed = urlparse(ds.storage.url)
 
-        # noinspection PyUnresolvedReferences
-        gateway = create_gateway(log, current_app.gateway_port)
-        jvm = gateway.jvm
+        if ds.format in (DataSourceFormat.JDBC,):
+            parsed = req_compat.urlparse(ds.url)
+            qs = dict(x.split('=') for x in parsed.query.split('&'))
+            # Supported DB: mysql
+            if parsed.scheme == 'mysql':
+                from pymysql.constants import FIELD_TYPE
+                ft = pymysql.constants.FIELD_TYPE
+                d = {getattr(ft, k): k for k in dir(ft) if
+                     not k.startswith('_')}
+                try:
+                    fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
+                    cmd = fix_limit.sub('', ds.command)
+                    with pymysql.connect(
+                            host=parsed.hostname,
+                            port=parsed.port or '3306',
+                            user=qs.get('user'),
+                            passwd=qs.get('password'),
+                            db=parsed.path[1:]) as cursor:
+                        cursor.execute('{} LIMIT 0'.format(cmd))
 
-        hadoop_pkg = jvm.org.apache.hadoop
-        str_uri = '{proto}://{host}:{port}'.format(
-            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-        uri = jvm.java.net.URI(str_uri)
+                        old_attrs = Attribute.query.filter(
+                            Attribute.data_source_id == ds.id)
+                        old_attrs.delete(synchronize_session=False)
+                        for (name, dtype, size, _, precision, scale,
+                             nullable) in cursor.description:
+                            final_type = _get_mysql_data_type(d, dtype)
+                            print(name, d[dtype], final_type)
+                            attr = Attribute(name=name, type=final_type,
+                                             size=size, precision=precision,
+                                             scale=scale, nullable=nullable)
+                            attr.data_source = ds
+                            attr.feature = False
+                            attr.label = False
+                            db.session.add(attr)
+                        db.session.commit()
+                except Exception as ex:
+                    import pdb
+                    pdb.set_trace()
+                    raise ValueError('Could not connect to database')
+            else:
+                raise ValueError(
+                    'Unsupported database: {}'.format(parsed.scheme))
 
-        conf = hadoop_pkg.conf.Configuration()
-        conf.set('dfs.client.use.datanode.hostname',
-                 "true" if current_app.config.get(
-                     'dfs.client.use.datanode.hostname', True) else "false")
+        elif ds.format in (DataSourceFormat.CSV, DataSourceFormat.SHAPEFILE):
+            # noinspection PyUnresolvedReferences
+            gateway = create_gateway(log, current_app.gateway_port)
+            jvm = gateway.jvm
 
-        hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
-        path = hadoop_pkg.fs.Path(ds.url)
-        if ds.format == DataSourceFormat.CSV:
-            try:
-                use_header = options.get('use_header',
-                                         False) or ds.is_first_line_header
-                delimiter = (options.get('delimiter', ',') or ',').encode(
-                    'latin1')
-                # If there is a delimiter set in data_source, use it instead
-                if ds.attribute_delimiter:
-                    delimiter = ds.attribute_delimiter
+            hadoop_pkg = jvm.org.apache.hadoop
+            str_uri = '{proto}://{host}:{port}'.format(
+                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            uri = jvm.java.net.URI(str_uri)
 
-                special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
-                delimiter = special_delimiters.get(delimiter, delimiter)
+            conf = hadoop_pkg.conf.Configuration()
+            conf.set('dfs.client.use.datanode.hostname',
+                     "true" if current_app.config.get(
+                         'dfs.client.use.datanode.hostname', True) else "false")
 
-                buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
-                    conf, ds, hadoop_pkg, hdfs, jvm, path)
+            hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
+            path = hadoop_pkg.fs.Path(ds.url)
 
-                quote_char = options.get('quote_char', None)
-                quote_char = quote_char.encode(encoding) if quote_char else None
+            if ds.format == DataSourceFormat.CSV:
+                try:
+                    use_header = options.get('use_header',
+                                             False) or ds.is_first_line_header
+                    delimiter = (options.get('delimiter', ',') or ',').encode(
+                        'latin1')
+                    # If there is a delimiter set in data_source, use it instead
+                    if ds.attribute_delimiter:
+                        delimiter = ds.attribute_delimiter
 
-                # Read 100 lines, may be enough to infer schema
-                lines = StringIO()
-                for _ in range(1000):
-                    line = buffered_reader.readLine()
-                    if line is None:
-                        break
-                    line = line.encode(encoding).decode('utf8')
-                    line = line.replace('\0', '')
-                    lines.write(line)
-                    lines.write(u'\n')
+                    special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
+                    delimiter = special_delimiters.get(delimiter, delimiter)
 
-                buffered_reader.close()
-                lines.seek(0)
+                    buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
+                        conf, ds, hadoop_pkg, hdfs, jvm, path)
 
-                if quote_char:
-                    csv_reader = csv.reader(lines, delimiter=delimiter,
-                                            quotechar=quote_char.decode('utf8'))
-                else:
-                    csv_reader = csv.reader(lines, delimiter=delimiter)
+                    quote_char = options.get('quote_char', None)
+                    quote_char = quote_char.encode(
+                        encoding) if quote_char else None
 
-                attrs = []
-                # noinspection PyBroadException
-                attrs = DataSourceInferSchemaApi._get_csv_attributes(
-                    attrs, csv_reader, use_header)
+                    # Read 100 lines, may be enough to infer schema
+                    lines = StringIO()
+                    for _ in range(1000):
+                        line = buffered_reader.readLine()
+                        if line is None:
+                            break
+                        line = line.encode(encoding).decode('utf8')
+                        line = line.replace('\0', '')
+                        lines.write(line)
+                        lines.write(u'\n')
 
+                    buffered_reader.close()
+                    lines.seek(0)
+
+                    if quote_char:
+                        csv_reader = csv.reader(lines, delimiter=delimiter,
+                                                quotechar=quote_char.decode(
+                                                    'utf8'))
+                    else:
+                        csv_reader = csv.reader(lines, delimiter=delimiter)
+
+                    attrs = []
+                    # noinspection PyBroadException
+                    attrs = DataSourceInferSchemaApi._get_csv_attributes(
+                        attrs, csv_reader, use_header)
+
+                    old_attrs = Attribute.query.filter(
+                        Attribute.data_source_id == ds.id)
+                    old_attrs.delete(synchronize_session=False)
+                    for attr in attrs:
+                        if attr.type is None:
+                            attr.type = DataType.CHARACTER
+                        if attr.type == DataType.CHARACTER:
+                            if attr.size > 1000:
+                                attr.type = DataType.TEXT
+                        attr.data_source = ds
+                        attr.feature = False
+                        attr.label = False
+                        db.session.add(attr)
+
+                    db.session.commit()
+                except Exception as ex:
+                    raise
+                    raise ValueError(
+                        'Cannot infer the schema: {}'.format(ex))
+            elif ds.format == DataSourceFormat.SHAPEFILE:
                 old_attrs = Attribute.query.filter(
                     Attribute.data_source_id == ds.id)
                 old_attrs.delete(synchronize_session=False)
-                for attr in attrs:
-                    if attr.type is None:
-                        attr.type = DataType.CHARACTER
-                    if attr.type == DataType.CHARACTER:
-                        if attr.size > 1000:
-                            attr.type = DataType.TEXT
+
+                path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
+                input_stream_dbf = jvm.java.io.BufferedInputStream(
+                    hdfs.open(path2))
+
+                dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
+                    input_stream_dbf)
+
+                dbf_io = BytesIO(dbf_content)
+                handler = dbf.Dbf(dbf_io)
+
+                types = {
+                    'C': DataType.CHARACTER,
+                    'B': DataType.DOUBLE,
+                    'D': DataType.DATETIME,
+                    'F': DataType.FLOAT,
+                    'I': DataType.INTEGER,
+                    'L': DataType.LONG,
+                    'M': DataType.TEXT,
+                    'N': DataType.FLOAT,
+                    'O': DataType.DOUBLE,
+                    'V': DataType.CHARACTER,
+                    'Y': DataType.DECIMAL
+                }
+                for definition in handler.fieldDefs:
+                    data_type = types[definition.typeCode]
+                    attr = Attribute(name=definition.name, nullable=True,
+                                     enumeration=False, type=data_type,
+                                     feature=False, label=False,
+                                     size=definition.length,
+                                     scale=definition.decimalCount)
                     attr.data_source = ds
                     attr.feature = False
                     attr.label = False
                     db.session.add(attr)
-
                 db.session.commit()
-            except Exception as ex:
-                raise
-                raise ValueError(
-                    'Cannot infer the schema: {}'.format(ex))
-        elif ds.format == DataSourceFormat.SHAPEFILE:
-            old_attrs = Attribute.query.filter(
-                Attribute.data_source_id == ds.id)
-            old_attrs.delete(synchronize_session=False)
-
-            path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
-            input_stream_dbf = jvm.java.io.BufferedInputStream(hdfs.open(path2))
-
-            dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
-                input_stream_dbf)
-
-            dbf_io = BytesIO(dbf_content)
-            handler = dbf.Dbf(dbf_io)
-
-            types = {
-                'C': DataType.CHARACTER,
-                'B': DataType.DOUBLE,
-                'D': DataType.DATETIME,
-                'F': DataType.FLOAT,
-                'I': DataType.INTEGER,
-                'L': DataType.LONG,
-                'M': DataType.TEXT,
-                'N': DataType.FLOAT,
-                'O': DataType.DOUBLE,
-                'V': DataType.CHARACTER,
-                'Y': DataType.DECIMAL
-            }
-            for definition in handler.fieldDefs:
-                data_type = types[definition.typeCode]
-                attr = Attribute(name=definition.name, nullable=True,
-                                 enumeration=False, type=data_type,
-                                 feature=False, label=False,
-                                 size=definition.length,
-                                 scale=definition.decimalCount)
-                attr.data_source = ds
-                attr.feature = False
-                attr.label = False
-                db.session.add(attr)
-            db.session.commit()
         else:
             # gateway.shutdown()
             raise ValueError(
