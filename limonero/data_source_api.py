@@ -716,8 +716,6 @@ class DataSourceInferSchemaApi(Resource):
                             db.session.add(attr)
                         db.session.commit()
                 except Exception as ex:
-                    import pdb
-                    pdb.set_trace()
                     raise ValueError('Could not connect to database')
             else:
                 raise ValueError(
@@ -729,8 +727,12 @@ class DataSourceInferSchemaApi(Resource):
             jvm = gateway.jvm
 
             hadoop_pkg = jvm.org.apache.hadoop
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            if parsed.scheme == 'file':
+                str_uri = '{proto}://{path}'.format(
+                    proto=parsed.scheme, path=parsed.path)
+            else:
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
             uri = jvm.java.net.URI(str_uri)
 
             conf = hadoop_pkg.conf.Configuration()
@@ -874,6 +876,8 @@ class DataSourceInferSchemaApi(Resource):
                 return {'status': 'ERROR',
                         'message': WRONG_HDFS_CONFIG}, 400
             log.exception('Java error')
+            return {'status': 'ERROR',
+                    'message': 'Erro interno, tente mais tarde'}, 400
         except Exception as ex:
             db.session.rollback()
             log.exception('Invalid CSV format')

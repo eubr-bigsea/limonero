@@ -34,6 +34,7 @@ def create_jvm(logger):
                 'commons-cli-*.jar',
                 'protobuf-java-*.jar',
                 'htrace-core-*.jar',
+                'jackson*.jar',
             ],
             '{0}/share/hadoop/hdfs'.format(hadoop_home): [
                 'hadoop-hdfs-*.jar'
