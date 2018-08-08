@@ -22,4 +22,6 @@ COPY requirements.txt $LIMONERO_HOME/requirements.txt
 RUN pip install -r $LIMONERO_HOME/requirements.txt
 COPY . $LIMONERO_HOME
 
+RUN mkdir /srv/storage
+
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
