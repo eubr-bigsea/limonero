@@ -1,27 +1,28 @@
-FROM openjdk:8-jre
-LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf <guimalufb@gmail.com>"
+FROM python:2.7-alpine as pip_build
+RUN apk add --no-cache g++
+COPY requirements.txt /
+RUN pip install -r /requirements.txt
 
-ENV LIMONERO_HOME /usr/local/limonero
-ENV LIMONERO_CONFIG $LIMONERO_HOME/conf/limonero-config.yaml
+FROM openjdk:8-jre-alpine
+LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf \
+<guimalufb@gmail.com>, Gabriel Barbutti <gabrielbarbutti@gmail.com>"
 
-ENV SPARK_HADOOP_PKG spark-2.2.2-bin-hadoop2.6
-ENV SPARK_HADOOP_URL http://www-us.apache.org/dist/spark/spark-2.2.2/${SPARK_HADOOP_PKG}.tgz
-ENV SPARK_HOME /usr/local/spark
-ENV PYTHONPATH $PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
+ARG SPARK_VERSION=2.3.1
+ARG HADOOP_VERSION=2.7
+ARG SPARK_HADOOP_PKG=spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}
+ARG SPARK_HADOOP_URL=http://www-eu.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_HADOOP_PKG}.tgz
 
-RUN apt-get update && apt-get install -y curl \
-   && curl -s ${SPARK_HADOOP_URL} | tar -xz -C /usr/local/  \
-   && mv /usr/local/$SPARK_HADOOP_PKG $SPARK_HOME
+ENV LIMONERO_HOME=/usr/local/limonero \
+    SPARK_HOME=/usr/local/spark
+ENV LIMONERO_CONFIG=$LIMONERO_HOME/conf/limonero-config.yaml \
+    PYTHONPATH=$PYTHONPATH:$JUICER_HOME:$SPARK_HOME/python
 
-RUN apt-get install -y  \
-     python-pip \
-   && rm -rf /var/lib/apt/lists/*
+RUN wget ${SPARK_HADOOP_URL} -O- | tar -xz -C /usr/local/ \
+    && mv /usr/local/$SPARK_HADOOP_PKG $SPARK_HOME
+
+COPY --from=pip_build /usr/local /usr/local
 
 WORKDIR $LIMONERO_HOME
-COPY requirements.txt $LIMONERO_HOME/requirements.txt
-RUN pip install -r $LIMONERO_HOME/requirements.txt
 COPY . $LIMONERO_HOME
-
-RUN mkdir /srv/storage
 
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]

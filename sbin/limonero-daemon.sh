@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # This script controls the limonero server daemon initialization, status reporting
 # and termination
@@ -16,7 +16,7 @@ fi
 cmd_option=$1
 
 # if unset set limonero_home project root without ./sbin
-export LIMONERO_HOME=${LIMONERO_HOME:-$(cd `dirname $0`/..; pwd)}
+export LIMONERO_HOME=${LIMONERO_HOME:-$(cd $(dirname $0)/..; pwd)}
 echo ${LIMONERO_HOME}
 
 # get log directory
@@ -68,7 +68,7 @@ case $cmd_option in
   (stop)
     if [ -f $pid ]; then
       TARGET_ID=$(cat $pid)
-      if [[ $(ps -p ${TARGET_ID} -o comm=) =~ "python" ]]; then
+      if [ $(pgrep -o -f limonero_server) -eq ${TARGET_ID} ]; then
         echo "stopping limonero server, user=${USER}, hostname=${HOSTNAME}"
         kill -SIGTERM ${TARGET_ID} && rm -f $pid
       else
@@ -82,7 +82,7 @@ case $cmd_option in
   (status)
     if [ -f $pid ]; then
       TARGET_ID=$(cat $pid)
-      if [[ $(ps -p ${TARGET_ID} -o comm=) =~ "python" ]]; then
+      if [ $(pgrep -o -f limonero_server) -eq ${TARGET_ID} ]; then
         echo "limonero server is running (pid=${TARGET_ID})"
         exit 0
       else
