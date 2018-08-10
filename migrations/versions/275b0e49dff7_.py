@@ -19,7 +19,7 @@ depends_on = None
 
 def upgrade():
     op.add_column('data_source',
-                   sa.Column('command', mysql.LONGTEXT(), nullable=False))
+                   sa.Column('command', mysql.LONGTEXT(), nullable=True))
     op.get_bind().execute(text(
         "ALTER TABLE `limonero`.`data_source` CHANGE `format` `format` "
         "ENUM('XML_FILE','NETCDF4','HDF5','SHAPEFILE','TEXT','CUSTOM','JSON',"

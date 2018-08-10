@@ -186,7 +186,8 @@ class Attribute(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class AttributePrivacy(db.Model):
@@ -232,7 +233,8 @@ class AttributePrivacy(db.Model):
         return self.attribute_name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class AttributePrivacyGroup(db.Model):
@@ -248,7 +250,8 @@ class AttributePrivacyGroup(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class DataSource(db.Model):
@@ -299,7 +302,7 @@ class DataSource(db.Model):
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
-    command = Column(LONGTEXT, nullable=False)
+    command = Column(LONGTEXT)
     __mapper_args__ = {
         'order_by': 'name'
     }
@@ -315,7 +318,8 @@ class DataSource(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class DataSourcePermission(db.Model):
@@ -343,7 +347,8 @@ class DataSourcePermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class Model(db.Model):
@@ -365,6 +370,10 @@ class Model(db.Model):
     user_id = Column(Integer, nullable=False)
     user_login = Column(String(50), nullable=False)
     user_name = Column(String(200), nullable=False)
+    workflow_id = Column(Integer, nullable=False)
+    workflow_name = Column(String(200))
+    task_id = Column(String(200), nullable=False)
+    job_id = Column(Integer, nullable=False)
 
     # Associations
     storage_id = Column(Integer,
@@ -377,7 +386,8 @@ class Model(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class ModelPermission(db.Model):
@@ -405,7 +415,8 @@ class ModelPermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class PrivacyRisk(db.Model):
@@ -434,7 +445,8 @@ class PrivacyRisk(db.Model):
         return self.type
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class Storage(db.Model):
@@ -454,7 +466,8 @@ class Storage(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 
 
 class StoragePermission(db.Model):
@@ -480,5 +493,6 @@ class StoragePermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>'.format(self.__class__, self.id)
+        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
+                                              str(self))
 

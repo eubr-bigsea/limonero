@@ -20,7 +20,7 @@ def partial_schema_factory(schema_cls):
 def load_json(str_value):
     try:
         return json.loads(str_value)
-    except:
+    except BaseException:
         return "Error loading JSON"
 
 
@@ -398,7 +398,7 @@ class DataSourceListResponseSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
-    command = fields.String(required=True)
+    command = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -456,7 +456,7 @@ class DataSourceCreateRequestSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
-    command = fields.String(required=True)
+    command = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
@@ -521,7 +521,7 @@ class DataSourceItemResponseSchema(Schema):
                                           default=0)
     is_multiline = fields.Boolean(required=True, missing=0,
                                   default=0)
-    command = fields.String(required=True)
+    command = fields.String(required=False, allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
@@ -638,6 +638,10 @@ class ModelListResponseSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    workflow_id = fields.Integer(required=True)
+    workflow_name = fields.String(required=False, allow_none=True)
+    task_id = fields.String(required=True)
+    job_id = fields.Integer(required=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
@@ -665,6 +669,10 @@ class ModelCreateRequestSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    workflow_id = fields.Integer(required=True)
+    workflow_name = fields.String(required=False, allow_none=True)
+    task_id = fields.String(required=True)
+    job_id = fields.Integer(required=True)
     storage_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -693,6 +701,10 @@ class ModelItemResponseSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    workflow_id = fields.Integer(required=True)
+    workflow_name = fields.String(required=False, allow_none=True)
+    task_id = fields.String(required=True)
+    job_id = fields.Integer(required=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
