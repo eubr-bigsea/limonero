@@ -1,7 +1,7 @@
 import glob
+import os
 import sys
 
-import os
 from py4j.java_gateway import JavaGateway, GatewayParameters, launch_gateway
 
 
@@ -10,56 +10,11 @@ def init_jvm(flask_app, logger):
 
 
 def create_jvm(logger):
-    hadoop_home = os.environ.get('HADOOP_HOME')
-    spark_home = os.environ.get('SPARK_HOME')
     cp = {}
     port = None
 
-    if hadoop_home:
-        cp.update({
-            '{0}/share/hadoop/common'.format(hadoop_home): [
-                'hadoop-common-*.jar',
-            ],
-            '{0}/share/hadoop/common/lib'.format(hadoop_home): [
-                'commons-logging-*.jar',
-                'guava-*.jar',
-                'commons-collections-*.jar',
-                'commons-configuration-*.jar',
-                'commons-io-*.jar',
-                'commons-lang-*.jar',
-                'hadoop-auth-*.jar',
-                'slf4j-api-*.jar',
-                'slf4j-log4j*.jar',
-                'log4j-*.jar',
-                'commons-cli-*.jar',
-                'protobuf-java-*.jar',
-                'htrace-core-*.jar',
-                'jackson*.jar',
-            ],
-            '{0}/share/hadoop/hdfs'.format(hadoop_home): [
-                'hadoop-hdfs-*.jar'
-            ]
-        })
-    if spark_home:
-        cp.update({
-            '{0}/jars'.format(spark_home): [
-                'hadoop-common-*.jar',
-                'commons-logging-*.jar',
-                'commons-io-2.4.jar',
-                'guava-*.jar',
-                'commons-collections-*.jar',
-                'commons-configuration-*.jar',
-                'commons-lang-*.jar',
-                'hadoop-auth-*.jar',
-                'slf4j-api-*.jar',
-                'slf4j-log4j*.jar',
-                'log4j-*.jar',
-                'commons-cli-*.jar',
-                'protobuf-java-*.jar',
-                'htrace-core-*.jar',
-                'hadoop-hdfs-*.jar'
-            ]
-        })
+    cp.update({'/tmp/ivy/lib': ['*.jar']})
+
     if cp:
         final_cp = []
         for path, exprs in cp.items():
