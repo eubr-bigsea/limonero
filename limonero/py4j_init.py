@@ -1,7 +1,7 @@
 import glob
+import os
 import sys
 
-import os
 from py4j.java_gateway import JavaGateway, GatewayParameters, launch_gateway
 
 
@@ -50,14 +50,14 @@ def create_jvm(logger):
                 'commons-collections-*.jar',
                 'commons-configuration-*.jar',
                 'commons-lang-*.jar',
-                'hadoop-auth-*.jar',
+                # 'hadoop-auth-*.jar',
                 'slf4j-api-*.jar',
                 'slf4j-log4j*.jar',
                 'log4j-*.jar',
                 'commons-cli-*.jar',
                 'protobuf-java-*.jar',
                 'htrace-core-*.jar',
-                'hadoop-hdfs-*.jar'
+                # 'hadoop-hdfs-*.jar'
             ]
         })
     if cp:

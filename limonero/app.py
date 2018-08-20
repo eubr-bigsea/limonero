@@ -14,7 +14,6 @@ import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
-from flask import render_template
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_cors import CORS
@@ -23,7 +22,8 @@ from flask_restful import Api, abort
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi, DataSourceDownload
+    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
+from limonero import CustomJSONEncoder
 from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
     init_login, AuthenticatedMenuLink
 from limonero.cache import cache
@@ -38,6 +38,8 @@ sqlalchemy_utils.i18n.get_locale = get_locale
 
 eventlet.monkey_patch(all=True, thread=False)
 app = Flask(__name__, static_url_path='', static_folder='static')
+
+app.json_encoder = CustomJSONEncoder
 
 babel = Babel(app)
 
@@ -64,11 +66,11 @@ redis_store = FlaskRedis()
 # Initialize flask-login
 init_login(app)
 
-
 mappings = {
     '/datasources': DataSourceListApi,
     '/datasources/upload': DataSourceUploadApi,
     '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
+    '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,
