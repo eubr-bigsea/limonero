@@ -46,7 +46,8 @@ babel = Babel(app)
 logging.config.fileConfig('logging_config.ini')
 
 app.secret_key = 'l3m0n4d1'
-# Flask Admin 
+
+# Flask Admin
 admin = Admin(app, name='Lemonade Limonero', template_mode='bootstrap3',
               url="/control-panel", base_template='admin/master.html',
               index_view=HomeView(url='/control-panel'))

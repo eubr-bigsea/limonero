@@ -23,6 +23,8 @@ from py4j.protocol import Py4JJavaError
 from requests import compat as req_compat
 from sqlalchemy import inspect
 from sqlalchemy.orm import subqueryload, joinedload
+from sqlalchemy.sql.elements import and_
+from sqlalchemy.sql.elements import or_
 
 from app_auth import requires_auth, User
 from limonero.py4j_init import create_gateway
@@ -70,10 +72,10 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 def _filter_by_permissions(data_sources, permissions):
     if flask_g.user.id not in (0, 1):  # It is not a inter service call
-        conditions = orgettext(
+        conditions = or_(
             DataSource.is_public,
             DataSource.user_id == flask_g.user.id,
-            andgettext(
+            and_(
                 DataSourcePermission.user_id == flask_g.user.id,
                 DataSourcePermission.permission.ingettext(permissions)
             )
@@ -88,8 +90,10 @@ class DataSourceListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        result, result_code = gettext('Internal error'), 500
+        result, result_code = {'status': 'ERROR',
+                               'message': gettext('Internal error')}, 500
         # noinspection PyBroadException
+
         try:
             simple = False
             if request.args.get('simple') != 'true':
@@ -150,10 +154,6 @@ class DataSourceListApi(Resource):
                             'pages': int(
                                 math.ceil(1.0 * pagination.total / page_size))}
                     }
-                else:
-                    result = {
-                        'data': DataSourceListResponseSchema(
-                            many=True, only=only).dump(data_sources).data}
             else:
                 only = ('id', 'name')
                 result = DataSourceListResponseSchema(
