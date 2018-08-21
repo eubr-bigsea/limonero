@@ -9,7 +9,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
-from sqlalchemy.dialects.mysql import LONGTEXT
+
 make_translatable(options={'locales': ['pt', 'en', 'es'],
                            'auto_create_locales': True,
                            'fallback_locale': 'en'})
@@ -168,7 +168,7 @@ class Attribute(db.Model):
     min_value = Column(String(200))
     std_deviation = Column(Float)
     missing_total = Column(String(200))
-    deciles = Column(LONGTEXT)
+    deciles = Column(String(16000000))
 
     # Associations
     data_source_id = Column(Integer,
@@ -186,8 +186,7 @@ class Attribute(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class AttributePrivacy(db.Model):
@@ -206,10 +205,10 @@ class AttributePrivacy(db.Model):
                                           name='AnonymizationTechniqueEnumType'), nullable=False)
     hierarchical_structure_type = Column(String(100))
     privacy_model_technique = Column(String(100))
-    hierarchy = Column(LONGTEXT)
-    category_model = Column(LONGTEXT)
-    privacy_model = Column(LONGTEXT)
-    privacy_model_parameters = Column(LONGTEXT)
+    hierarchy = Column(String(16000000))
+    category_model = Column(String(16000000))
+    privacy_model = Column(String(16000000))
+    privacy_model_parameters = Column(String(16000000))
     unlock_privacy_key = Column(String(400))
     is_global_law = Column(Boolean,
                            default=False)
@@ -233,8 +232,7 @@ class AttributePrivacy(db.Model):
         return self.attribute_name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class AttributePrivacyGroup(db.Model):
@@ -250,8 +248,7 @@ class AttributePrivacyGroup(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class DataSource(db.Model):
@@ -278,7 +275,7 @@ class DataSource(db.Model):
                      onupdate=datetime.datetime.utcnow)
     format = Column(Enum(*DataSourceFormat.values(),
                          name='DataSourceFormatEnumType'), nullable=False)
-    provenience = Column(LONGTEXT)
+    provenience = Column(String(16000000))
     estimated_rows = Column(Integer,
                             default=0)
     estimated_size_in_mega_bytes = Column(Numeric(10, 2))
@@ -296,13 +293,13 @@ class DataSource(db.Model):
     text_delimiter = Column(String(20))
     is_public = Column(Boolean,
                        default=False, nullable=False)
-    treat_as_missing = Column(LONGTEXT)
+    treat_as_missing = Column(String(16000000))
     encoding = Column(String(200))
     is_first_line_header = Column(Boolean,
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
-    command = Column(LONGTEXT)
+    command = Column(String(16000000))
     __mapper_args__ = {
         'order_by': 'name'
     }
@@ -318,8 +315,7 @@ class DataSource(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class DataSourcePermission(db.Model):
@@ -347,8 +343,7 @@ class DataSourcePermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class Model(db.Model):
@@ -386,8 +381,7 @@ class Model(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class ModelPermission(db.Model):
@@ -415,8 +409,7 @@ class ModelPermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class PrivacyRisk(db.Model):
@@ -430,7 +423,7 @@ class PrivacyRisk(db.Model):
     probability = Column(Float)
     impact = Column(Float)
     value = Column(Float, nullable=False)
-    detail = Column(LONGTEXT, nullable=False)
+    detail = Column(String(16000000), nullable=False)
 
     # Associations
     data_source_id = Column(Integer,
@@ -445,8 +438,7 @@ class PrivacyRisk(db.Model):
         return self.type
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class Storage(db.Model):
@@ -466,8 +458,7 @@ class Storage(db.Model):
         return self.name
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
 class StoragePermission(db.Model):
@@ -493,6 +484,5 @@ class StoragePermission(db.Model):
         return self.permission
 
     def __repr__(self):
-        return '<Instance {}: {}>: {}'.format(self.__class__, self.id,
-                                              str(self))
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
 

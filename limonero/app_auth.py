@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 def authenticate(msg, params):
     """Sends a 403 response that enables basic auth"""
-    return Response(json.dumps({'status': 'ERROR', 'message': msg}), 403,
+    return Response(json.dumps({'status': 'ERROR', 'message': msg}), 401,
                     mimetype="application/json")
 
 
