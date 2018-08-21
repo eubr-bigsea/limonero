@@ -2,11 +2,13 @@
 import logging
 
 from flask import request, current_app
+from flask_babel import gettext
 from flask_restful import Resource
 
 from app_auth import requires_auth
 from schema import *
 
+_ = gettext
 log = logging.getLogger(__name__)
 
 
@@ -25,7 +27,7 @@ class GlobalPrivacyListApi(Resource):
     @staticmethod
     @requires_auth
     def patch():
-        result = dict(status="ERROR", message="Insufficient data")
+        result = dict(status="ERROR", message=_("Insufficient data"))
         result_code = 400
         json_data = request.json or json.loads(request.data)
         if json_data:
@@ -45,28 +47,34 @@ class GlobalPrivacyListApi(Resource):
                     db.session.commit()
                     if attribute_privacy is not None:
                         result, result_code = dict(
-                            status="OK", message="Updated",
+                            status="OK",
+                            message=_("%(what)s was successfuly updated",
+                                      what=_('Privacy')),
                             data=response_schema.dump(
                                 attribute_privacy).data), 200
                     else:
-                        result = dict(status="ERROR", message="Not found")
+                        result = dict(status="ERROR",
+                                      message=_("%(type)s not found.",
+                                                type=_('Privacy')))
                 except Exception as e:
                     current_app.logger.exception(e)
                     log.exception('Error in PATCH')
-                    result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                    result, result_code = dict(
+                        status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
             else:
-                result = dict(status="ERROR", message="Invalid data",
+                result = dict(status="ERROR", message=_("Invalid data"),
                               errors=form.errors)
         return result, result_code
 
     @staticmethod
     @requires_auth
     def delete():
-        result, result_code = dict(status="ERROR", message="Not found"), 404
+        result, result_code = dict(status="ERROR",
+                                   message=_("%(type)s not found.",
+                                             type=_('Privacy'))), 404
 
         json_data = request.json or json.loads(request.data)
         if json_data:
@@ -75,12 +83,15 @@ class GlobalPrivacyListApi(Resource):
                 try:
                     db.session.delete(attribute_privacy)
                     db.session.commit()
-                    result, result_code = dict(status="OK",
-                                               message="Deleted"), 200
+                    result, result_code = dict(
+                        status="OK",
+                        message=_("%(what)s was successfuly deleted",
+                                  what=_('Privacy'))), 200
                 except Exception as e:
-                    log.exception('Error in DELETE')
-                    result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                    log.exception(
+                        _('Error deleting %(what)s.', what=_('Privacy')))
+                    result, result_code = dict(
+                        status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -112,4 +123,5 @@ class AttributePrivacyGroupDetailApi(Resource):
         if storage is not None:
             return AttributePrivacyGroupItemResponseSchema().dump(storage).data
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            return dict(status="ERROR", message=_("%(type)s not found.",
+                                                  type=_('Privacy'))), 404

@@ -4,10 +4,9 @@ import math
 import re
 import unicodedata
 import uuid
-from StringIO import StringIO
 from ast import literal_eval
 from io import BytesIO
-from urlparse import urlparse
+from io import StringIO
 
 import pymysql
 from backports import csv
@@ -17,22 +16,24 @@ from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
 from flask.views import MethodView
+from flask_babel import gettext
 from flask_restful import Resource
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
 from requests import compat as req_compat
 from sqlalchemy import inspect
-from sqlalchemy import or_, and_
 from sqlalchemy.orm import subqueryload, joinedload
 
 from app_auth import requires_auth, User
 from limonero.py4j_init import create_gateway
 from schema import *
 
+_ = gettext
 log = logging.getLogger(__name__)
 
-WRONG_HDFS_CONFIG = "Limonero HDFS access not correctly configured (see " \
-                    "config 'dfs.client.use.datanode.hostname')"
+WRONG_HDFS_CONFIG = gettext(
+    "Limonero HDFS access not correctly configured (see "
+    "config 'dfs.client.use.datanode.hostname')")
 
 
 def _get_mysql_data_type(d, dtype):
@@ -69,12 +70,12 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 def _filter_by_permissions(data_sources, permissions):
     if flask_g.user.id not in (0, 1):  # It is not a inter service call
-        conditions = or_(
+        conditions = orgettext(
             DataSource.is_public,
             DataSource.user_id == flask_g.user.id,
-            and_(
+            andgettext(
                 DataSourcePermission.user_id == flask_g.user.id,
-                DataSourcePermission.permission.in_(permissions)
+                DataSourcePermission.permission.ingettext(permissions)
             )
         )
         data_sources = data_sources.filter(conditions)
@@ -87,7 +88,7 @@ class DataSourceListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        result, result_code = 'Internal error', 500
+        result, result_code = gettext('Internal error'), 500
         # noinspection PyBroadException
         try:
             simple = False
@@ -168,14 +169,15 @@ class DataSourceListApi(Resource):
     @requires_auth
     def post():
         result, result_code = dict(
-            status="ERROR", message="Missing json in the request body"), 400
+            status="ERROR",
+            message=gettext("Missing json in the request body")), 400
         if request.json is not None:
             request_schema = DataSourceCreateRequestSchema()
             response_schema = DataSourceItemResponseSchema()
             form = request_schema.load(request.json)
             if form.errors:
                 result, result_code = dict(
-                    status="ERROR", message="Validation error",
+                    status="ERROR", message=gettext("Validation error"),
                     errors=form.errors), 400
             else:
                 try:
@@ -201,7 +203,8 @@ class DataSourceListApi(Resource):
                 except Exception as e:
                     log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=gettext(
+                                                   "Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -224,7 +227,6 @@ class DataSourceDetailApi(Resource):
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
 
-        # data_source = data_source.order_by(DataSource.name)
         data_source = data_source.filter(DataSource.id == data_source_id)
         data_source = data_source.first()
 
@@ -236,12 +238,17 @@ class DataSourceDetailApi(Resource):
             else:
                 return DataSourceItemResponseSchema().dump(data_source).data
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            return dict(status="ERROR",
+                        message=gettext("%(type)s not found.",
+                                        type=gettext('Data source'))), 404
 
     @staticmethod
     @requires_auth
     def delete(data_source_id):
-        result, result_code = dict(status="ERROR", message="Not found"), 404
+        result, result_code = dict(
+            status="ERROR",
+            message=gettext("%(type)s not found.",
+                            type=gettext('Data source'))), 404
 
         filtered = _filter_by_permissions(
             DataSource.query, [PermissionType.MANAGE, PermissionType.WRITE])
@@ -251,11 +258,15 @@ class DataSourceDetailApi(Resource):
                 data_source.enabled = False
                 db.session.add(data_source)
                 db.session.commit()
-                result, result_code = dict(status="OK", message="Deleted"), 200
+                result, result_code = dict(
+                    status="OK",
+                    message=gettext("%(what)s was successfuly deleted",
+                                    what=gettext('Data source'))), 200
             except Exception as e:
                 log.exception('Error in DELETE')
                 result, result_code = dict(status="ERROR",
-                                           message="Internal error"), 500
+                                           message=gettext(
+                                               "Internal error")), 500
                 if current_app.debug:
                     result['debug_detail'] = e.message
                 db.session.rollback()
@@ -264,7 +275,7 @@ class DataSourceDetailApi(Resource):
     @staticmethod
     @requires_auth
     def patch(data_source_id):
-        result = dict(status="ERROR", message="Insufficient data")
+        result = dict(status="ERROR", message=gettext('Insufficient data'))
         result_code = 400
         json_data = request.json or json.loads(request.data)
         if json_data:
@@ -286,20 +297,26 @@ class DataSourceDetailApi(Resource):
 
                     if data_source is not None:
                         result, result_code = dict(
-                            status="OK", message="Updated",
+                            status="OK",
+                            message=gettext("%(what)s was successfuly updated",
+                                            what=gettext('Data source')),
                             data=response_schema.dump(data_source).data), 200
                     else:
-                        result = dict(status="ERROR", message="Not found")
+                        result = dict(status="ERROR",
+                                      message=gettext("%(type)s not found.",
+                                                      type=gettext(
+                                                          'Data source')))
                 except Exception as e:
                     current_app.logger.exception(e)
                     log.exception('Error in PATCH')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=gettext(
+                                                   "Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
             else:
-                result = dict(status="ERROR", message="Invalid data",
+                result = dict(status="ERROR", message=gettext('Invalid data'),
                               errors=form.errors)
         return result, result_code
 
@@ -311,7 +328,8 @@ class DataSourcePermissionApi(Resource):
     @requires_auth
     def post(data_source_id, user_id):
         result, result_code = dict(
-            status="ERROR", message="Missing json in the request body"), 400
+            status="ERROR",
+            message=gettext('Missing json in the request body')), 400
 
         if request.json is not None:
             form = request.json
@@ -320,14 +338,14 @@ class DataSourcePermissionApi(Resource):
             for check in to_validate:
                 if check not in form or form.get(check, '').strip() == '':
                     result, result_code = dict(
-                        status="ERROR", message="Validation error",
+                        status="ERROR", message=gettext('Validation error'),
                         errors={'Missing': check}), 400
                     error = True
                     break
                 if check == 'permission' and form.get(
                         'permission') not in PermissionType.values():
                     result, result_code = dict(
-                        status="ERROR", message="Validation error",
+                        status="ERROR", message=gettext('Validation error'),
                         errors={'Invalid': check}), 400
                     error = True
                     break
@@ -361,12 +379,15 @@ class DataSourcePermissionApi(Resource):
                         result, result_code = {'message': action_performed,
                                                'status': 'OK'}, 200
                     else:
-                        result, result_code = dict(status="ERROR",
-                                                   message="Not found"), 404
+                        result, result_code = dict(
+                            status="ERROR",
+                            message=gettext("%(type)s not found.",
+                                            type=gettext('Data source'))), 404
                 except Exception as e:
                     log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=gettext(
+                                                   "Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -376,7 +397,10 @@ class DataSourcePermissionApi(Resource):
     @staticmethod
     @requires_auth
     def delete(data_source_id, user_id):
-        result, result_code = dict(status="ERROR", message="Not found"), 404
+        result, result_code = dict(status="ERROR",
+                                   message=gettext("%(type)s not found.",
+                                                   type=gettext(
+                                                       'Data source'))), 404
 
         filtered = _filter_by_permissions(DataSource.query,
                                           [PermissionType.MANAGE])
@@ -389,12 +413,15 @@ class DataSourcePermissionApi(Resource):
                 try:
                     db.session.delete(permission)
                     db.session.commit()
-                    result, result_code = dict(status="OK",
-                                               message="Deleted"), 200
+                    result, result_code = dict(
+                        status="OK",
+                        message=gettext("%(what)s was successfuly deleted",
+                                        what=gettext('Data source'))), 200
                 except Exception as e:
                     log.exception('Error in DELETE')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=gettext(
+                                                   "Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -430,7 +457,7 @@ class DataSourceUploadApi(Resource):
             else:
                 storage = Storage.query.get(
                     request.args.get('storage_id', type=int))
-                parsed = urlparse(storage.url)
+                parsed = req_compat.urlparse(storage.url)
 
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
@@ -488,7 +515,7 @@ class DataSourceUploadApi(Resource):
             else:
                 storage = Storage.query.get(
                     request.args.get('storage_id', type=int))
-                parsed = urlparse(storage.url)
+                parsed = req_compat.urlparse(storage.url)
 
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
@@ -538,13 +565,14 @@ class DataSourceUploadApi(Resource):
                         u'{}/{}/{}'.format(u'/limonero/data', instance,
                                            final_filename))
                     if hdfs.exists(target_path):
-                        result = {"status": "error",
-                                  "message": "File already exists"}
+                        result = {'status': 'error',
+                                  'message': gettext('File already exists')}
                         result_code = 500
-                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
-                        hdfs, full_path, hdfs, target_path, True, conf, None)
+                        jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
+                            hdfs, full_path, hdfs, target_path, True, conf,
+                            None)
 
-                    # noinspection PyBroadException
+                        # noinspection PyBroadException
                     try:
                         user = getattr(flask_g, 'user')
                     except:
@@ -568,7 +596,7 @@ class DataSourceUploadApi(Resource):
                         format=ds_format,
                         name=filename,
                         storage_id=storage.id,
-                        description='Imported in Limonero',
+                        description=_('Imported in Limonero'),
                         enabled=True,
                         url='{}{}'.format(str_uri, target_path.toString()),
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
@@ -601,7 +629,7 @@ class DataSourceDownload(MethodView):
     def get(data_source_id):
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 
-        parsed = urlparse(data_source.url)
+        parsed = req_compat.urlparse(data_source.url)
 
         gateway = create_gateway(log, current_app.gateway_port)
         jvm = gateway.jvm
@@ -621,7 +649,8 @@ class DataSourceDownload(MethodView):
 
             chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
             if not hdfs.exists(chunk_path):
-                result, result_code = 'Not found', 404
+                result, result_code = gettext("%(type)s not found.",
+                                              type=gettext('Data source')), 404
             else:
                 buf = jvm.java.nio.ByteBuffer.allocate(4096)
                 input_in = hdfs.open(chunk_path)
@@ -658,7 +687,7 @@ class DataSourceDownload(MethodView):
             log.exception('Java error')
         except Exception as e:
             result = json.dumps(
-                {'status': 'ERROR', 'message': 'Internal error'})
+                {'status': 'ERROR', 'message': gettext('Internal error')})
             result_code = 500
             log.exception(e.message)
 
@@ -678,7 +707,7 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = urlparse(ds.storage.url)
+        parsed = req_compat.urlparse(ds.storage.url)
 
         if ds.format in (DataSourceFormat.JDBC,):
             parsed = req_compat.urlparse(ds.url)
@@ -703,7 +732,7 @@ class DataSourceInferSchemaApi(Resource):
                         old_attrs = Attribute.query.filter(
                             Attribute.data_source_id == ds.id)
                         old_attrs.delete(synchronize_session=False)
-                        for (name, dtype, size, _, precision, scale,
+                        for (name, dtype, size, to_ignore, precision, scale,
                              nullable) in cursor.description:
                             final_type = _get_mysql_data_type(d, dtype)
                             print(name, d[dtype], final_type)
@@ -716,10 +745,11 @@ class DataSourceInferSchemaApi(Resource):
                             db.session.add(attr)
                         db.session.commit()
                 except Exception as ex:
-                    raise ValueError('Could not connect to database')
+                    raise ValueError(gettext('Could not connect to database'))
             else:
                 raise ValueError(
-                    'Unsupported database: {}'.format(parsed.scheme))
+                    gettext('Unsupported database: %(what)s',
+                            what=parsed.scheme))
 
         elif ds.format in (DataSourceFormat.CSV, DataSourceFormat.SHAPEFILE):
             # noinspection PyUnresolvedReferences
@@ -756,8 +786,9 @@ class DataSourceInferSchemaApi(Resource):
                     special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
                     delimiter = special_delimiters.get(delimiter, delimiter)
 
-                    buffered_reader, encoding = DataSourceInferSchemaApi._get_reader(
-                        conf, ds, hadoop_pkg, hdfs, jvm, path)
+                    buffered_reader, encoding = \
+                        DataSourceInferSchemaApi._get_reader(
+                            conf, ds, hadoop_pkg, hdfs, jvm, path)
 
                     quote_char = options.get('quote_char', None)
                     quote_char = quote_char.encode(
@@ -765,7 +796,7 @@ class DataSourceInferSchemaApi(Resource):
 
                     # Read 100 lines, may be enough to infer schema
                     lines = StringIO()
-                    for _ in range(1000):
+                    for i in range(1000):
                         line = buffered_reader.readLine()
                         if line is None:
                             break
@@ -805,9 +836,8 @@ class DataSourceInferSchemaApi(Resource):
 
                     db.session.commit()
                 except Exception as ex:
-                    raise
                     raise ValueError(
-                        'Cannot infer the schema: {}'.format(ex))
+                        gettext('Cannot infer the schema: %(what)s', what=ex))
             elif ds.format == DataSourceFormat.SHAPEFILE:
                 old_attrs = Attribute.query.filter(
                     Attribute.data_source_id == ds.id)
@@ -851,7 +881,8 @@ class DataSourceInferSchemaApi(Resource):
         else:
             # gateway.shutdown()
             raise ValueError(
-                'Cannot infer the schema for format {}'.format(ds.format))
+                gettext('Cannot infer the schema for format %(format)s',
+                        format=ds.format))
             # gateway.shutdown()
 
     @staticmethod
@@ -868,7 +899,8 @@ class DataSourceInferSchemaApi(Resource):
             DataSourceInferSchemaApi.infer_schema(ds, request_body)
         except UnicodeEncodeError:
             log.exception('Invalid CSV encoding')
-            return {'status': 'ERROR', 'message': 'Invalid CSV encoding'}, 400
+            return {'status': 'ERROR',
+                    'message': gettext('Invalid CSV encoding')}, 400
         except ValueError as ve:
             return {'status': 'ERROR', 'message': ve.message}, 400
         except Py4JJavaError as java_ex:
@@ -877,11 +909,12 @@ class DataSourceInferSchemaApi(Resource):
                         'message': WRONG_HDFS_CONFIG}, 400
             log.exception('Java error')
             return {'status': 'ERROR',
-                    'message': 'Erro interno, tente mais tarde'}, 400
+                    'message': gettext('Internal error, try later')}, 400
         except Exception as ex:
             db.session.rollback()
             log.exception('Invalid CSV format')
-            return {'status': 'ERROR', 'message': 'Invalid CSV format'}, 400
+            return {'status': 'ERROR',
+                    'message': gettext('Invalid CSV format')}, 400
         return {'status': 'OK'}
 
     @staticmethod
@@ -1027,12 +1060,14 @@ class DataSourcePrivacyApi(Resource):
             return {'data': DataSourcePrivacyResponseSchema().dump(
                 attr_privacy[0], many=False).data}
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            return dict(status="ERROR",
+                        message=gettext("%(type)s not found.",
+                                        type=gettext('Data source'))), 404
 
     @staticmethod
     @requires_auth
     def patch(data_source_id):
-        result = dict(status="ERROR", message="Insufficient data")
+        result = dict(status="ERROR", message=gettext('Insufficient data'))
         result_code = 400
         json_data = request.json or json.loads(request.data)
         if json_data:
@@ -1049,20 +1084,25 @@ class DataSourcePrivacyApi(Resource):
 
                     if data_source is not None:
                         result, result_code = dict(
-                            status="OK", message="Updated",
+                            status="OK",
+                            message=gettext("%(what)s was successfuly updated",
+                                            what=gettext('Data source')),
                             data=response_schema.dump(data_source).data), 200
                     else:
-                        result = dict(status="ERROR", message="Not found")
+                        result = dict(
+                            status="ERROR",
+                            message=gettext("%(type)s not found.",
+                                            type=gettext('Data source')))
                 except Exception as e:
                     current_app.logger.exception(e)
                     log.exception('Error in PATCH')
-                    result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                    result, result_code = dict(
+                        status="ERROR", message=gettext("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
             else:
-                result = dict(status="ERROR", message="Invalid data",
+                result = dict(status="ERROR", message=gettext('Invalid data'),
                               errors=form.errors)
         return result, result_code
 

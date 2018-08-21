@@ -14,9 +14,9 @@ import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request
-from flask import render_template
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
+from flask_babel import gettext
 from flask_cors import CORS
 from flask_redis import FlaskRedis
 from flask_restful import Api, abort
@@ -39,6 +39,8 @@ sqlalchemy_utils.i18n.get_locale = get_locale
 eventlet.monkey_patch(all=True, thread=False)
 app = Flask(__name__, static_url_path='', static_folder='static')
 
+app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
+    'limonero/i18n/locales')
 babel = Babel(app)
 
 logging.config.fileConfig('logging_config.ini')
@@ -63,7 +65,6 @@ redis_store = FlaskRedis()
 
 # Initialize flask-login
 init_login(app)
-
 
 mappings = {
     '/datasources': DataSourceListApi,
@@ -107,14 +108,10 @@ def static_file(path):
     return app.send_static_file(path)
 
 
-# @app.route('/teste')
-# def teste():
-#     return render_template('admin/master.html')
-
-
 @babel.localeselector
 def get_locale():
-    return request.args.get('lang', 'en')
+    return request.args.get(
+        'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
 
 
 # noinspection PyUnusedLocal
@@ -156,7 +153,8 @@ def main(is_main_module):
         db.init_app(app)
 
         port = int(config.get('port', 5000))
-        logger.debug('Running in %s mode', config.get('environment'))
+        logger.debug(
+            gettext('Running in %(mode)s mode', mode=config.get('environment')))
 
         if is_main_module:
             # JVM, used to interact with HDFS.
@@ -168,7 +166,8 @@ def main(is_main_module):
             else:
                 eventlet.wsgi.server(eventlet.listen(('', port)), app)
     else:
-        logger.error('Please, set LIMONERO_CONFIG environment variable')
+        logger.error(
+            gettext('Please, set LIMONERO_CONFIG environment variable'))
         exit(1)
 
 

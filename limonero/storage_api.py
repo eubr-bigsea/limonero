@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-}
 from flask import g as flask_g
 from flask import request
+from flask_babel import gettext
 from flask_restful import Resource
 
 from app_auth import requires_auth
 from schema import *
+
+_ = gettext
 
 
 class StorageListApi(Resource):
@@ -39,4 +42,6 @@ class StorageDetailApi(Resource):
         if storage is not None:
             return StorageItemResponseSchema(exclude=exclude).dump(storage).data
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            return dict(status="ERROR",
+                        message=_("%(type)s not found.",
+                                  type=_('Storage'))), 404

@@ -4,12 +4,14 @@ import math
 
 from flask import g
 from flask import request, current_app
+from flask_babel import gettext
 from flask_restful import Resource
 from sqlalchemy import or_, and_
 
 from app_auth import requires_auth
 from schema import *
 
+_ = gettext
 log = logging.getLogger(__name__)
 
 
@@ -111,7 +113,7 @@ class ModelListApi(Resource):
             form = request_schema.load(request.json)
             if form.errors:
                 result, result_code = dict(
-                    status="ERROR", message="Validation error",
+                    status="ERROR", message=_("Validation error"),
                     errors=form.errors), 400
             else:
                 try:
@@ -123,7 +125,7 @@ class ModelListApi(Resource):
                 except Exception as e:
                     log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -143,12 +145,15 @@ class ModelDetailApi(Resource):
         if model is not None:
             return ModelItemResponseSchema().dump(model).data
         else:
-            return dict(status="ERROR", message="Not found"), 404
+            return dict(status="ERROR", message=_("%(type)s not found.",
+                                                  type=_('Model'))), 404
 
     @staticmethod
     @requires_auth
     def delete(model_id):
-        result, result_code = dict(status="ERROR", message="Not found"), 404
+        result, result_code = dict(
+            status="ERROR",
+            message=_("%(type)s not found.", type=_('Model'))), 404
 
         filtered = _filter_by_permissions(
             Model.query, [PermissionType.MANAGE, PermissionType.WRITE])
@@ -158,11 +163,14 @@ class ModelDetailApi(Resource):
                 model.enabled = False
                 db.session.add(model)
                 db.session.commit()
-                result, result_code = dict(status="OK", message="Deleted"), 200
+                result, result_code = dict(
+                    status="OK",
+                    message=_("%(what)s was successfuly deleted",
+                              what=_('Model'))), 200
             except Exception as e:
                 log.exception('Error in DELETE')
                 result, result_code = dict(status="ERROR",
-                                           message="Internal error"), 500
+                                           message=_("Internal error")), 500
                 if current_app.debug:
                     result['debug_detail'] = e.message
                 db.session.rollback()
@@ -171,7 +179,7 @@ class ModelDetailApi(Resource):
     @staticmethod
     @requires_auth
     def patch(model_id):
-        result = dict(status="ERROR", message="Insufficient data")
+        result = dict(status="ERROR", message=_("Insufficient data"))
         result_code = 404
 
         if request.json:
@@ -188,19 +196,23 @@ class ModelDetailApi(Resource):
 
                     if model is not None:
                         result, result_code = dict(
-                            status="OK", message="Updated",
+                            status="OK",
+                            message=_("%(what)s was successfuly updated",
+                                      what=_('Model')),
                             data=response_schema.dump(model).data), 200
                     else:
-                        result = dict(status="ERROR", message="Not found")
+                        result = dict(status="ERROR",
+                                      message=_("%(type)s not found.",
+                                                type=_('Model')))
                 except Exception as e:
                     log.exception('Error in PATCH')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
             else:
-                result = dict(status="ERROR", message="Invalid data",
+                result = dict(status="ERROR", message=_("Invalid data"),
                               errors=form.errors)
         return result, result_code
 
@@ -212,7 +224,7 @@ class ModelPermissionApi(Resource):
     @requires_auth
     def post(model_id, user_id):
         result, result_code = dict(
-            status="ERROR", message="Missing json in the request body"), 400
+            status="ERROR", message=_("Missing json in the request body")), 400
 
         if request.json is not None:
             form = request.json
@@ -221,14 +233,14 @@ class ModelPermissionApi(Resource):
             for check in to_validate:
                 if check not in form or form.get(check, '').strip() == '':
                     result, result_code = dict(
-                        status="ERROR", message="Validation error",
+                        status="ERROR", message=_("Validation error"),
                         errors={'Missing': check}), 400
                     error = True
                     break
                 if check == 'permission' and form.get(
                         'permission') not in PermissionType.values():
                     result, result_code = dict(
-                        status="ERROR", message="Validation error",
+                        status="ERROR", message=_("Validation error"),
                         errors={'Invalid': check}), 400
                     error = True
                     break
@@ -246,9 +258,8 @@ class ModelPermissionApi(Resource):
                         permission = ModelPermission.query.filter(
                             *conditions).first()
 
-                        action_performed = 'Added'
+                        action_performed = _('%(what)s saved with success')
                         if permission is not None:
-                            action_performed = 'Updated'
                             permission.permission = form['permission']
                         else:
                             permission = ModelPermission(
@@ -262,12 +273,13 @@ class ModelPermissionApi(Resource):
                         result, result_code = {'message': action_performed,
                                                'status': 'OK'}, 200
                     else:
-                        result, result_code = dict(status="ERROR",
-                                                   message="Not found"), 404
+                        result, result_code = dict(
+                            status="ERROR", message=_("%(type)s not found.",
+                                                      type=_('Model'))), 404
                 except Exception as e:
                     log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                                               message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
@@ -277,7 +289,9 @@ class ModelPermissionApi(Resource):
     @staticmethod
     @requires_auth
     def delete(model_id, user_id):
-        result, result_code = dict(status="ERROR", message="Not found"), 404
+        result, result_code = dict(
+            status="ERROR",
+            message=_("%(type)s not found.", type=_('Model'))), 404
 
         filtered = _filter_by_permissions(Model.query,
                                           [PermissionType.MANAGE])
@@ -290,12 +304,15 @@ class ModelPermissionApi(Resource):
                 try:
                     db.session.delete(permission)
                     db.session.commit()
-                    result, result_code = dict(status="OK",
-                                               message="Deleted"), 200
+                    result, result_code = dict(
+                        status="OK",
+                        message=_("%(what)s was successfuly deleted",
+                                  what=_('Model'))), 200
                 except Exception as e:
-                    log.exception('Error in DELETE')
-                    result, result_code = dict(status="ERROR",
-                                               message="Internal error"), 500
+                    log.exception(
+                        _('Error deleting %(what)s.', what=_('Model')))
+                    result, result_code = dict(
+                        status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = e.message
                     db.session.rollback()
