@@ -86,11 +86,10 @@ mappings = {
 grouped_mappings = itertools.groupby(sorted(mappings.items()),
                                      key=lambda path: path[1])
 for view, g in grouped_mappings:
-    v = list(g)
-    api.add_resource(view, *[x[0] for x in v])
+    api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
 
 app.add_url_rule('/datasources/<int:data_source_id>/download',
-                 methods=['GET'],
+                 methods=['GET'], endpoint='DataSourceDownload',
                  view_func=DataSourceDownload.as_view('download'))
 
 

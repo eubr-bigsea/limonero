@@ -41,7 +41,7 @@ def create_jvm(logger):
                 'hadoop-hdfs-*.jar'
             ]
         })
-    if spark_home:
+    if False and spark_home:
         cp.update({
             '{0}/jars'.format(spark_home): [
                 'hadoop-common-*.jar',

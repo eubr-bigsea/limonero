@@ -289,13 +289,19 @@ class DataSourceDetailApi(Resource):
             # Ignore missing fields to allow partial updates
             form = request_schema.load(json_data, partial=True)
             response_schema = DataSourceItemResponseSchema()
+
             if not form.errors:
                 try:
                     form.data.id = data_source_id
-                    data_source = db.session.merge(form.data)
-                    db.session.commit()
+                    filtered = _filter_by_permissions(
+                        DataSource.query,
+                        [PermissionType.MANAGE, PermissionType.WRITE])
+                    data_source = filtered.filter(
+                        DataSource.id == data_source_id).first()
 
                     if data_source is not None:
+                        data_source = db.session.merge(form.data)
+                        db.session.commit()
                         result, result_code = dict(
                             status="OK",
                             message=gettext("%(what)s was successfuly updated",
@@ -451,12 +457,13 @@ class DataSourceUploadApi(Resource):
 
             result, result_code = 'OK', 200
 
-            if not identifier or not filename or not chunk_number:
+            storage_id = request.args.get('storage_id', type=int)
+            if not all([storage_id, identifier, filename, chunk_number]):
                 # Parameters are missing or invalid
-                result, result_code = 'Missing arguments', 500
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
             else:
-                storage = Storage.query.get(
-                    request.args.get('storage_id', type=int))
+                storage = Storage.query.get(storage_id)
                 parsed = req_compat.urlparse(storage.url)
 
                 gateway = create_gateway(log, current_app.gateway_port)
@@ -487,7 +494,8 @@ class DataSourceUploadApi(Resource):
                 if not hdfs.exists(chunk_path):
                     # Let resumable.js know this chunk does not exists
                     #  and needs to be uploaded
-                    result, result_code = 'Not found', 404
+                    result, result_code = {'status': 'OK',
+                                           'message': gettext('Not found')}, 404
 
             return result, result_code
         except Py4JJavaError as java_ex:
@@ -507,21 +515,29 @@ class DataSourceUploadApi(Resource):
             chunk_number = request.args.get('resumableChunkNumber', type=int)
             total_chunks = request.args.get('resumableTotalChunks', type=int)
             total_size = request.args.get('resumableTotalSize', type=int)
+            storage_id = request.args.get('storage_id', type=int)
 
             result, result_code = 'OK', 200
-            if not identifier or not filename or not chunk_number:
+            if not all([identifier, filename, chunk_number]):
                 # Parameters are missing or invalid
-                result, result_code = 'Missing arguments', 500
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
             else:
-                storage = Storage.query.get(
-                    request.args.get('storage_id', type=int))
-                parsed = req_compat.urlparse(storage.url)
+                storage = Storage.query.get(storage_id)
+                storage_url = storage.url if storage.url[-1] != '/' \
+                    else storage.url[:-1]
+                parsed = req_compat.urlparse(storage_url)
 
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
 
-                str_uri = '{proto}://{host}:{port}'.format(
-                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                if parsed.scheme == 'file':
+                    str_uri = '{proto}://{path}'.format(
+                        proto=parsed.scheme, path=parsed.path)
+                else:
+                    str_uri = '{proto}://{host}:{port}'.format(
+                        proto=parsed.scheme, host=parsed.hostname,
+                        port=parsed.port)
                 uri = jvm.java.net.URI(str_uri)
 
                 conf = jvm.org.apache.hadoop.conf.Configuration()
@@ -531,7 +547,7 @@ class DataSourceUploadApi(Resource):
                              True) else "false")
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-                log.error('================== %s', uri)
+                log.info('================== %s', uri)
 
                 tmp_path = DataSourceUploadApi._get_tmp_path(
                     jvm, hdfs, parsed, filename)
@@ -561,18 +577,21 @@ class DataSourceUploadApi(Resource):
 
                     # time to merge all files
                     instance = current_app.config.get('instance', 'unnamed')
+
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        u'{}/{}/{}'.format(u'/limonero/data', instance,
-                                           final_filename))
+                        u'{}/{}/{}/{}'.format(str_uri,
+                                              u'/limonero/data', instance,
+                                              final_filename))
                     if hdfs.exists(target_path):
                         result = {'status': 'error',
                                   'message': gettext('File already exists')}
                         result_code = 500
-                        jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
-                            hdfs, full_path, hdfs, target_path, True, conf,
-                            None)
 
-                        # noinspection PyBroadException
+                    jvm.org.apache.hadoop.fs.FileUtil.copyMerge(
+                        hdfs, full_path, hdfs, target_path, True, conf,
+                        None)
+
+                    # noinspection PyBroadException
                     try:
                         user = getattr(flask_g, 'user')
                     except:
@@ -598,7 +617,7 @@ class DataSourceUploadApi(Resource):
                         storage_id=storage.id,
                         description=_('Imported in Limonero'),
                         enabled=True,
-                        url='{}{}'.format(str_uri, target_path.toString()),
+                        url=target_path.toString(),
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
@@ -627,6 +646,11 @@ class DataSourceDownload(MethodView):
     @staticmethod
     @requires_auth
     def get(data_source_id):
+
+        result = json.dumps(
+            {'status': 'ERROR', 'message': gettext('Internal error')})
+        result_code = 500
+
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 
         parsed = req_compat.urlparse(data_source.url)
@@ -634,62 +658,87 @@ class DataSourceDownload(MethodView):
         gateway = create_gateway(log, current_app.gateway_port)
         jvm = gateway.jvm
 
-        str_uri = '{proto}://{host}:{port}'.format(
-            proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-
-        try:
-            uri = jvm.java.net.URI(str_uri)
-
-            conf = jvm.org.apache.hadoop.conf.Configuration()
-            conf.set('dfs.client.use.datanode.hostname',
-                     "true" if current_app.config.get(
-                         'dfs.client.use.datanode.hostname', True) else "false")
-
-            hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-
-            chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
-            if not hdfs.exists(chunk_path):
-                result, result_code = gettext("%(type)s not found.",
-                                              type=gettext('Data source')), 404
-            else:
-                buf = jvm.java.nio.ByteBuffer.allocate(4096)
-                input_in = hdfs.open(chunk_path)
-
-                def do_download():
-                    total = 0
-                    done = False
+        if parsed.scheme == 'file':
+            def do_download():
+                total = 0
+                done = False
+                with open(parsed.path) as f:
                     while not done:
-                        lido = input_in.read(buf)
-                        total += lido
-                        buf.position(0)
-                        if lido != 4096:
+                        lido = f.read(4096)
+                        total += len(lido)
+                        if len(lido) != 4096:
                             done = True
-                            yield bytes(buf.array())[:lido]
-                        else:
-                            yield bytes(buf.array())
+                        yield lido
 
-                name = '{}.{}'.format(data_source.name.replace(' ', '-'),
-                                      data_source.format.lower())
-                result = Response(stream_with_context(
-                    do_download()), mimetype='text/csv')
+            name = '{}.{}'.format(data_source.name.replace(' ', '-'),
+                                  data_source.format.lower())
+            result = Response(stream_with_context(
+                do_download()), mimetype='text/csv')
 
-                result.headers[
-                    'Cache-Control'] = 'no-cache, no-store, must-revalidate'
-                result.headers['Pragma'] = 'no-cache'
-                result.headers[
-                    "Content-Disposition"] = "attachment; filename={}".format(
-                    name)
-                result_code = 200
-        except Py4JJavaError as java_ex:
-            if 'Could not obtain block' in java_ex.java_exception.getMessage():
-                return {'status': 'ERROR',
-                        'message': WRONG_HDFS_CONFIG}, 400
-            log.exception('Java error')
-        except Exception as e:
-            result = json.dumps(
-                {'status': 'ERROR', 'message': gettext('Internal error')})
-            result_code = 500
-            log.exception(e.message)
+            result.headers[
+                'Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            result.headers['Pragma'] = 'no-cache'
+            result.headers["Content-Disposition"] = \
+                "attachment; filename={}".format(name)
+            result_code = 200
+        else:
+            str_uri = '{proto}://{host}:{port}'.format(
+                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            try:
+                uri = jvm.java.net.URI(str_uri)
+
+                conf = jvm.org.apache.hadoop.conf.Configuration()
+                conf.set('dfs.client.use.datanode.hostname',
+                         "true" if current_app.config.get(
+                             'dfs.client.use.datanode.hostname',
+                             True) else "false")
+
+                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+
+                chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
+                if not hdfs.exists(chunk_path):
+                    result, result_code = gettext("%(type)s not found.",
+                                                  type=gettext(
+                                                      'Data source')), 404
+                else:
+                    buf = jvm.java.nio.ByteBuffer.allocate(4096)
+                    input_in = hdfs.open(chunk_path)
+
+                    def do_download():
+                        total = 0
+                        done = False
+                        while not done:
+                            lido = input_in.read(buf)
+                            total += lido
+                            buf.position(0)
+                            if lido != 4096:
+                                done = True
+                                yield bytes(buf.array())[:lido]
+                            else:
+                                yield bytes(buf.array())
+
+                    name = '{}.{}'.format(data_source.name.replace(' ', '-'),
+                                          data_source.format.lower())
+                    result = Response(stream_with_context(
+                        do_download()), mimetype='text/csv')
+
+                    result.headers[
+                        'Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                    result.headers['Pragma'] = 'no-cache'
+                    result.headers["Content-Disposition"] = \
+                        "attachment; filename={}".format(name)
+                    result_code = 200
+            except Py4JJavaError as java_ex:
+                if 'Could not obtain block' in \
+                        java_ex.java_exception.getMessage():
+                    return {'status': 'ERROR',
+                            'message': WRONG_HDFS_CONFIG}, 400
+                log.exception('Java error')
+            except Exception as e:
+                result = json.dumps(
+                    {'status': 'ERROR', 'message': gettext('Internal error')})
+                result_code = 500
+                log.exception(e.message)
 
         return result, result_code
 
@@ -707,7 +756,7 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = req_compat.urlparse(ds.storage.url)
+        parsed = req_compat.urlparse(ds.url)
 
         if ds.format in (DataSourceFormat.JDBC,):
             parsed = req_compat.urlparse(ds.url)
@@ -889,6 +938,7 @@ class DataSourceInferSchemaApi(Resource):
     @requires_auth
     def post(data_source_id):
 
+        result = {'status': 'OK'}
         ds = DataSource.query.get_or_404(data_source_id)
         request_body = {}
         if request.data:
@@ -899,23 +949,23 @@ class DataSourceInferSchemaApi(Resource):
             DataSourceInferSchemaApi.infer_schema(ds, request_body)
         except UnicodeEncodeError:
             log.exception('Invalid CSV encoding')
-            return {'status': 'ERROR',
-                    'message': gettext('Invalid CSV encoding')}, 400
+            result = {'status': 'ERROR',
+                      'message': gettext('Invalid CSV encoding')}, 400
         except ValueError as ve:
-            return {'status': 'ERROR', 'message': ve.message}, 400
+            result = {'status': 'ERROR', 'message': ve.message}, 400
         except Py4JJavaError as java_ex:
             if 'Could not obtain block' in java_ex.java_exception.getMessage():
                 return {'status': 'ERROR',
                         'message': WRONG_HDFS_CONFIG}, 400
             log.exception('Java error')
-            return {'status': 'ERROR',
-                    'message': gettext('Internal error, try later')}, 400
+            result = {'status': 'ERROR',
+                      'message': gettext('Internal error, try later')}, 400
         except Exception as ex:
             db.session.rollback()
             log.exception('Invalid CSV format')
-            return {'status': 'ERROR',
-                    'message': gettext('Invalid CSV format')}, 400
-        return {'status': 'OK'}
+            result = {'status': 'ERROR',
+                      'message': gettext('Invalid CSV format')}, 400
+        return result
 
     @staticmethod
     def _get_reader(conf, ds, hadoop_pkg, hdfs, jvm, path):
