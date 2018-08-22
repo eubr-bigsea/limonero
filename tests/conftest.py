@@ -3,6 +3,7 @@ import datetime
 import itertools
 import logging
 import os
+import shutil
 import sys
 import tempfile
 
@@ -15,7 +16,7 @@ from limonero.app import db as the_db, mappings
 from limonero.data_source_api import DataSourceDownload
 from limonero.models import Storage, StorageType, DataSource, DataSourceFormat, \
     DataType
-from limonero.py4j_init import init_jvm
+from limonero.py4j_init import init_jvm, create_gateway
 from limonero.util import CustomJSONEncoder
 
 sys.path.append(os.path.dirname(os.path.curdir))
@@ -95,6 +96,8 @@ def logger():
 @pytest.yield_fixture(scope='function')
 def jvm(app, logger):
     init_jvm(app, logger)
+    gateway = create_gateway(logger, app.gateway_port)
+    yield gateway.jvm
 
 
 # noinspection PyShadowingNames
@@ -347,3 +350,21 @@ def datasources(app, db, default_storage):
             data_sources.append(data_source)
         db.session.commit()
         yield data_sources
+
+
+# noinspection PyShadowingNames
+@pytest.fixture(scope='function')
+def hdfs(jvm):
+    # noinspection PyPep8Naming
+    MiniDFSCluster = jvm.org.apache.hadoop.hdfs.MiniDFSCluster
+
+    base_dir = tempfile.mkdtemp()
+
+    conf = jvm.org.apache.hadoop.conf.Configuration()
+    conf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, base_dir)
+    cluster = MiniDFSCluster.Builder(conf).build()
+    uri = "hdfs://localhost:{}/".format(cluster.getNameNodePort())
+    fs = cluster.getFileSystem()
+    yield (cluster, uri, fs)
+    cluster.shutdown()
+    shutil.rmtree(base_dir)

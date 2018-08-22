@@ -245,6 +245,32 @@ def test_data_source_upload_chunk_success(client, auth_token, jvm, app,
         os.unlink(ds.url[5:])
 
 
+def test_data_source_upload_chunk_hdfs_success(client, auth_token, jvm, app,
+                                               default_storage, hdfs, db):
+    cluster, uri, fs = hdfs
+    with app.app_context():
+        default_storage.url = uri
+        db.session.add(default_storage)
+        db.session.commit()
+        url = url_for('DataSourceUploadApi')
+        params = {
+            'resumableIdentifier': 'eda-cc0-ffa',
+            'resumableFilename': 'new_data_source.csv',
+            'resumableChunkNumber': 1,
+            'resumableTotalChunks': 1,
+            'resumableTotalSize': 20,
+            'storage_id': default_storage.id
+        }
+
+    data = "id,name\n1,bob\n2,Alice"
+    rv = client.post(url, content_type='application/json',
+                     data=data,
+                     query_string=params,
+                     headers={'X-Auth-Token': auth_token})
+    assert 200 == rv.status_code, 'Incorrect status code: {}'.format(
+        rv.data)
+
+
 def test_data_source_download_success(client, auth_token, jvm, app, file_ds):
     url = url_for('DataSourceDownload', data_source_id=file_ds.id)
 
