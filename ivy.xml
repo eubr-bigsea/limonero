@@ -1,0 +1,9 @@
+<ivy-module version="1.0">
+    <info organisation="br.ufmg.dcc.speed" module="lemonade-limonero"/>
+    <dependencies>
+        <dependency org="org.apache.hadoop" name="hadoop-client" rev="2.9.1">
+            <exclude org="*" ext="*" type="source"/>
+            <exclude org="*" ext="*" type="javadoc"/>
+        </dependency>
+    </dependencies>
+</ivy-module>
