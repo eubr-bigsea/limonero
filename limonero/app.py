@@ -23,7 +23,8 @@ from flask_restful import Api, abort
 
 from data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi, DataSourceDownload
+    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
+from limonero import CustomJSONEncoder as LimoneroJSONEncoder
 from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
     init_login, AuthenticatedMenuLink
 from limonero.cache import cache
@@ -41,6 +42,8 @@ app = Flask(__name__, static_url_path='', static_folder='static')
 
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
     'limonero/i18n/locales')
+app.json_encoder = LimoneroJSONEncoder
+
 babel = Babel(app)
 
 logging.config.fileConfig('logging_config.ini')
@@ -71,6 +74,7 @@ mappings = {
     '/datasources': DataSourceListApi,
     '/datasources/upload': DataSourceUploadApi,
     '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
+    '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,
@@ -86,11 +90,10 @@ mappings = {
 grouped_mappings = itertools.groupby(sorted(mappings.items()),
                                      key=lambda path: path[1])
 for view, g in grouped_mappings:
-    v = list(g)
-    api.add_resource(view, *[x[0] for x in v])
+    api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
 
 app.add_url_rule('/datasources/<int:data_source_id>/download',
-                 methods=['GET'],
+                 methods=['GET'], endpoint='DataSourceDownload',
                  view_func=DataSourceDownload.as_view('download'))
 
 

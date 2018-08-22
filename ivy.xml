@@ -1,7 +1,17 @@
-<ivy-module version="1.0">
+<ivy-module version="2.0" xmlns:m="http://ant.apache.org/ivy/maven">
     <info organisation="br.ufmg.dcc.speed" module="lemonade-limonero"/>
     <dependencies>
         <dependency org="org.apache.hadoop" name="hadoop-client" rev="2.9.1">
+            <exclude org="*" ext="*" type="source"/>
+            <exclude org="*" ext="*" type="javadoc"/>
+        </dependency>
+        <dependency org="org.apache.hadoop" name="hadoop-hdfs" rev="2.9.1">
+            <artifact name="hadoop-hdfs" type="tests" ext="jar" m:classifier="tests"/>
+            <exclude org="*" ext="*" type="source"/>
+            <exclude org="*" ext="*" type="javadoc"/>
+        </dependency>
+        <dependency org="org.apache.hadoop" name="hadoop-common" rev="2.9.1">
+            <artifact name="hadoop-common" type="tests" ext="jar" m:classifier="tests"/>
             <exclude org="*" ext="*" type="source"/>
             <exclude org="*" ext="*" type="javadoc"/>
         </dependency>
