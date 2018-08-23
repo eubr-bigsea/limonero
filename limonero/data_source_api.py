@@ -53,13 +53,14 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 def _filter_by_permissions(data_sources, permissions):
     if flask_g.user.id not in (0, 1):  # It is not a inter service call
+        sub_query = DataSourcePermission.query.with_entities(
+            DataSourcePermission.id).filter(
+            DataSourcePermission.permission.in_(permissions),
+            DataSourcePermission.user_id == flask_g.user.id)
         conditions = or_(
             DataSource.is_public,
             DataSource.user_id == flask_g.user.id,
-            and_(
-                DataSourcePermission.user_id == flask_g.user.id,
-                DataSourcePermission.permission.in_(permissions)
-            )
+            DataSource.id.in_(sub_query)
         )
         data_sources = data_sources.filter(conditions)
     return data_sources
@@ -94,11 +95,9 @@ class DataSourceListApi(Resource):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
-            data_sources = data_sources.join(DataSourcePermission, isouter=True)
             if not simple:
                 data_sources = data_sources.options(
                     joinedload(DataSource.attributes))
-
             data_sources = _filter_by_permissions(
                 data_sources, PermissionType.values())
 
@@ -203,8 +202,6 @@ class DataSourceDetailApi(Resource):
         names_only = request.args.get('attributes_name') == 'true'
 
         data_sources = DataSource.query
-
-        data_sources = data_sources.join(DataSourcePermission, isouter=True)
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
 
@@ -1155,8 +1152,6 @@ class DataSourceSampleApi(Resource):
     @requires_auth
     def get(data_source_id):
         data_sources = DataSource.query
-
-        data_sources = data_sources.join(DataSourcePermission, isouter=True)
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
 
