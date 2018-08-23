@@ -12,7 +12,7 @@ def init_jvm(flask_app, logger):
 def create_jvm(logger):
     cp = {}
     port = None
-    cp.update({'lib': ['*.jar']})
+    cp.update({'lib': ['*.jar'], 'jars': ['*.jar']})
     if cp:
         final_cp = []
         for path, exprs in cp.items():
@@ -28,6 +28,7 @@ def create_jvm(logger):
             port = launch_gateway(classpath=":".join(final_cp),
                                   redirect_stdout=sys.stdout,
                                   redirect_stderr=sys.stderr, die_on_exit=True)
+    print '>>>>>>>>>>>>>>>>>', port
     return port
 
 
