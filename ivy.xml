@@ -5,6 +5,7 @@
             <exclude org="*" ext="*" type="source"/>
             <exclude org="*" ext="*" type="javadoc"/>
         </dependency>
+        <!--
         <dependency org="org.apache.hadoop" name="hadoop-hdfs" rev="2.9.1">
             <artifact name="hadoop-hdfs" type="tests" ext="jar" m:classifier="tests"/>
             <exclude org="*" ext="*" type="source"/>
@@ -15,5 +16,6 @@
             <exclude org="*" ext="*" type="source"/>
             <exclude org="*" ext="*" type="javadoc"/>
         </dependency>
+        -->
     </dependencies>
 </ivy-module>
