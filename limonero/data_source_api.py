@@ -58,7 +58,7 @@ def _filter_by_permissions(data_sources, permissions):
             DataSource.user_id == flask_g.user.id,
             and_(
                 DataSourcePermission.user_id == flask_g.user.id,
-                DataSourcePermission.permission.ingettext(permissions)
+                DataSourcePermission.permission.in_(permissions)
             )
         )
         data_sources = data_sources.filter(conditions)
