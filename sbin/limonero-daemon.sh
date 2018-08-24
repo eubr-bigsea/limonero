@@ -54,6 +54,13 @@ case $cmd_option in
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
       python ${LIMONERO_HOME}/limonero/manage.py \
       db upgrade
+    if [ $? -eq 0 ]
+    then
+      echo "DB migration: successful"
+    else
+      echo "Error on DB migration"
+      exit 1
+    fi
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
       python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
       -c ${LIMONERO_HOME}/conf/limonero-config.yaml &
