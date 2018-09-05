@@ -7,8 +7,8 @@ FROM openjdk:8-jre-alpine
 LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf \
 <guimalufb@gmail.com>, Gabriel Barbutti <gabrielbarbutti@gmail.com>"
 
-ENV LIMONERO_HOME=/usr/local/limonero \
-    LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
+ENV LIMONERO_HOME=/usr/local/limonero
+ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
     PYTHONPATH=${PYTHONPATH}:${JUICER_HOME}
 
 COPY --from=pip_build /usr/local /usr/local
