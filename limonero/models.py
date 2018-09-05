@@ -30,6 +30,7 @@ class DataSourceFormat:
     GEO_JSON = 'GEO_JSON'
     CSV = 'CSV'
     PICKLE = 'PICKLE'
+    PARQUET = 'PARQUET'
 
     @staticmethod
     def values():
