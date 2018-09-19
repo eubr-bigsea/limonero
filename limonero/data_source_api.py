@@ -5,6 +5,7 @@ import logging
 import math
 import re
 import uuid
+import zipfile
 from ast import literal_eval
 from io import BytesIO
 from io import StringIO
@@ -22,9 +23,8 @@ from flask_restful import Resource
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
 from requests import compat as req_compat
-from sqlalchemy import inspect
+from sqlalchemy import inspect, event
 from sqlalchemy.orm import subqueryload, joinedload
-from sqlalchemy.sql.elements import and_
 from sqlalchemy.sql.elements import or_
 
 from app_auth import requires_auth, User
@@ -586,8 +586,10 @@ class DataSourceUploadApi(Resource):
                         ds_format = DataSourceFormat.JSON
                     elif extension == 'xml':
                         ds_format = DataSourceFormat.XML_FILE
-                    else:
+                    elif extension == 'txt':
                         ds_format = DataSourceFormat.TEXT
+                    else:
+                        ds_format = DataSourceFormat.UNKNOWN
 
                     ds = DataSource(
                         format=ds_format,
@@ -777,6 +779,63 @@ class DataSourceInferSchemaApi(Resource):
                     gettext('Unsupported database: %(what)s',
                             what=parsed.scheme))
 
+        elif ds.format in (DataSourceFormat.PARQUET,):
+            str_uri = '{proto}://{host}:{port}'.format(
+                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+
+            gateway = create_gateway(log, current_app.gateway_port)
+            jvm = gateway.jvm
+
+            hadoop_pkg = jvm.org.apache.hadoop
+            parquet_pkg = jvm.org.apache.parquet
+            uri = jvm.java.net.URI(str_uri)
+
+            conf = hadoop_pkg.conf.Configuration()
+            conf.set('dfs.client.use.datanode.hostname',
+                     "true" if current_app.config.get(
+                         'dfs.client.use.datanode.hostname',
+                         True) else "false")
+
+            path = hadoop_pkg.fs.Path(ds.url)
+            no_filter = \
+                parquet_pkg.format.converter.ParquetMetadataConverter.NO_FILTER
+            parquet_reader = parquet_pkg.hadoop.ParquetFileReader
+            meta_data = parquet_reader.readFooter(conf, path, no_filter)
+            schema = meta_data.getFileMetaData().getSchema()
+            final_schema = json.loads(meta_data.toJSON(meta_data))
+
+            types = {
+                'UTF8': DataType.CHARACTER,
+                'BINARY': DataType.CHARACTER,
+                'DOUBLE': DataType.DOUBLE,
+                'TIMESTAMP_MILLIS': DataType.DATETIME,
+                'DATE': DataType.DATE,
+                'FLOAT': DataType.FLOAT,
+                'INT32': DataType.INTEGER,
+                'INT64': DataType.LONG,
+                'CHARACTER': DataType.TEXT,
+                'DECIMAL': DataType.DECIMAL
+            }
+            old_attrs = Attribute.query.filter(
+                Attribute.data_source_id == ds.id)
+            old_attrs.delete(synchronize_session=False)
+
+            for definition in final_schema['fileMetaData']['schema']['columns']:
+                primitive_type = definition['primitiveType']
+                if '__index_level' not in primitive_type['name']:
+                    data_type = types[primitive_type['originalType'] or
+                                      primitive_type['primitiveTypeName']]
+                    attr = Attribute(name=primitive_type['name'],
+                                     nullable=True,
+                                     enumeration=False,
+                                     type=data_type,
+                                     feature=False, label=False, )
+                    attr.data_source = ds
+                    attr.feature = False
+                    attr.label = False
+                    db.session.add(attr)
+            db.session.commit()
+
         elif ds.format in (DataSourceFormat.CSV, DataSourceFormat.SHAPEFILE):
 
             str_uri = '{proto}://{host}:{port}'.format(
@@ -882,14 +941,29 @@ class DataSourceInferSchemaApi(Resource):
                     Attribute.data_source_id == ds.id)
                 old_attrs.delete(synchronize_session=False)
 
-                path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
-                input_stream_dbf = jvm.java.io.BufferedInputStream(
-                    hdfs.open(path2))
+                if ds.url.endswith('.zip'):
+                    zip_input_stream = jvm.java.io.BufferedInputStream(
+                        hdfs.open(path))
+                    z = zipfile.ZipFile(BytesIO(
+                        jvm.org.apache.commons.io.IOUtils.toByteArray(
+                            zip_input_stream)))
+                    dbf_name = next(
+                        (f for f in z.namelist() if f.endswith('dbf')), None)
+                    if dbf_name is None:
+                        raise ValueError(
+                            gettext('Cannot infer the schema for shapefile '
+                                    '(invalid Zip file content).'))
+                    else:
+                        dbf_io = BytesIO(z.read(dbf_name))
+                else:
+                    path2 = hadoop_pkg.fs.Path(re.sub('.shp$', '.dbf', ds.url))
+                    input_stream_dbf = jvm.java.io.BufferedInputStream(
+                        hdfs.open(path2))
 
-                dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
-                    input_stream_dbf)
+                    dbf_content = jvm.org.apache.commons.io.IOUtils.toByteArray(
+                        input_stream_dbf)
+                    dbf_io = BytesIO(dbf_content)
 
-                dbf_io = BytesIO(dbf_content)
                 handler = dbf.Dbf(dbf_io)
 
                 types = {
