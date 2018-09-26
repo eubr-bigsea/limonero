@@ -179,7 +179,7 @@ class DataSourceListApi(Resource):
 
                     db.session.commit()
                     result, result_code = response_schema.dump(
-                        data_source).data, 200
+                        {'data': data_source}).data, 200
                 except Exception as e:
                     log.exception('Error in POST')
                     result, result_code = dict(status="ERROR",
