@@ -18,7 +18,7 @@ class StorageListApi(Resource):
     def get():
         only = ('id', 'name') \
             if request.args.get('simple', 'false') == 'true' else None
-        storages = Storage.query.filter(Storage.enabled)
+        storages = Storage.query.filter(Storage.enabled).order_by('name')
         user = getattr(flask_g, 'user')
 
         # Administrative have access to URL

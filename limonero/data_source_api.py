@@ -153,7 +153,8 @@ class DataSourceListApi(Resource):
             message=gettext("Missing json in the request body")), 400
         if request.json is not None:
             request_schema = DataSourceCreateRequestSchema()
-            response_schema = DataSourceItemResponseSchema()
+            response_schema = DataSourceItemResponseSchema(
+                exclude=('url', 'storage.url'))
             form = request_schema.load(request.json)
             if form.errors:
                 result, result_code = dict(
@@ -172,6 +173,10 @@ class DataSourceListApi(Resource):
                             data_source = form.data
                             data_source.id = data_source_id
                             db.session.merge(data_source)
+
+                    if form.data.format == DataSourceFormat.JDBC:
+                        storage = Storage.query.get(form.data.storage_id)
+                        form.data.url = storage.url
 
                     if data_source_id is None:
                         data_source = form.data
@@ -742,6 +747,7 @@ class DataSourceInferSchemaApi(Resource):
             parsed = req_compat.urlparse(ds.url)
             qs = dict(x.split('=') for x in parsed.query.split('&'))
             # Supported DB: mysql
+
             if parsed.scheme == 'mysql':
                 from pymysql.constants import FIELD_TYPE
                 ft = pymysql.constants.FIELD_TYPE
@@ -749,6 +755,10 @@ class DataSourceInferSchemaApi(Resource):
                      not k.startswith('_')}
                 try:
                     fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
+
+                    if ds.command is None or ds.command.strip() == '':
+                        raise ValueError(gettext(
+                            'Data source does not have a command specified'))
                     cmd = fix_limit.sub('', ds.command)
                     with pymysql.connect(
                             host=parsed.hostname,
@@ -764,6 +774,8 @@ class DataSourceInferSchemaApi(Resource):
                         for (name, dtype, size, to_ignore, precision, scale,
                              nullable) in cursor.description:
                             final_type = get_mysql_data_type(d, dtype)
+                            if d[dtype] == 'BLOB':
+                                precision = None
                             attr = Attribute(name=name, type=final_type,
                                              size=size, precision=precision,
                                              scale=scale, nullable=nullable)

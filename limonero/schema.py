@@ -38,8 +38,10 @@ class AttributeListResponseSchema(Schema):
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
-    nullable = fields.Boolean(required=True)
-    enumeration = fields.Boolean(required=True)
+    nullable = fields.Boolean(required=True, missing=False,
+                              default=False)
+    enumeration = fields.Boolean(required=True, missing=False,
+                                 default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
                              default=True)
@@ -77,8 +79,10 @@ class AttributeItemResponseSchema(Schema):
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
-    nullable = fields.Boolean(required=True)
-    enumeration = fields.Boolean(required=True)
+    nullable = fields.Boolean(required=True, missing=False,
+                              default=False)
+    enumeration = fields.Boolean(required=True, missing=False,
+                                 default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
                              default=True)
@@ -116,8 +120,10 @@ class AttributeCreateRequestSchema(Schema):
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
-    nullable = fields.Boolean(required=True)
-    enumeration = fields.Boolean(required=True)
+    nullable = fields.Boolean(required=True, missing=False,
+                              default=False)
+    enumeration = fields.Boolean(required=True, missing=False,
+                                 default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(required=True, missing=True,
                              default=True)
@@ -182,7 +188,8 @@ class AttributePrivacyListResponseSchema(Schema):
     privacy_model = fields.String(required=False, allow_none=True)
     privacy_model_parameters = fields.String(required=False, allow_none=True)
     unlock_privacy_key = fields.String(required=False, allow_none=True)
-    is_global_law = fields.Boolean(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True, missing=False,
+                                   default=False)
     attribute_privacy_group = fields.Nested(
         'limonero.schema.AttributePrivacyGroupListResponseSchema',
         allow_none=True)
@@ -216,7 +223,8 @@ class AttributePrivacyItemResponseSchema(Schema):
     privacy_model = fields.String(required=False, allow_none=True)
     privacy_model_parameters = fields.String(required=False, allow_none=True)
     unlock_privacy_key = fields.String(required=False, allow_none=True)
-    is_global_law = fields.Boolean(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True, missing=False,
+                                   default=False)
     attribute_privacy_group_id = fields.Integer(
         required=False, allow_none=True)
 
@@ -281,7 +289,8 @@ class AttributePrivacyPrivacyResponseSchema(Schema):
     privacy_model = fields.String(required=False, allow_none=True)
     privacy_model_parameters = fields.String(required=False, allow_none=True)
     unlock_privacy_key = fields.String(required=False, allow_none=True)
-    is_global_law = fields.Boolean(required=False, allow_none=True)
+    is_global_law = fields.Boolean(required=False, allow_none=True, missing=False,
+                                   default=False)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -391,7 +400,8 @@ class DataSourceListResponseSchema(Schema):
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
     text_delimiter = fields.String(required=False, allow_none=True)
-    is_public = fields.Boolean(required=True)
+    is_public = fields.Boolean(required=True, missing=False,
+                               default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
@@ -449,7 +459,8 @@ class DataSourceCreateRequestSchema(Schema):
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
     text_delimiter = fields.String(required=False, allow_none=True)
-    is_public = fields.Boolean(required=True)
+    is_public = fields.Boolean(required=True, missing=False,
+                               default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
@@ -514,7 +525,8 @@ class DataSourceItemResponseSchema(Schema):
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
     text_delimiter = fields.String(required=False, allow_none=True)
-    is_public = fields.Boolean(required=True)
+    is_public = fields.Boolean(required=True, missing=False,
+                               default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(required=True, missing=0,
