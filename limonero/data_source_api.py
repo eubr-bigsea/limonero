@@ -26,6 +26,7 @@ from requests import compat as req_compat
 from sqlalchemy import inspect, event
 from sqlalchemy.orm import subqueryload, joinedload
 from sqlalchemy.sql.elements import or_
+from werkzeug.exceptions import NotFound
 
 from app_auth import requires_auth, User
 from limonero.py4j_init import create_gateway
@@ -82,8 +83,9 @@ class DataSourceListApi(Resource):
                 only = None
             else:
                 simple = True
-                only = ('id', 'name', 'description', 'created',
-                        'user_name', 'permissions', 'user_id', 'privacy_aware')
+                only = ('id', 'name', 'description', 'created', 'tags',
+                        'format', 'user_name', 'permissions', 'user_id',
+                        'privacy_aware')
 
             if request.args.get('fields'):
                 only = tuple(
@@ -95,6 +97,10 @@ class DataSourceListApi(Resource):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
+            query = request.args.get('query')
+            if query:
+                data_sources = data_sources.filter(
+                    DataSource.name.ilike('%%{}%%'.format(query)))
             if not simple:
                 data_sources = data_sources.options(
                     joinedload(DataSource.attributes))
@@ -119,7 +125,10 @@ class DataSourceListApi(Resource):
                     page = int(page)
                     if page > -1:
                         pagination = data_sources.paginate(page, page_size,
-                                                           True)
+                                                           False)
+                        if pagination.total < page_size and page > 1:
+                            pagination = data_sources.paginate(1, page_size,
+                                                               False)
                     else:
                         # No pagination
                         pagination = data_sources
@@ -135,11 +144,15 @@ class DataSourceListApi(Resource):
                                 math.ceil(1.0 * pagination.total / page_size))}
                     }
             else:
-                only = ('id', 'name')
+                only = ('id', 'name', 'tags')
                 result = DataSourceListResponseSchema(
                     many=True, only=only).dump(data_sources).data
             db.session.commit()
             result_code = 200
+
+        except NotFound:
+            result_code = 404
+            result = {'data': []}
         except Exception as ex:
             log.exception(ex.message)
 
