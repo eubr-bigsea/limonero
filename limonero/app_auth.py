@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-}
 import json
 import logging
+import re
 from collections import namedtuple
 from functools import wraps
 
-import re
 import requests
 from flask import request, Response, current_app, g as flask_g
 
-User = namedtuple("User", "id, login, email, first_name, last_name, locale")
+User = namedtuple("User",
+                  "id, login, email, first_name, last_name, locale, name")
 
 MSG1 = 'Could not verify your access level for that URL. ' \
        'You have to login with proper credentials provided by Lemonade Thorn'
@@ -63,7 +64,7 @@ def requires_auth(f):
                                  headers=headers)
             if r.status_code != 200:
                 if internal_token and internal_token == str(config['secret']):
-                    setattr(flask_g, 'user', User(2, '', '', '', '', ''))
+                    setattr(flask_g, 'user', User(2, '', '', '', '', '', ''))
                     log.warn('Using Authorization and token is incorrect!')
                     return f(*_args, **kwargs)
                 else:
@@ -78,14 +79,17 @@ def requires_auth(f):
                     id=user_id,
                     login=user_data['data']['attributes']['email'],
                     email=user_data['data']['attributes']['email'],
-                    first_name=user_data['data']['attributes']['email'],
-                    last_name='',
+                    first_name=user_data['data']['attributes']['first-name'],
+                    last_name=user_data['data']['attributes']['last-name'],
+                    name=' '.join(
+                        [user_data['data']['attributes']['first-name'],
+                         user_data['data']['attributes']['last-name']]),
                     locale=''))
                 return f(*_args, **kwargs)
         elif internal_token:
             if internal_token == str(config['secret']):
                 # System user being used
-                setattr(flask_g, 'user', User(1, '', '', '', '', ''))
+                setattr(flask_g, 'user', User(1, '', '', '', '', '', ''))
                 return f(*_args, **kwargs)
             else:
                 return authenticate(MSG2, {"message": "Invalid X-Auth-Token"})

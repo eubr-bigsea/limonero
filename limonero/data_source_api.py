@@ -41,6 +41,11 @@ WRONG_HDFS_CONFIG = gettext(
     "Limonero HDFS access not correctly configured (see "
     "config 'dfs.client.use.datanode.hostname')")
 
+INVALID_FORMAT_ERROR = gettext(
+    "At least one value for attribute '{attr}' is incompatible "
+    "with the type '{type}': {v}"
+)
+
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
     result = query
@@ -97,10 +102,13 @@ class DataSourceListApi(Resource):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
-            query = request.args.get('query')
+            query = request.args.get('query') or request.args.get('name')
             if query:
-                data_sources = data_sources.filter(
-                    DataSource.name.ilike('%%{}%%'.format(query)))
+                data_sources = data_sources.filter(or_(
+                    DataSource.name.ilike('%%{}%%'.format(query)),
+                    DataSource.description.ilike('%%{}%%'.format(query)),
+                    DataSource.tags.ilike('%%{}%%'.format(query))
+                ))
             if not simple:
                 data_sources = data_sources.options(
                     joinedload(DataSource.attributes))
@@ -168,7 +176,14 @@ class DataSourceListApi(Resource):
             request_schema = DataSourceCreateRequestSchema()
             response_schema = DataSourceItemResponseSchema(
                 exclude=('url', 'storage.url'))
-            form = request_schema.load(request.json)
+            json_data = request.json
+
+            json_data['user_id'] = flask_g.user.id
+            json_data['user_login'] = flask_g.user.id
+            json_data['user_name'] = flask_g.user.id
+
+            form = request_schema.load(json_data)
+
             if form.errors:
                 result, result_code = dict(
                     status="ERROR", message=gettext("Validation error"),
@@ -625,6 +640,9 @@ class DataSourceUploadApi(Resource):
                     # gateway.shutdown()
                     db.session.add(ds)
                     db.session.commit()
+                    response_schema = DataSourceItemResponseSchema()
+                    result = {'status': 'OK',
+                              'data': response_schema.dump(ds).data}
 
             return result, result_code, {
                 'Content-Type': 'application/json; charset=utf-8'}
@@ -1250,6 +1268,7 @@ class DataSourceSampleApi(Resource):
     @staticmethod
     @requires_auth
     def get(data_source_id):
+
         data_sources = DataSource.query
         data_source = _filter_by_permissions(data_sources,
                                              PermissionType.values())
@@ -1265,6 +1284,7 @@ class DataSourceSampleApi(Resource):
                 status='ERROR',
                 message='The maximum number of records allowed is 1000'), 400
         elif data_source is not None:
+            treat_as_missing = (data_source.treat_as_missing or '').split(',')
             parsed = req_compat.urlparse(data_source.url)
             if parsed.scheme == 'mysql':
                 qs = dict(x.split('=') for x in parsed.query.split('&'))
@@ -1288,29 +1308,39 @@ class DataSourceSampleApi(Resource):
                     encoding = data_source.encoding or 'utf8'
                     with codecs.open(parsed.path, 'rb',
                                      encoding=encoding) as csvfile:
-                        csv_params = {
-                            'fileobj': csvfile,
-                            'delimiter': data_source.attribute_delimiter or ','}
-                        if data_source.text_delimiter:
-                            csv_params['quoting'] = csv.QUOTE_MINIMAL
-                            csv_params['quotechar'] = data_source.text_delimiter
-                        reader = csv.reader(**csv_params)
-
-                        if data_source.is_first_line_header:
-                            reader.next()
 
                         header = []
                         converters = []
-                        for attr in data_source.attributes:
-                            header.append(attr.name)
-                            if attr.type in [DataType.DECIMAL]:
-                                converters.append(decimal.Decimal)
-                            elif attr.type in [DataType.DOUBLE, DataType.FLOAT]:
-                                converters.append(float)
-                            elif attr.type in [DataType.INTEGER, DataType.LONG]:
-                                converters.append(int)
-                            else:
-                                converters.append(unicode.strip)
+                        if data_source.attributes:
+                            csv_params = {
+                                'fileobj': csvfile,
+                                'delimiter': data_source.attribute_delimiter or ','}
+                            if data_source.text_delimiter:
+                                csv_params['quoting'] = csv.QUOTE_MINIMAL
+                                csv_params[
+                                    'quotechar'] = data_source.text_delimiter
+                            for attr in data_source.attributes:
+                                header.append(attr.name)
+                                if attr.type in [DataType.DECIMAL]:
+                                    converters.append(decimal.Decimal)
+                                elif attr.type in [DataType.DOUBLE,
+                                                   DataType.FLOAT]:
+                                    converters.append(float)
+                                elif attr.type in [DataType.INTEGER,
+                                                   DataType.LONG]:
+                                    converters.append(int)
+                                else:
+                                    converters.append(unicode.strip)
+                            reader = csv.reader(**csv_params)
+                        else:
+                            header.append(_('row'))
+                            converters.append(unicode.strip)
+                            reader = csv.reader(
+                                fileobj=csvfile,
+                                delimiter=u';')
+
+                        if data_source.is_first_line_header:
+                            reader.next()
                         data = []
                         for i, line in enumerate(reader):
                             if i >= limit:
@@ -1375,37 +1405,64 @@ class DataSourceSampleApi(Resource):
 
                         header = []
                         converters = []
-
-                        for attr in data_source.attributes:
-                            header.append(attr.name)
-                            if attr.type in [DataType.DECIMAL]:
-                                converters.append(decimal.Decimal)
-                            elif attr.type in [DataType.DOUBLE, DataType.FLOAT]:
-                                converters.append(float)
-                            elif attr.type in [DataType.INTEGER, DataType.LONG]:
-                                converters.append(int)
-                            else:
-                                converters.append(unicode.strip)
+                        csv_buf = StringIO()
+                        if data_source.attributes:
+                            for attr in data_source.attributes:
+                                header.append(attr.name)
+                                if attr.type in [DataType.DECIMAL]:
+                                    converters.append(decimal.Decimal)
+                                elif attr.type in [DataType.DOUBLE,
+                                                   DataType.FLOAT]:
+                                    converters.append(float)
+                                elif attr.type in [DataType.INTEGER,
+                                                   DataType.LONG]:
+                                    converters.append(int)
+                                else:
+                                    converters.append(unicode.strip)
+                            d = data_source.attribute_delimiter or unicode(',')
+                            csv_params = {
+                                'fileobj': csv_buf,
+                                'delimiter': d}
+                            reader = csv.reader(**csv_params)
+                        else:
+                            header.append(_('row'))
+                            converters.append(unicode.strip)
+                            reader = csv.reader(
+                                fileobj=csv_buf,
+                                delimiter=u';')
                         data = []
                         i = 0
                         if data_source.is_first_line_header:
                             buffered_reader.readLine()
 
-                        csv_buf = StringIO()
-                        csv_params = {
-                            'fileobj': csv_buf,
-                            'delimiter': data_source.attribute_delimiter or ','}
-                        reader = csv.reader(**csv_params)
-                        while i <= limit:
+                        limit = 40
+                        while i < limit:
                             tmp_line = buffered_reader.readLine()
-                            csv_buf.write(tmp_line)
-                            csv_buf.seek(0)
-                            line = next(reader)
+                            if tmp_line:
+                                csv_buf.write(tmp_line)
+                                csv_buf.write('\n'.decode('utf8'))
+                            i += 1
+
+                        csv_buf.seek(0)
+                        for line in reader:
                             row = {}
                             for h, v, conv in zip(header, line, converters):
-                                row[h] = conv(v)
+                                # noinspection PyBroadException
+                                try:
+                                    if v not in treat_as_missing:
+                                        row[h] = conv(v)
+                                    else:
+                                        row[h] = None
+                                except:
+                                    status_code = 422
+                                    return dict(
+                                        status='ERROR',
+                                        message=INVALID_FORMAT_ERROR.format(
+                                            type=str(conv), attr=h,
+                                            v=str(v)
+                                        )), status_code
                             data.append(row)
-                            i += 1
+
                         result, status_code = dict(status='OK',
                                                    data=data), 200
                 except Py4JJavaError as java_ex:
@@ -1415,7 +1472,9 @@ class DataSourceSampleApi(Resource):
                                 'message': WRONG_HDFS_CONFIG}, 400
                     log.exception('Java error')
                 except Exception as e:
-                    result = {'status': 'ERROR', 'message': 'Internal error'}
+                    result = {'status': 'ERROR',
+                              'message': 'Internal error:',
+                              'details': str(e)}
                     status_code = 500
                     log.exception(e.message)
             else:
