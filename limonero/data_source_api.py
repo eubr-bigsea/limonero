@@ -205,6 +205,9 @@ class DataSourceListApi(Resource):
                     if form.data.format == DataSourceFormat.JDBC:
                         storage = Storage.query.get(form.data.storage_id)
                         form.data.url = storage.url
+                    elif form.data.format in [DataSourceFormat.TEXT]:
+                        # Attributes are not supported
+                        form.data.attributes = []
 
                     if data_source_id is None:
                         data_source = form.data
@@ -310,6 +313,9 @@ class DataSourceDetailApi(Resource):
                     data_source = filtered.filter(
                         DataSource.id == data_source_id).first()
 
+                    if form.data.format in [DataSourceFormat.TEXT]:
+                        # Attributes are not supported
+                        form.data.attributes = []
                     if data_source is not None:
                         data_source = db.session.merge(form.data)
                         db.session.commit()
