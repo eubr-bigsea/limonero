@@ -641,8 +641,8 @@ class DataSourceUploadApi(Resource):
                         user_id=user.id,
                         user_login=user.login,
                         user_name='{} {}'.format(
-                            user.first_name.decode('utf8'),
-                            user.last_name.decode('utf8')).strip())
+                            user.first_name.encode('utf8'),
+                            user.last_name.encode('utf8')).strip())
 
                     # gateway.shutdown()
                     db.session.add(ds)
