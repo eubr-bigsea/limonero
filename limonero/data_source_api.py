@@ -640,8 +640,9 @@ class DataSourceUploadApi(Resource):
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
-                        user_name='{} {}'.format(user.first_name,
-                                                 user.last_name).strip())
+                        user_name='{} {}'.format(
+                            user.first_name.decode('utf8'),
+                            user.last_name.decode('utf8')).strip())
 
                     # gateway.shutdown()
                     db.session.add(ds)
