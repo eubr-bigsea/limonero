@@ -178,9 +178,11 @@ class DataSourceListApi(Resource):
                 exclude=('url', 'storage.url'))
             json_data = request.json
 
-            json_data['user_id'] = flask_g.user.id
-            json_data['user_login'] = flask_g.user.id
-            json_data['user_name'] = flask_g.user.id
+            json_data['user_id'] = json_data.get('user_id', flask_g.user.id)
+            json_data['user_login'] = json_data.get('user_login',
+                                                    flask_g.user.login)
+            json_data['user_name'] = json_data.get('user_name',
+                                                   flask_g.user.name)
 
             form = request_schema.load(json_data)
 
