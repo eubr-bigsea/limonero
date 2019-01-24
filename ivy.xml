@@ -1,7 +1,12 @@
-<ivy-module version="2.0" xmlns:m="http://ant.apache.org/ivy/maven">
+<ivy-module version="2.0">
     <info organisation="br.ufmg.dcc.speed" module="lemonade-limonero"/>
     <dependencies>
         <dependency org="org.apache.hadoop" name="hadoop-client" rev="2.9.1">
+            <exclude org="*" ext="*" type="source"/>
+            <exclude org="*" ext="*" type="javadoc"/>
+        </dependency>
+
+        <dependency org="org.apache.parquet" name="parquet-tools" rev="1.10.0">
             <exclude org="*" ext="*" type="source"/>
             <exclude org="*" ext="*" type="javadoc"/>
         </dependency>

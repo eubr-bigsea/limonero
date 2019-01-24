@@ -927,6 +927,11 @@ class DataSourceInferSchemaApi(Resource):
                     special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
                     delimiter = special_delimiters.get(delimiter, delimiter)
 
+                    if ds.treat_as_missing:
+                        missing_values = ds.treat_as_missing.split(',')
+                    else:
+                        missing_values = []
+
                     encoding = 'utf8'
                     if parsed.scheme == 'file':
                         encoding = ds.encoding or 'utf8'
@@ -968,7 +973,7 @@ class DataSourceInferSchemaApi(Resource):
                     attrs = []
                     # noinspection PyBroadException
                     attrs = DataSourceInferSchemaApi._get_csv_attributes(
-                        attrs, csv_reader, use_header)
+                        attrs, csv_reader, use_header, missing_values)
 
                     old_attrs = Attribute.query.filter(
                         Attribute.data_source_id == ds.id)
@@ -1106,7 +1111,7 @@ class DataSourceInferSchemaApi(Resource):
         return buffered_reader, encoding
 
     @staticmethod
-    def _get_csv_attributes(attrs, csv_reader, use_header):
+    def _get_csv_attributes(attrs, csv_reader, use_header, missing_values):
         for row in csv_reader:
             if use_header and len(attrs) == 0:
                 attrs = DataSourceInferSchemaApi._get_header(row)
@@ -1116,7 +1121,8 @@ class DataSourceInferSchemaApi(Resource):
                         row)
                 for i, value in enumerate(row):
                     if i < len(attrs):
-                        if value is None or value == '':
+                        if value is None or value == '' \
+                                or value in missing_values:
                             attrs[i].nullable = True
                         else:
                             if attrs[i].type != DataType.CHARACTER:
@@ -1135,6 +1141,7 @@ class DataSourceInferSchemaApi(Resource):
             v = value
         except SyntaxError:
             v = value
+
         # test if first char is zero to avoid python
         # convertion of octal
         if any([(value[0] == '0' and len(value) > 1 and value[1] != '.'),
@@ -1160,9 +1167,12 @@ class DataSourceInferSchemaApi(Resource):
                 attrs[i].precision = None
                 attrs[i].scale = None
         elif type(v) in [int] and -2147483648 < v < 2147483647:
-            attrs[i].type = DataType.INTEGER
+            if attrs[i].type not in [DataType.DECIMAL, DataType.FLOAT,
+                                     DataType.LONG]:
+                attrs[i].type = DataType.INTEGER
         elif type(v) in [long]:
-            attrs[i].type = DataType.LONG
+            if attrs[i].type not in [DataType.DECIMAL, DataType.FLOAT]:
+                attrs[i].type = DataType.LONG
         elif type(v) in [float]:
             change_to_str = False
             parts = value.split('.')
