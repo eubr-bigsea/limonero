@@ -1298,6 +1298,7 @@ class DataSourceSampleApi(Resource):
         limit = int(request.args.get('limit', 100))
         result, status_code = dict(status='ERROR', message='Not found'), 404
 
+        warnings = []
         if limit > 1000:
             result, status_code = dict(
                 status='ERROR',
@@ -1366,10 +1367,16 @@ class DataSourceSampleApi(Resource):
                                 break
                             row = {}
                             for h, v, conv in zip(header, line, converters):
-                                row[h] = conv(v)
+                                try:
+                                    row[h] = conv(v) if v != '' else ''
+                                except decimal.InvalidOperation:
+                                    row[h] = gettext(
+                                        "<Invalid data>: `{}`".format(v))
+                                    warnings.append(h)
                             data.append(row)
-                            result, status_code = dict(status='OK',
-                                                       data=data), 200
+                            result, status_code = dict(
+                                status='OK', warnings=list(set(warnings)),
+                                data=data), 200
                 elif data_source.format == DataSourceFormat.JSON:
                     data = []
                     with open(parsed.path) as f:
