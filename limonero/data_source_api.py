@@ -924,7 +924,10 @@ class DataSourceInferSchemaApi(Resource):
                     if ds.attribute_delimiter:
                         delimiter = ds.attribute_delimiter
 
-                    special_delimiters = {'{tab}': u'\t', '{new_line}': u'\n'}
+                    special_delimiters = {'{tab}': u'\t',
+                                          '{new_line \\n}': u'\n',
+                                          '{new_line \\r\\n}': u'\r\n'
+                                          }
                     delimiter = special_delimiters.get(delimiter, delimiter)
 
                     if ds.treat_as_missing:
