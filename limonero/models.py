@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import datetime
-
+import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
-    Enum, DateTime, Numeric
-from sqlalchemy.orm import relationship, backref
+    Enum, DateTime, Numeric, Text, Unicode, UnicodeText
+from sqlalchemy import event
 from sqlalchemy.sql import func
-from sqlalchemy_i18n import make_translatable
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy_i18n import make_translatable, translation_base, Translatable
 
 make_translatable(options={'locales': ['pt', 'en', 'es'],
                            'auto_create_locales': True,
@@ -23,13 +25,13 @@ class DataSourceFormat:
     HDF5 = 'HDF5'
     SHAPEFILE = 'SHAPEFILE'
     TEXT = 'TEXT'
+    UNKNOWN = 'UNKNOWN'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
     PARQUET = 'PARQUET'
     GEO_JSON = 'GEO_JSON'
     CSV = 'CSV'
     PICKLE = 'PICKLE'
-    UNKNOWN = 'UNKNOWN'
 
     @staticmethod
     def values():
@@ -170,6 +172,7 @@ class Attribute(db.Model):
     std_deviation = Column(Float)
     missing_total = Column(String(200))
     deciles = Column(String(16000000))
+    format = Column(String(100))
 
     # Associations
     data_source_id = Column(Integer,
@@ -203,8 +206,7 @@ class AttributePrivacy(db.Model):
                                name='PrivacyTypeEnumType'), nullable=False)
     category_technique = Column(String(100))
     anonymization_technique = Column(Enum(*AnonymizationTechnique.values(),
-                                          name='AnonymizationTechniqueEnumType'),
-                                     nullable=False)
+                                          name='AnonymizationTechniqueEnumType'), nullable=False)
     hierarchical_structure_type = Column(String(100))
     privacy_model_technique = Column(String(100))
     hierarchy = Column(String(16000000))
@@ -223,8 +225,7 @@ class AttributePrivacy(db.Model):
         foreign_keys=[attribute_id],
         back_populates="attribute_privacy")
     attribute_privacy_group_id = Column(Integer,
-                                        ForeignKey(
-                                            "attribute_privacy_group.id"))
+                                        ForeignKey("attribute_privacy_group.id"))
     attribute_privacy_group = relationship(
         "AttributePrivacyGroup",
         foreign_keys=[attribute_privacy_group_id],
@@ -488,3 +489,4 @@ class StoragePermission(db.Model):
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
+

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-}
 import codecs
 import decimal
+import itertools
 import logging
 import math
 import re
@@ -12,7 +13,6 @@ from io import StringIO
 
 import pymysql
 from backports import csv
-from dateutil import parser as date_parser
 from dbfpy import dbf
 from flask import g as flask_g
 from flask import request, Response, current_app
@@ -23,7 +23,7 @@ from flask_restful import Resource
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
 from requests import compat as req_compat
-from sqlalchemy import inspect, event
+from sqlalchemy import inspect
 from sqlalchemy.orm import subqueryload, joinedload
 from sqlalchemy.sql.elements import or_
 from werkzeug.exceptions import NotFound
@@ -45,6 +45,19 @@ INVALID_FORMAT_ERROR = gettext(
     "At least one value for attribute '{attr}' is incompatible "
     "with the type '{type}': {v}"
 )
+
+DATE_FORMATS = [
+    '%m/%d/%Y', '%m-%d-%Y', '%m.%d.%Y',
+    '%Y/%m/%d', '%Y-%m-%d', '%Y.%m.%d',
+    '%d/%m/%Y', '%d-%m-%Y', '%d.%m.%Y',
+]
+TIME_FORMATS = [
+    '',
+    'T%H:%M:%S.%fZ',
+    ' %H:%M:%S',
+]
+SUPPORTED_DATE_TIME_FORMATS = list(
+    itertools.product(DATE_FORMATS, TIME_FORMATS))
 
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
@@ -769,12 +782,6 @@ class DataSourceDownload(MethodView):
 
 
 class DataSourceInferSchemaApi(Resource):
-    tests = {
-        DataType.DATETIME: lambda x: date_parser.parse(x),
-        DataType.DECIMAL: '',
-        DataType.DOUBLE: '',
-    }
-
     @staticmethod
     def _infer_schema_from_db(ds, options):
         pass
@@ -1137,6 +1144,18 @@ class DataSourceInferSchemaApi(Resource):
         return attrs
 
     @staticmethod
+    def _try_parse(d):
+        for attempt in SUPPORTED_DATE_TIME_FORMATS:
+            # noinspection PyBroadException
+            try:
+                f = ''.join(attempt)
+                parsed = datetime.datetime.strptime(d, f)
+                return parsed, f
+            except:
+                pass
+        raise ValueError("Invalid date")
+
+    @staticmethod
     def _infer_attr(attrs, i, value):
         try:
             v = literal_eval(value)
@@ -1152,13 +1171,9 @@ class DataSourceInferSchemaApi(Resource):
             if type(v) not in [int, float, long]:
                 # noinspection PyBroadException
                 try:
-                    date_parser.parse(value)
-                    if len(value) > 5:
-                        attrs[
-                            i].type = DataType.DATETIME
-                    else:
-                        attrs[
-                            i].type = DataType.CHARACTER
+                    (d, f) = DataSourceInferSchemaApi._try_parse(v)
+                    attrs[i].type = DataType.DATETIME
+                    attrs[i].format = f
                 except:
                     attrs[i].type = DataType.CHARACTER
                     attrs[i].size = len(value)
