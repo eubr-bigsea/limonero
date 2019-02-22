@@ -46,18 +46,19 @@ INVALID_FORMAT_ERROR = gettext(
     "with the type '{type}': {v}"
 )
 
-DATE_FORMATS = [
-    '%m/%d/%Y', '%m-%d-%Y', '%m.%d.%Y',
-    '%Y/%m/%d', '%Y-%m-%d', '%Y.%m.%d',
-    '%d/%m/%Y', '%d-%m-%Y', '%d.%m.%Y',
-]
-TIME_FORMATS = [
-    '',
-    'T%H:%M:%S.%fZ',
-    ' %H:%M:%S',
-]
-SUPPORTED_DATE_TIME_FORMATS = list(
-    itertools.product(DATE_FORMATS, TIME_FORMATS))
+DATE_FORMATS = {
+    '%m/%d/%Y': 'MM/dd/yyyy', '%m-%d-%Y': 'MM-dd-yyyy',
+    '%m.%d.%Y': 'MM.dd.yyyy',
+    '%Y/%m/%d': 'yyyy/MM/dd', '%Y-%m-%d': 'yyyy-MM-dd',
+    '%Y.%m.%d': 'yyyy.MM.dd',
+    '%d/%m/%Y': 'dd/MM/yyyy', '%d-%m-%Y': 'dd-MM-yyyy ',
+    '%d.%m.%Y': 'dd.MM.yyyy',
+}
+TIME_FORMATS = {
+    '': '',
+    'T%H:%M:%S.%fZ': 'Thh:mm:ss.Z',
+    ' %H:%M:%S': 'hh:mm:ss',
+}
 
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
@@ -1145,14 +1146,15 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def _try_parse(d):
-        for attempt in SUPPORTED_DATE_TIME_FORMATS:
-            # noinspection PyBroadException
-            try:
-                f = ''.join(attempt)
-                parsed = datetime.datetime.strptime(d, f)
-                return parsed, f
-            except:
-                pass
+        for df, java_df in DATE_FORMATS.items():
+            for hf, java_hf in TIME_FORMATS.items():
+                # noinspection PyBroadException
+                try:
+                    f = ''.join([df, hf])
+                    parsed = datetime.datetime.strptime(d, f)
+                    return parsed, ''.join([java_df, java_hf])
+                except:
+                    pass
         raise ValueError("Invalid date")
 
     @staticmethod
