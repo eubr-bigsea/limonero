@@ -22,7 +22,7 @@ class StorageListApi(Resource):
         user = getattr(flask_g, 'user')
 
         # Administrative have access to URL
-        exclude = tuple() if user.id == 1 else tuple(['url'])
+        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
         return StorageListResponseSchema(many=True, only=only,
                                          exclude=exclude).dump(storages).data
@@ -35,7 +35,7 @@ class StorageDetailApi(Resource):
     @requires_auth
     def get(storage_id):
         user = getattr(flask_g, 'user')
-        exclude = tuple() if user.id == 1 else tuple(['url'])
+        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
         storage = Storage.query.filter(Storage.enabled,
                                        Storage.id == storage_id).first()
