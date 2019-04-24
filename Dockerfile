@@ -26,4 +26,5 @@ RUN wget --quiet --directory-prefix /tmp $IVY_URL \
   && rm /tmp/${IVY_PKG}
 
 COPY . $LIMONERO_HOME
+RUN pybabel compile -d $LIMONERO_HOME/limonero/i18n/locales
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
