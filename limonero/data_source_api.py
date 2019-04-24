@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-}
 import codecs
 import decimal
-import itertools
 import logging
 import math
 import re
@@ -532,10 +531,13 @@ class DataSourceUploadApi(Resource):
 
             return result, result_code
         except Py4JJavaError as java_ex:
+            log.exception('Java error')
             if 'Could not obtain block' in java_ex.java_exception.getMessage():
                 return {'status': 'ERROR',
                         'message': WRONG_HDFS_CONFIG}, 400
-            log.exception('Java error')
+            else:
+                return {'status': 'ERROR',
+                        'message': gettext('Internal error')}, 400
         except:
             raise
 
