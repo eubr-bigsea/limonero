@@ -3,10 +3,12 @@ import codecs
 import decimal
 import logging
 import math
+import operator
 import re
 import uuid
 import zipfile
 from ast import literal_eval
+from collections import defaultdict
 from io import BytesIO
 from io import StringIO
 
@@ -593,8 +595,9 @@ class DataSourceUploadApi(Resource):
 
                 chunk_path = jvm.org.apache.hadoop.fs.Path(chunk_filename)
 
+                file_data = request.get_data()
                 output_stream = hdfs.create(chunk_path)
-                block = bytearray2(request.get_data())
+                block = bytearray2(file_data)
                 output_stream.write(block, 0, len(block))
 
                 output_stream.close()
@@ -664,7 +667,27 @@ class DataSourceUploadApi(Resource):
 
                     # gateway.shutdown()
                     db.session.add(ds)
-                    db.session.commit()
+
+                    if filename[-4:] in ['.csv', '.CSV', '.tsv', '.TSV']:
+                        # noinspection PyBroadException
+                        try:
+                            # try to infer the field delimiter
+                            count_delimiters = defaultdict(int)
+                            for ch in file_data:
+                                if ch in [',', ';', '\t']:
+                                    count_delimiters[ch] += 1
+                            sorted_delim = sorted(count_delimiters.items(),
+                                                  key=operator.itemgetter(1),
+                                                  reverse=True)
+                            delim = sorted_delim[0][0] if sorted_delim else ','
+                            ds.is_first_line_header = True
+                            ds.attribute_delimiter = delim
+                            ds.format = DataSourceFormat.CSV
+                            DataSourceUploadApi._try_infer_schema(ds, delim)
+                        except:
+                            # in case of error, save the upload information
+                            db.session.commit()
+
                     response_schema = DataSourceItemResponseSchema()
                     result = {'status': 'OK',
                               'data': response_schema.dump(ds).data}
@@ -678,6 +701,14 @@ class DataSourceUploadApi(Resource):
             log.exception('Java error')
         except:
             raise
+
+    @staticmethod
+    def _try_infer_schema(ds, delim):
+        options = {
+            'use_header': True,
+            'delimiter': delim.decode('utf-8')
+        }
+        DataSourceInferSchemaApi.infer_schema(ds, options)
 
 
 class DataSourceDownload(MethodView):
@@ -928,6 +959,7 @@ class DataSourceInferSchemaApi(Resource):
                 try:
                     use_header = options.get('use_header',
                                              False) or ds.is_first_line_header
+
                     delimiter = (options.get('delimiter', ',') or ',').encode(
                         'latin1')
                     # If there is a delimiter set in data_source, use it instead
@@ -939,6 +971,9 @@ class DataSourceInferSchemaApi(Resource):
                                           '{new_line \\r\\n}': u'\r\n'
                                           }
                     delimiter = special_delimiters.get(delimiter, delimiter)
+
+                    if isinstance(delimiter, str):
+                        delimiter = delimiter.decode('utf8')
 
                     if ds.treat_as_missing:
                         missing_values = ds.treat_as_missing.split(',')
@@ -977,7 +1012,8 @@ class DataSourceInferSchemaApi(Resource):
                     buffered_reader.close()
                     lines.seek(0)
                     if quote_char:
-                        csv_reader = csv.reader(lines, delimiter=delimiter,
+                        csv_reader = csv.reader(lines,
+                                                delimiter=delimiter,
                                                 quotechar=quote_char.decode(
                                                     'utf8'))
                     else:
@@ -991,6 +1027,7 @@ class DataSourceInferSchemaApi(Resource):
                     old_attrs = Attribute.query.filter(
                         Attribute.data_source_id == ds.id)
                     old_attrs.delete(synchronize_session=False)
+
                     for attr in attrs:
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
@@ -1228,7 +1265,7 @@ class DataSourceInferSchemaApi(Resource):
     def _get_header(row):
         attrs = []
         for attr in row:
-            attr = strip_accents(attr.replace(' ', '_'))[:100]
+            attr = strip_accents(attr.strip().replace(' ', '_'))[:100]
             attrs.append(
                 Attribute(name=attr, nullable=False, enumeration=False))
         return attrs
