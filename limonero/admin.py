@@ -6,7 +6,7 @@ from flask_admin.menu import MenuLink
 from wtforms import form, fields, validators
 
 from limonero.app_auth import CONFIG_KEY
-from models import Attribute
+from .models import Attribute
 
 
 class User(object):

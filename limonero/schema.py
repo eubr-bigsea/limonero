@@ -9,7 +9,7 @@ from limonero.models import *
 
 def partial_schema_factory(schema_cls):
     schema = schema_cls(partial=True)
-    for field_name, field in schema.fields.items():
+    for field_name, field in list(schema.fields.items()):
         if isinstance(field, fields.Nested):
             new_field = deepcopy(field)
             new_field.schema.partial = True
@@ -34,7 +34,7 @@ class AttributeListResponseSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(DataType.__dict__.keys())])
+                         validate=[OneOf(list(DataType.__dict__.keys()))])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -72,7 +72,7 @@ class AttributeItemResponseSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(DataType.__dict__.keys())])
+                         validate=[OneOf(list(DataType.__dict__.keys()))])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -110,7 +110,7 @@ class AttributeCreateRequestSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(DataType.__dict__.keys())])
+                         validate=[OneOf(list(DataType.__dict__.keys()))])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -165,12 +165,12 @@ class AttributePrivacyListResponseSchema(Schema):
     id = fields.Integer(required=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(DataType.__dict__.keys())])
+                              validate=[OneOf(list(DataType.__dict__.keys()))])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -202,12 +202,12 @@ class AttributePrivacyItemResponseSchema(Schema):
     id = fields.Integer(required=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(DataType.__dict__.keys())])
+                              validate=[OneOf(list(DataType.__dict__.keys()))])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -238,12 +238,12 @@ class AttributePrivacyCreateRequestSchema(Schema):
     id = fields.Integer(allow_none=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(DataType.__dict__.keys())])
+                              validate=[OneOf(list(DataType.__dict__.keys()))])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -270,12 +270,12 @@ class AttributePrivacyPrivacyResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(DataType.__dict__.keys())])
+                              validate=[OneOf(list(DataType.__dict__.keys()))])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(PrivacyType.__dict__.keys())])
+                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(AnonymizationTechnique.__dict__.keys())])
+                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -373,7 +373,7 @@ class DataSourceListResponseSchema(Schema):
     created = fields.DateTime(required=True)
     updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow)
     format = fields.String(required=True,
-                           validate=[OneOf(DataSourceFormat.__dict__.keys())])
+                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
@@ -427,7 +427,7 @@ class DataSourceCreateRequestSchema(Schema):
     privacy_aware = fields.Boolean(required=True, missing=False)
     url = fields.String(required=True)
     format = fields.String(required=True,
-                           validate=[OneOf(DataSourceFormat.__dict__.keys())])
+                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
     user_id = fields.Integer(required=False, allow_none=True)
@@ -479,7 +479,7 @@ class DataSourceItemResponseSchema(Schema):
     created = fields.DateTime(required=True)
     updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow)
     format = fields.String(required=True,
-                           validate=[OneOf(DataSourceFormat.__dict__.keys())])
+                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
@@ -547,7 +547,7 @@ class DataSourcePermissionListResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(PermissionType.__dict__.keys())])
+                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -566,7 +566,7 @@ class DataSourcePermissionItemResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(PermissionType.__dict__.keys())])
+                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -585,7 +585,7 @@ class DataSourcePermissionCreateRequestSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(PermissionType.__dict__.keys())])
+                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -609,7 +609,7 @@ class ModelListResponseSchema(Schema):
     path = fields.String(required=True)
     class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
-                         validate=[OneOf(ModelType.__dict__.keys())])
+                         validate=[OneOf(list(ModelType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -638,7 +638,7 @@ class ModelCreateRequestSchema(Schema):
     path = fields.String(required=True)
     class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
-                         validate=[OneOf(ModelType.__dict__.keys())])
+                         validate=[OneOf(list(ModelType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -667,7 +667,7 @@ class ModelItemResponseSchema(Schema):
     path = fields.String(required=True)
     class_name = fields.String(required=True)
     type = fields.String(required=True, missing=ModelType.UNSPECIFIED,
-                         validate=[OneOf(ModelType.__dict__.keys())])
+                         validate=[OneOf(list(ModelType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -693,7 +693,7 @@ class ModelPermissionListResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(PermissionType.__dict__.keys())])
+                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -712,7 +712,7 @@ class ModelPermissionItemResponseSchema(Schema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(PermissionType.__dict__.keys())])
+                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -732,7 +732,7 @@ class StorageListResponseSchema(Schema):
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     type = fields.String(required=True,
-                         validate=[OneOf(StorageType.__dict__.keys())])
+                         validate=[OneOf(list(StorageType.__dict__.keys()))])
     enabled = fields.Boolean(required=True, missing=True)
     url = fields.String(required=True)
 
@@ -751,7 +751,7 @@ class StorageItemResponseSchema(Schema):
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     type = fields.String(required=True,
-                         validate=[OneOf(StorageType.__dict__.keys())])
+                         validate=[OneOf(list(StorageType.__dict__.keys()))])
     enabled = fields.Boolean(required=True, missing=True)
     url = fields.String(required=True)
 

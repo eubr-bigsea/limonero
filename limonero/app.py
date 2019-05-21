@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+
+
+import eventlet
+eventlet.monkey_patch(all=True, thread=False)
 
 import argparse
 import itertools
@@ -9,7 +12,6 @@ import logging.config
 import os
 import signal
 
-import eventlet
 import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
@@ -21,7 +23,7 @@ from flask_cors import CORS
 from flask_redis import FlaskRedis
 from flask_restful import Api, abort
 
-from data_source_api import DataSourceDetailApi, DataSourceListApi, \
+from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
     DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
 from limonero import CustomJSONEncoder as LimoneroJSONEncoder
@@ -31,13 +33,12 @@ from limonero.cache import cache
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.storage_api import StorageDetailApi, StorageListApi
-from privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
-from py4j_init import init_jvm
+from limonero.privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
+from limonero.py4j_init import init_jvm
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
 
-eventlet.monkey_patch(all=True, thread=False)
 app = Flask(__name__, static_url_path='', static_folder='static')
 
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
@@ -139,7 +140,7 @@ def main(is_main_module):
     logger = logging.getLogger(__name__)
     if config_file:
         with open(config_file) as f:
-            config = yaml.load(f)['limonero']
+            config = yaml.load(f, Loader=yaml.FullLoader)['limonero']
 
         app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
@@ -166,7 +167,7 @@ def main(is_main_module):
             if config.get('environment', 'dev') == 'dev':
                 admin.add_view(DataSourceModelView(DataSource, db.session))
                 admin.add_view(StorageModelView(Storage, db.session))
-                app.run(debug=True, port=port)
+                app.run(debug=True, port=port, host='0.0.0.0')
             else:
                 eventlet.wsgi.server(eventlet.listen(('', port)), app)
     else:

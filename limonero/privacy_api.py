@@ -5,8 +5,8 @@ from flask import request, current_app
 from flask_babel import gettext
 from flask_restful import Resource
 
-from app_auth import requires_auth
-from schema import *
+from .app_auth import requires_auth
+from .schema import *
 
 _ = gettext
 log = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class GlobalPrivacyListApi(Resource):
                     result, result_code = dict(
                         status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
             else:
                 result = dict(status="ERROR", message=_("Invalid data"),
@@ -93,7 +93,7 @@ class GlobalPrivacyListApi(Resource):
                     result, result_code = dict(
                         status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
 
         return result, result_code

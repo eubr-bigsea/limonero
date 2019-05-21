@@ -15,7 +15,7 @@ def create_jvm(logger):
     cp.update({'lib': ['*.jar'], 'jars': ['*.jar']})
     if cp:
         final_cp = []
-        for path, exprs in cp.items():
+        for path, exprs in list(cp.items()):
             for expr in exprs:
                 final_cp.extend(glob.glob(os.path.join(path, expr)))
 
@@ -28,7 +28,6 @@ def create_jvm(logger):
             port = launch_gateway(classpath=":".join(final_cp),
                                   redirect_stdout=sys.stdout,
                                   redirect_stderr=sys.stderr, die_on_exit=True)
-    print '>>>>>>>>>>>>>>>>>', port
     return port
 
 
