@@ -29,10 +29,10 @@ from sqlalchemy.orm import subqueryload, joinedload
 from sqlalchemy.sql.elements import or_
 from werkzeug.exceptions import NotFound
 
-from .app_auth import requires_auth, User
 from limonero.py4j_init import create_gateway
 from limonero.util import strip_accents
 from limonero.util.jdbc import get_mysql_data_type
+from .app_auth import requires_auth, User
 from .schema import *
 
 _ = gettext
@@ -479,7 +479,7 @@ class DataSourceUploadApi(Resource):
     @staticmethod
     def _get_tmp_path(jvm, hdfs, parsed, filename):
         tmp_dir = '{}/tmp/upload/{}'.format(parsed.path.replace('//', '/'),
-                                             filename)
+                                            filename)
         tmp_path = jvm.org.apache.hadoop.fs.Path(tmp_dir)
         if not hdfs.exists(tmp_path):
             hdfs.mkdirs(tmp_path)
@@ -613,7 +613,7 @@ class DataSourceUploadApi(Resource):
                 counter = 0
                 while list_iter.hasNext():
                     counter += 1
-                    next(list_iter)
+                    list_iter.next()
 
                 if counter == total_chunks:
                     final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
@@ -623,8 +623,8 @@ class DataSourceUploadApi(Resource):
 
                     target_path = jvm.org.apache.hadoop.fs.Path(
                         '{}/{}/{}/{}'.format(str_uri,
-                                              '/limonero/data', instance,
-                                              final_filename))
+                                             '/limonero/data', instance,
+                                             final_filename))
                     if hdfs.exists(target_path):
                         result = {'status': 'error',
                                   'message': gettext('File already exists')}
@@ -681,9 +681,10 @@ class DataSourceUploadApi(Resource):
                             for ch in file_data:
                                 if ch in [',', ';', '\t']:
                                     count_delimiters[ch] += 1
-                            sorted_delim = sorted(list(count_delimiters.items()),
-                                                  key=operator.itemgetter(1),
-                                                  reverse=True)
+                            sorted_delim = sorted(
+                                list(count_delimiters.items()),
+                                key=operator.itemgetter(1),
+                                reverse=True)
                             delim = sorted_delim[0][0] if sorted_delim else ','
                             ds.is_first_line_header = True
                             ds.attribute_delimiter = delim
@@ -712,7 +713,7 @@ class DataSourceUploadApi(Resource):
     def _try_infer_schema(ds, delim):
         options = {
             'use_header': True,
-            'delimiter': delim.decode('utf-8')
+            'delimiter': delim
         }
         DataSourceInferSchemaApi.infer_schema(ds, options)
 
@@ -978,9 +979,6 @@ class DataSourceInferSchemaApi(Resource):
                                           }
                     delimiter = special_delimiters.get(delimiter, delimiter)
 
-                    if isinstance(delimiter, str):
-                        delimiter = delimiter.decode('utf8')
-
                     if ds.treat_as_missing:
                         missing_values = ds.treat_as_missing.split(',')
                     else:
@@ -1033,7 +1031,6 @@ class DataSourceInferSchemaApi(Resource):
                     old_attrs = Attribute.query.filter(
                         Attribute.data_source_id == ds.id)
                     old_attrs.delete(synchronize_session=False)
-
                     for attr in attrs:
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
@@ -1117,9 +1114,7 @@ class DataSourceInferSchemaApi(Resource):
 
         result = {'status': 'OK'}
         ds = DataSource.query.get_or_404(data_source_id)
-        request_body = {}
-        if request.data:
-            request_body = json.loads(request.data)
+        request_body = request.json
 
         # noinspection PyBroadException
         try:
@@ -1129,7 +1124,7 @@ class DataSourceInferSchemaApi(Resource):
             result = {'status': 'ERROR',
                       'message': gettext('Invalid CSV encoding')}, 400
         except ValueError as ve:
-            result = {'status': 'ERROR', 'message': vstr(e)}, 400
+            result = {'status': 'ERROR', 'message': str(ve)}, 400
         except Py4JJavaError as java_ex:
             if 'Could not obtain block' in java_ex.java_exception.getMessage():
                 return {'status': 'ERROR',
@@ -1243,16 +1238,21 @@ class DataSourceInferSchemaApi(Resource):
             parts = value.split('.')
             left, right = None, None
             if len(parts) == 2:
-                left, right = parts
+                left = len(parts[0])
+                right = len(parts[1])
             elif len(parts) == 1 and parts[0].isdigit():
-                left, right = parts[0], ''
+                left = len(parts[0])
+                right = 0
             else:
                 change_to_str = True
             if not change_to_str:
                 attrs[i].type = DataType.DECIMAL
-                attrs[i].precision = max(attrs[i].precision,
-                                         len(left) + len(right))
-                attrs[i].scale = max(attrs[i].scale, len(right))
+                attrs[i].precision = min(max((attrs[i].precision or 0),
+                                             int(left or '0') + int(
+                                                 right or 0)),
+                                         18)
+                attrs[i].scale = min(
+                    max((attrs[i].scale or 0), int(right or 0)), 18)
             else:
                 attrs[i].type = DataType.TEXT
 
@@ -1502,6 +1502,7 @@ class DataSourceSampleApi(Resource):
                         header = []
                         converters = []
                         csv_buf = StringIO()
+
                         if data_source.attributes:
                             for attr in data_source.attributes:
                                 header.append(attr.name)
@@ -1536,7 +1537,7 @@ class DataSourceSampleApi(Resource):
                             tmp_line = buffered_reader.readLine()
                             if tmp_line:
                                 csv_buf.write(tmp_line)
-                                csv_buf.write('\n'.decode('utf8'))
+                                csv_buf.write('\n')
                             i += 1
 
                         csv_buf.seek(0)

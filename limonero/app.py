@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# noinspection PyBroadException
+try:
+    import eventlet
 
-import eventlet
-eventlet.monkey_patch(all=True, thread=False)
+    eventlet.monkey_patch(all=True, thread=False)
+except:
+    pass
 
 import argparse
 import itertools
@@ -23,18 +27,19 @@ from flask_cors import CORS
 from flask_redis import FlaskRedis
 from flask_restful import Api, abort
 
-from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
-    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
 from limonero import CustomJSONEncoder as LimoneroJSONEncoder
 from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
     init_login, AuthenticatedMenuLink
 from limonero.cache import cache
+from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
+    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
+    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
-from limonero.storage_api import StorageDetailApi, StorageListApi
-from limonero.privacy_api import GlobalPrivacyListApi, AttributePrivacyGroupListApi
+from limonero.privacy_api import GlobalPrivacyListApi, \
+    AttributePrivacyGroupListApi
 from limonero.py4j_init import init_jvm
+from limonero.storage_api import StorageDetailApi, StorageListApi
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
