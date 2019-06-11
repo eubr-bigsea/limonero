@@ -26,6 +26,7 @@ class DataSourceFormat:
     SHAPEFILE = 'SHAPEFILE'
     TEXT = 'TEXT'
     UNKNOWN = 'UNKNOWN'
+    TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
     HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
@@ -63,6 +64,7 @@ class StorageType:
     MONGODB = 'MONGODB'
     POSTGIS = 'POSTGIS'
     HBASE = 'HBASE'
+    LOCAL = 'LOCAL'
     CASSANDRA = 'CASSANDRA'
 
     @staticmethod
