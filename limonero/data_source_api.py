@@ -130,6 +130,11 @@ class DataSourceListApi(Resource):
             data_sources = _filter_by_permissions(
                 data_sources, PermissionType.values())
 
+            formats = [f for f in request.args.get('formats', '').split(',')
+                       if f in DataSourceFormat.values()]
+            if formats:
+                data_sources = data_sources.filter(DataSource.format.in_(
+                    formats))
             sort = request.args.get('sort', 'name')
             if sort not in ['name', 'id', 'user_id', 'user_name']:
                 sort = 'id'

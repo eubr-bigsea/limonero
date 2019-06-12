@@ -10,7 +10,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
 
-make_translatable(options={'locales': ['pt', 'en', 'es'],
+make_translatable(options={'locales': ['pt', 'en'],
                            'auto_create_locales': True,
                            'fallback_locale': 'en'})
 
@@ -26,6 +26,8 @@ class DataSourceFormat:
     SHAPEFILE = 'SHAPEFILE'
     TEXT = 'TEXT'
     UNKNOWN = 'UNKNOWN'
+    TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
+    HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
     CUSTOM = 'CUSTOM'
     JSON = 'JSON'
     PARQUET = 'PARQUET'
@@ -42,9 +44,10 @@ class DataSourceFormat:
 # noinspection PyClassHasNoInit
 class ModelType:
     SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
+    SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
     SPARK_ML_REGRESSION = 'SPARK_ML_REGRESSION'
     UNSPECIFIED = 'UNSPECIFIED'
-    SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
+    KERAS = 'KERAS'
 
     @staticmethod
     def values():
@@ -61,6 +64,7 @@ class StorageType:
     MONGODB = 'MONGODB'
     POSTGIS = 'POSTGIS'
     HBASE = 'HBASE'
+    LOCAL = 'LOCAL'
     CASSANDRA = 'CASSANDRA'
 
     @staticmethod
