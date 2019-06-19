@@ -17,8 +17,9 @@ depends_on = None
 
 all_commands = [
     (""" ALTER TABLE data_source CHANGE `format` `format` ENUM(
-        'CSV','CUSTOM','GEO_JSON','HAR_IMAGE_FOLDER','HDF5','JDBC','JSON',
-        'NETCDF4','PARQUET','PICKLE','SHAPEFILE','TAR_IMAGE_FOLDER','TEXT',
+        'CSV','CUSTOM','GEO_JSON','HAR_IMAGE_FOLDER','HDF5','DATA_FOLDER',
+        'IMAGE_FOLDER', 'JDBC','JSON','NETCDF4','PARQUET','PICKLE','SHAPEFILE',
+        'TAR_IMAGE_FOLDER','TEXT',
         'UNKNOWN','XML_FILE') CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;""",
      """ ALTER TABLE data_source CHANGE `format` `format` ENUM(
         'CSV','CUSTOM','GEO_JSON','HDF5','JDBC','JSON',

@@ -20,7 +20,7 @@ db = SQLAlchemy()
 # noinspection PyClassHasNoInit
 class DataSourceFormat:
     JDBC = 'JDBC'
-    XML_FILE = 'XML_FILE'
+    DATA_FOLDER = 'DATA_FOLDER'
     NETCDF4 = 'NETCDF4'
     HDF5 = 'HDF5'
     SHAPEFILE = 'SHAPEFILE'
@@ -32,8 +32,10 @@ class DataSourceFormat:
     JSON = 'JSON'
     PARQUET = 'PARQUET'
     GEO_JSON = 'GEO_JSON'
+    XML_FILE = 'XML_FILE'
     CSV = 'CSV'
     PICKLE = 'PICKLE'
+    IMAGE_FOLDER = 'IMAGE_FOLDER'
 
     @staticmethod
     def values():
