@@ -692,7 +692,8 @@ class DataSourceUploadApi(Resource):
                         except:
                             # in case of error, save the upload information
                             db.session.commit()
-
+                    else:
+                        db.session.commit()
                     response_schema = DataSourceItemResponseSchema()
                     result = {'status': 'OK',
                               'data': response_schema.dump(ds).data}
@@ -713,10 +714,7 @@ class DataSourceUploadApi(Resource):
             'use_header': True,
             'delimiter': delim.decode('utf-8')
         }
-        try:
-            DataSourceInferSchemaApi.infer_schema(ds, options)
-        except:
-            pass # ignore 
+        DataSourceInferSchemaApi.infer_schema(ds, options)
 
 
 class DataSourceDownload(MethodView):
