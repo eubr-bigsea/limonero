@@ -713,7 +713,10 @@ class DataSourceUploadApi(Resource):
             'use_header': True,
             'delimiter': delim.decode('utf-8')
         }
-        DataSourceInferSchemaApi.infer_schema(ds, options)
+        try:
+            DataSourceInferSchemaApi.infer_schema(ds, options)
+        except:
+            pass # ignore 
 
 
 class DataSourceDownload(MethodView):
