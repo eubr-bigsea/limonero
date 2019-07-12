@@ -5,6 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
     Enum, DateTime, Numeric, Text, Unicode, UnicodeText
 from sqlalchemy import event
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
@@ -19,83 +20,84 @@ db = SQLAlchemy()
 
 # noinspection PyClassHasNoInit
 class DataSourceFormat:
-    JDBC = 'JDBC'
-    DATA_FOLDER = 'DATA_FOLDER'
-    NETCDF4 = 'NETCDF4'
-    HDF5 = 'HDF5'
-    SHAPEFILE = 'SHAPEFILE'
-    TEXT = 'TEXT'
-    UNKNOWN = 'UNKNOWN'
-    TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
-    HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
-    CUSTOM = 'CUSTOM'
-    JSON = 'JSON'
-    PARQUET = 'PARQUET'
-    GEO_JSON = 'GEO_JSON'
-    XML_FILE = 'XML_FILE'
     CSV = 'CSV'
-    PICKLE = 'PICKLE'
+    CUSTOM = 'CUSTOM'
+    GEO_JSON = 'GEO_JSON'
+    JDBC = 'JDBC'
     IMAGE_FOLDER = 'IMAGE_FOLDER'
+    DATA_FOLDER = 'DATA_FOLDER'
+    HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
+    HDF5 = 'HDF5'
+    JSON = 'JSON'
+    NETCDF4 = 'NETCDF4'
+    PICKLE = 'PICKLE'
+    PARQUET = 'PARQUET'
+    SHAPEFILE = 'SHAPEFILE'
+    TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
+    TEXT = 'TEXT'
+    VIDEO_FOLDER = 'VIDEO_FOLDER'
+    XML_FILE = 'XML_FILE'
+    UNKNOWN = 'UNKNOWN'
 
     @staticmethod
     def values():
-        return [n for n in DataSourceFormat.__dict__.keys()
+        return [n for n in list(DataSourceFormat.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
 # noinspection PyClassHasNoInit
 class ModelType:
-    SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
+    KERAS = 'KERAS'
     SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
     SPARK_ML_REGRESSION = 'SPARK_ML_REGRESSION'
+    SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
     UNSPECIFIED = 'UNSPECIFIED'
-    KERAS = 'KERAS'
 
     @staticmethod
     def values():
-        return [n for n in ModelType.__dict__.keys()
+        return [n for n in list(ModelType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
 # noinspection PyClassHasNoInit
 class StorageType:
-    HDFS = 'HDFS'
-    JDBC = 'JDBC'
-    OPHIDIA = 'OPHIDIA'
-    ELASTIC_SEARCH = 'ELASTIC_SEARCH'
     MONGODB = 'MONGODB'
+    OPHIDIA = 'OPHIDIA'
     POSTGIS = 'POSTGIS'
+    ELASTIC_SEARCH = 'ELASTIC_SEARCH'
     HBASE = 'HBASE'
+    HDFS = 'HDFS'
     LOCAL = 'LOCAL'
+    JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
 
     @staticmethod
     def values():
-        return [n for n in StorageType.__dict__.keys()
+        return [n for n in list(StorageType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
 # noinspection PyClassHasNoInit
 class DataType:
     BINARY = 'BINARY'
-    FLOAT = 'FLOAT'
-    LAT_LONG = 'LAT_LONG'
-    TIME = 'TIME'
-    DOUBLE = 'DOUBLE'
-    DECIMAL = 'DECIMAL'
-    ENUM = 'ENUM'
     CHARACTER = 'CHARACTER'
-    LONG = 'LONG'
-    DATETIME = 'DATETIME'
-    VECTOR = 'VECTOR'
-    TEXT = 'TEXT'
     DATE = 'DATE'
+    DATETIME = 'DATETIME'
+    DECIMAL = 'DECIMAL'
+    DOUBLE = 'DOUBLE'
+    ENUM = 'ENUM'
+    FLOAT = 'FLOAT'
     INTEGER = 'INTEGER'
+    LAT_LONG = 'LAT_LONG'
+    LONG = 'LONG'
+    TEXT = 'TEXT'
+    TIME = 'TIME'
     TIMESTAMP = 'TIMESTAMP'
+    VECTOR = 'VECTOR'
 
     @staticmethod
     def values():
-        return [n for n in DataType.__dict__.keys()
+        return [n for n in list(DataType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -105,7 +107,7 @@ class PrivacyRiskType:
 
     @staticmethod
     def values():
-        return [n for n in PrivacyRiskType.__dict__.keys()
+        return [n for n in list(PrivacyRiskType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -117,34 +119,34 @@ class PermissionType:
 
     @staticmethod
     def values():
-        return [n for n in PermissionType.__dict__.keys()
+        return [n for n in list(PermissionType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
 # noinspection PyClassHasNoInit
 class AnonymizationTechnique:
     ENCRYPTION = 'ENCRYPTION'
-    NO_TECHNIQUE = 'NO_TECHNIQUE'
-    MASK = 'MASK'
-    SUPPRESSION = 'SUPPRESSION'
     GENERALIZATION = 'GENERALIZATION'
+    SUPPRESSION = 'SUPPRESSION'
+    MASK = 'MASK'
+    NO_TECHNIQUE = 'NO_TECHNIQUE'
 
     @staticmethod
     def values():
-        return [n for n in AnonymizationTechnique.__dict__.keys()
+        return [n for n in list(AnonymizationTechnique.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
 # noinspection PyClassHasNoInit
 class PrivacyType:
-    SENSITIVE = 'SENSITIVE'
     IDENTIFIER = 'IDENTIFIER'
-    NON_SENSITIVE = 'NON_SENSITIVE'
     QUASI_IDENTIFIER = 'QUASI_IDENTIFIER'
+    SENSITIVE = 'SENSITIVE'
+    NON_SENSITIVE = 'NON_SENSITIVE'
 
     @staticmethod
     def values():
-        return [n for n in PrivacyType.__dict__.keys()
+        return [n for n in list(PrivacyType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -156,7 +158,7 @@ class Attribute(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     description = Column(String(500))
-    type = Column(Enum(*DataType.values(),
+    type = Column(Enum(*list(DataType.values()),
                        name='DataTypeEnumType'), nullable=False)
     size = Column(Integer)
     precision = Column(Integer)
@@ -177,7 +179,7 @@ class Attribute(db.Model):
     min_value = Column(String(200))
     std_deviation = Column(Float)
     missing_total = Column(String(200))
-    deciles = Column(String(16000000))
+    deciles = Column(LONGTEXT)
     format = Column(String(100))
 
     # Associations
@@ -206,19 +208,19 @@ class AttributePrivacy(db.Model):
     # Fields
     id = Column(Integer, primary_key=True)
     attribute_name = Column(String(200), nullable=False)
-    data_type = Column(Enum(*DataType.values(),
+    data_type = Column(Enum(*list(DataType.values()),
                             name='DataTypeEnumType'))
-    privacy_type = Column(Enum(*PrivacyType.values(),
+    privacy_type = Column(Enum(*list(PrivacyType.values()),
                                name='PrivacyTypeEnumType'), nullable=False)
     category_technique = Column(String(100))
-    anonymization_technique = Column(Enum(*AnonymizationTechnique.values(),
+    anonymization_technique = Column(Enum(*list(AnonymizationTechnique.values()),
                                           name='AnonymizationTechniqueEnumType'), nullable=False)
     hierarchical_structure_type = Column(String(100))
     privacy_model_technique = Column(String(100))
-    hierarchy = Column(String(16000000))
-    category_model = Column(String(16000000))
-    privacy_model = Column(String(16000000))
-    privacy_model_parameters = Column(String(16000000))
+    hierarchy = Column(LONGTEXT)
+    category_model = Column(LONGTEXT)
+    privacy_model = Column(LONGTEXT)
+    privacy_model_parameters = Column(LONGTEXT)
     unlock_privacy_key = Column(String(400))
     is_global_law = Column(Boolean,
                            default=False)
@@ -283,9 +285,9 @@ class DataSource(db.Model):
     updated = Column(DateTime,
                      default=datetime.datetime.utcnow, nullable=False,
                      onupdate=datetime.datetime.utcnow)
-    format = Column(Enum(*DataSourceFormat.values(),
+    format = Column(Enum(*list(DataSourceFormat.values()),
                          name='DataSourceFormatEnumType'), nullable=False)
-    provenience = Column(String(16000000))
+    provenience = Column(LONGTEXT)
     estimated_rows = Column(Integer,
                             default=0)
     estimated_size_in_mega_bytes = Column(Numeric(10, 2))
@@ -303,13 +305,13 @@ class DataSource(db.Model):
     text_delimiter = Column(String(20))
     is_public = Column(Boolean,
                        default=False, nullable=False)
-    treat_as_missing = Column(String(16000000))
+    treat_as_missing = Column(LONGTEXT)
     encoding = Column(String(200))
     is_first_line_header = Column(Boolean,
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
-    command = Column(String(16000000))
+    command = Column(LONGTEXT)
     __mapper_args__ = {
         'order_by': 'name'
     }
@@ -334,7 +336,7 @@ class DataSourcePermission(db.Model):
 
     # Fields
     id = Column(Integer, primary_key=True)
-    permission = Column(Enum(*PermissionType.values(),
+    permission = Column(Enum(*list(PermissionType.values()),
                              name='PermissionTypeEnumType'), nullable=False)
     user_id = Column(Integer, nullable=False)
     user_login = Column(String(50), nullable=False)
@@ -369,7 +371,7 @@ class Model(db.Model):
                      default=func.now(), nullable=False)
     path = Column(String(500), nullable=False)
     class_name = Column(String(500), nullable=False)
-    type = Column(Enum(*ModelType.values(),
+    type = Column(Enum(*list(ModelType.values()),
                        name='ModelTypeEnumType'),
                   default=ModelType.UNSPECIFIED, nullable=False)
     user_id = Column(Integer, nullable=False)
@@ -400,7 +402,7 @@ class ModelPermission(db.Model):
 
     # Fields
     id = Column(Integer, primary_key=True)
-    permission = Column(Enum(*PermissionType.values(),
+    permission = Column(Enum(*list(PermissionType.values()),
                              name='PermissionTypeEnumType'), nullable=False)
     user_id = Column(Integer, nullable=False)
     user_login = Column(String(50), nullable=False)
@@ -428,12 +430,12 @@ class PrivacyRisk(db.Model):
 
     # Fields
     id = Column(Integer, primary_key=True)
-    type = Column(Enum(*PrivacyRiskType.values(),
+    type = Column(Enum(*list(PrivacyRiskType.values()),
                        name='PrivacyRiskTypeEnumType'), nullable=False)
     probability = Column(Float)
     impact = Column(Float)
     value = Column(Float, nullable=False)
-    detail = Column(String(16000000), nullable=False)
+    detail = Column(LONGTEXT, nullable=False)
 
     # Associations
     data_source_id = Column(Integer,
@@ -458,7 +460,7 @@ class Storage(db.Model):
     # Fields
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
-    type = Column(Enum(*StorageType.values(),
+    type = Column(Enum(*list(StorageType.values()),
                        name='StorageTypeEnumType'), nullable=False)
     enabled = Column(Boolean,
                      default=True, nullable=False)
@@ -477,7 +479,7 @@ class StoragePermission(db.Model):
 
     # Fields
     id = Column(Integer, primary_key=True)
-    permission = Column(Enum(*PermissionType.values(),
+    permission = Column(Enum(*list(PermissionType.values()),
                              name='PermissionTypeEnumType'), nullable=False)
     user_id = Column(Integer, nullable=False)
 
