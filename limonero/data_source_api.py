@@ -1489,10 +1489,15 @@ class DataSourceSampleApi(Resource):
                                 bom_input_stream.getBOM().getCharsetName()
                         else:
                             encoding = data_source.encoding or 'UTF-8'
-
-                        buffered_reader = jvm.java.io.BufferedReader(
-                            jvm.java.io.InputStreamReader(
-                                bom_input_stream, encoding))
+                        if parsed.path.endswith('.gz'):
+                            buffered_reader = jvm.java.io.BufferedReader(
+                                jvm.java.io.InputStreamReader(
+                                    jvm.java.util.zip.GZIPInputStream(
+                                        bom_input_stream), encoding))
+                        else:
+                            buffered_reader = jvm.java.io.BufferedReader(
+                                jvm.java.io.InputStreamReader(
+                                    bom_input_stream, encoding))
 
                         header = []
                         converters = []
