@@ -8,8 +8,8 @@ from flask_babel import gettext
 from flask_restful import Resource
 from sqlalchemy import or_, and_
 
-from app_auth import requires_auth
-from schema import *
+from .app_auth import requires_auth
+from .schema import *
 
 _ = gettext
 log = logging.getLogger(__name__)
@@ -60,12 +60,12 @@ class ModelListApi(Resource):
 
             possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
             models = Model.query
-            for f, transform in possible_filters.items():
+            for f, transform in list(possible_filters.items()):
                 models = apply_filter(models, request.args, f,
                                       transform, lambda field: field)
 
             models = _filter_by_permissions(
-                models, PermissionType.values())
+                models, list(PermissionType.values()))
 
             sort = request.args.get('sort', 'name')
             if sort not in ['name', 'id', 'user_id', 'user_name']:
@@ -89,7 +89,7 @@ class ModelListApi(Resource):
                         'page': page, 'size': page_size,
                         'total': pagination.total,
                         'pages': int(
-                            math.ceil(1.0 * pagination.total / page_size))}
+                            math.ceil(1.0 * pagination.total // page_size))}
                 }
             else:
                 result = {
@@ -98,7 +98,7 @@ class ModelListApi(Resource):
             db.session.commit()
             result_code = 200
         except Exception as ex:
-            log.exception(ex.message)
+            log.exception(str(ex))
 
         return result, result_code
 
@@ -127,7 +127,7 @@ class ModelListApi(Resource):
                     result, result_code = dict(status="ERROR",
                                                message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
 
         return result, result_code
@@ -140,7 +140,7 @@ class ModelDetailApi(Resource):
     @requires_auth
     def get(model_id):
         filtered = _filter_by_permissions(Model.query,
-                                          PermissionType.values())
+                                          list(PermissionType.values()))
         model = filtered.filter(Model.id == model_id).first()
         if model is not None:
             return ModelItemResponseSchema().dump(model).data
@@ -172,7 +172,7 @@ class ModelDetailApi(Resource):
                 result, result_code = dict(status="ERROR",
                                            message=_("Internal error")), 500
                 if current_app.debug:
-                    result['debug_detail'] = e.message
+                    result['debug_detail'] = str(e)
                 db.session.rollback()
         return result, result_code
 
@@ -209,7 +209,7 @@ class ModelDetailApi(Resource):
                     result, result_code = dict(status="ERROR",
                                                message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
             else:
                 result = dict(status="ERROR", message=_("Invalid data"),
@@ -238,7 +238,7 @@ class ModelPermissionApi(Resource):
                     error = True
                     break
                 if check == 'permission' and form.get(
-                        'permission') not in PermissionType.values():
+                        'permission') not in list(PermissionType.values()):
                     result, result_code = dict(
                         status="ERROR", message=_("Validation error"),
                         errors={'Invalid': check}), 400
@@ -281,7 +281,7 @@ class ModelPermissionApi(Resource):
                     result, result_code = dict(status="ERROR",
                                                message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
 
         return result, result_code
@@ -314,6 +314,6 @@ class ModelPermissionApi(Resource):
                     result, result_code = dict(
                         status="ERROR", message=_("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
         return result, result_code

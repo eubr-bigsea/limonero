@@ -29,11 +29,11 @@ from sqlalchemy.orm import subqueryload, joinedload
 from sqlalchemy.sql.elements import or_
 from werkzeug.exceptions import NotFound
 
-from app_auth import requires_auth, User
 from limonero.py4j_init import create_gateway
 from limonero.util import strip_accents
 from limonero.util.jdbc import get_mysql_data_type
-from schema import *
+from .app_auth import requires_auth, User
+from .schema import *
 
 _ = gettext
 log = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class DataSourceListApi(Resource):
 
             possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
             data_sources = DataSource.query
-            for f, transform in possible_filters.items():
+            for f, transform in list(possible_filters.items()):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
 
@@ -128,7 +128,7 @@ class DataSourceListApi(Resource):
                 data_sources = data_sources.options(
                     joinedload(DataSource.attributes))
             data_sources = _filter_by_permissions(
-                data_sources, PermissionType.values())
+                data_sources, list(PermissionType.values()))
 
             formats = [f for f in request.args.get('formats', '').split(',')
                        if f in DataSourceFormat.values()]
@@ -169,7 +169,7 @@ class DataSourceListApi(Resource):
                             'page': page, 'size': page_size,
                             'total': pagination.total,
                             'pages': int(
-                                math.ceil(1.0 * pagination.total / page_size))}
+                                math.ceil(1.0 * pagination.total // page_size))}
                     }
             else:
                 only = ('id', 'name', 'tags')
@@ -182,7 +182,7 @@ class DataSourceListApi(Resource):
             result_code = 404
             result = {'data': []}
         except Exception as ex:
-            log.exception(ex.message)
+            log.exception(str(ex))
 
         return result, result_code
 
@@ -244,7 +244,7 @@ class DataSourceListApi(Resource):
                                                message=gettext(
                                                    "Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
 
         return result, result_code
@@ -261,7 +261,7 @@ class DataSourceDetailApi(Resource):
 
         data_sources = DataSource.query
         data_source = _filter_by_permissions(data_sources,
-                                             PermissionType.values())
+                                             list(PermissionType.values()))
 
         data_source = data_source.filter(DataSource.id == data_source_id)
         data_source = data_source.first()
@@ -304,7 +304,7 @@ class DataSourceDetailApi(Resource):
                                            message=gettext(
                                                "Internal error")), 500
                 if current_app.debug:
-                    result['debug_detail'] = e.message
+                    result['debug_detail'] = str(e)
                 db.session.rollback()
         return result, result_code
 
@@ -358,7 +358,7 @@ class DataSourceDetailApi(Resource):
                                                message=gettext(
                                                    "Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
             else:
                 result = dict(status="ERROR", message=gettext('Invalid data'),
@@ -388,7 +388,7 @@ class DataSourcePermissionApi(Resource):
                     error = True
                     break
                 if check == 'permission' and form.get(
-                        'permission') not in PermissionType.values():
+                        'permission') not in list(PermissionType.values()):
                     result, result_code = dict(
                         status="ERROR", message=gettext('Validation error'),
                         errors={'Invalid': check}), 400
@@ -434,7 +434,7 @@ class DataSourcePermissionApi(Resource):
                                                message=gettext(
                                                    "Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
 
         return result, result_code
@@ -468,7 +468,7 @@ class DataSourcePermissionApi(Resource):
                                                message=gettext(
                                                    "Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
         return result, result_code
 
@@ -478,8 +478,8 @@ class DataSourceUploadApi(Resource):
 
     @staticmethod
     def _get_tmp_path(jvm, hdfs, parsed, filename):
-        tmp_dir = u'{}/tmp/upload/{}'.format(parsed.path.replace('//', '/'),
-                                             filename)
+        tmp_dir = '{}/tmp/upload/{}'.format(parsed.path.replace('//', '/'),
+                                            filename)
         tmp_path = jvm.org.apache.hadoop.fs.Path(tmp_dir)
         if not hdfs.exists(tmp_path):
             hdfs.mkdirs(tmp_path)
@@ -553,7 +553,7 @@ class DataSourceUploadApi(Resource):
     def post():
         try:
             identifier = request.args.get('resumableIdentifier', type=str)
-            filename = request.args.get('resumableFilename', type=unicode)
+            filename = request.args.get('resumableFilename', type=str)
             chunk_number = request.args.get('resumableChunkNumber', type=int)
             total_chunks = request.args.get('resumableTotalChunks', type=int)
             total_size = request.args.get('resumableTotalSize', type=int)
@@ -594,7 +594,7 @@ class DataSourceUploadApi(Resource):
                 tmp_path = DataSourceUploadApi._get_tmp_path(
                     jvm, hdfs, parsed, filename)
 
-                chunk_filename = u"{tmp}/{file}.part{part:09d}".format(
+                chunk_filename = "{tmp}/{file}.part{part:09d}".format(
                     tmp=tmp_path.toString(), file=filename, part=chunk_number)
                 current_app.logger.debug('Wrote chunk: %s', chunk_filename)
 
@@ -622,9 +622,9 @@ class DataSourceUploadApi(Resource):
                     instance = current_app.config.get('instance', 'unnamed')
 
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        u'{}/{}/{}/{}'.format(str_uri,
-                                              u'/limonero/data', instance,
-                                              final_filename))
+                        '{}/{}/{}/{}'.format(str_uri,
+                                             '/limonero/data', instance,
+                                             final_filename))
                     if hdfs.exists(target_path):
                         result = {'status': 'error',
                                   'message': gettext('File already exists')}
@@ -681,9 +681,10 @@ class DataSourceUploadApi(Resource):
                             for ch in file_data:
                                 if ch in [',', ';', '\t']:
                                     count_delimiters[ch] += 1
-                            sorted_delim = sorted(count_delimiters.items(),
-                                                  key=operator.itemgetter(1),
-                                                  reverse=True)
+                            sorted_delim = sorted(
+                                list(count_delimiters.items()),
+                                key=operator.itemgetter(1),
+                                reverse=True)
                             delim = sorted_delim[0][0] if sorted_delim else ','
                             ds.is_first_line_header = True
                             ds.attribute_delimiter = delim
@@ -712,7 +713,7 @@ class DataSourceUploadApi(Resource):
     def _try_infer_schema(ds, delim):
         options = {
             'use_header': True,
-            'delimiter': delim.decode('utf-8')
+            'delimiter': delim
         }
         DataSourceInferSchemaApi.infer_schema(ds, options)
 
@@ -816,7 +817,7 @@ class DataSourceDownload(MethodView):
                 result = json.dumps(
                     {'status': 'ERROR', 'message': gettext('Internal error')})
                 result_code = 500
-                log.exception(e.message)
+                log.exception(str(e))
 
         return result, result_code
 
@@ -972,14 +973,11 @@ class DataSourceInferSchemaApi(Resource):
                     if ds.attribute_delimiter:
                         delimiter = ds.attribute_delimiter
 
-                    special_delimiters = {'{tab}': u'\t',
-                                          '{new_line \\n}': u'\n',
-                                          '{new_line \\r\\n}': u'\r\n'
+                    special_delimiters = {'{tab}': '\t',
+                                          '{new_line \\n}': '\n',
+                                          '{new_line \\r\\n}': '\r\n'
                                           }
                     delimiter = special_delimiters.get(delimiter, delimiter)
-
-                    if isinstance(delimiter, str):
-                        delimiter = delimiter.decode('utf8')
 
                     if ds.treat_as_missing:
                         missing_values = ds.treat_as_missing.split(',')
@@ -1013,7 +1011,7 @@ class DataSourceInferSchemaApi(Resource):
                         line = line.encode(encoding).decode('utf8')
                         line = line.replace('\0', '')
                         lines.write(line)
-                        lines.write(u'\n')
+                        lines.write('\n')
 
                     buffered_reader.close()
                     lines.seek(0)
@@ -1033,7 +1031,6 @@ class DataSourceInferSchemaApi(Resource):
                     old_attrs = Attribute.query.filter(
                         Attribute.data_source_id == ds.id)
                     old_attrs.delete(synchronize_session=False)
-
                     for attr in attrs:
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
@@ -1117,9 +1114,7 @@ class DataSourceInferSchemaApi(Resource):
 
         result = {'status': 'OK'}
         ds = DataSource.query.get_or_404(data_source_id)
-        request_body = {}
-        if request.data:
-            request_body = json.loads(request.data)
+        request_body = request.json
 
         # noinspection PyBroadException
         try:
@@ -1129,7 +1124,7 @@ class DataSourceInferSchemaApi(Resource):
             result = {'status': 'ERROR',
                       'message': gettext('Invalid CSV encoding')}, 400
         except ValueError as ve:
-            result = {'status': 'ERROR', 'message': ve.message}, 400
+            result = {'status': 'ERROR', 'message': str(ve)}, 400
         except Py4JJavaError as java_ex:
             if 'Could not obtain block' in java_ex.java_exception.getMessage():
                 return {'status': 'ERROR',
@@ -1191,8 +1186,8 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def _try_parse(d):
-        for df, java_df in DATE_FORMATS.items():
-            for hf, java_hf in TIME_FORMATS.items():
+        for df, java_df in list(DATE_FORMATS.items()):
+            for hf, java_hf in list(TIME_FORMATS.items()):
                 # noinspection PyBroadException
                 try:
                     f = ''.join([df, hf])
@@ -1214,8 +1209,8 @@ class DataSourceInferSchemaApi(Resource):
         # test if first char is zero to avoid python
         # convertion of octal
         if any([(value[0] == '0' and len(value) > 1 and value[1] != '.'),
-                type(v) in [str, unicode]]):
-            if type(v) not in [int, float, long]:
+                type(v) in [str, str]]):
+            if type(v) not in [int, float, int]:
                 # noinspection PyBroadException
                 try:
                     (d, f) = DataSourceInferSchemaApi._try_parse(v)
@@ -1235,7 +1230,7 @@ class DataSourceInferSchemaApi(Resource):
             if attrs[i].type not in [DataType.DECIMAL, DataType.FLOAT,
                                      DataType.LONG]:
                 attrs[i].type = DataType.INTEGER
-        elif type(v) in [long]:
+        elif type(v) in [int]:
             if attrs[i].type not in [DataType.DECIMAL, DataType.FLOAT]:
                 attrs[i].type = DataType.LONG
         elif type(v) in [float]:
@@ -1243,16 +1238,21 @@ class DataSourceInferSchemaApi(Resource):
             parts = value.split('.')
             left, right = None, None
             if len(parts) == 2:
-                left, right = parts
+                left = len(parts[0])
+                right = len(parts[1])
             elif len(parts) == 1 and parts[0].isdigit():
-                left, right = parts[0], ''
+                left = len(parts[0])
+                right = 0
             else:
                 change_to_str = True
             if not change_to_str:
                 attrs[i].type = DataType.DECIMAL
-                attrs[i].precision = max(attrs[i].precision,
-                                         len(left) + len(right))
-                attrs[i].scale = max(attrs[i].scale, len(right))
+                attrs[i].precision = min(max((attrs[i].precision or 0),
+                                             int(left or '0') + int(
+                                                 right or 0)),
+                                         18)
+                attrs[i].scale = min(
+                    max((attrs[i].scale or 0), int(right or 0)), 18)
             else:
                 attrs[i].type = DataType.TEXT
 
@@ -1340,7 +1340,7 @@ class DataSourcePrivacyApi(Resource):
                     result, result_code = dict(
                         status="ERROR", message=gettext("Internal error")), 500
                     if current_app.debug:
-                        result['debug_detail'] = e.message
+                        result['debug_detail'] = str(e)
                     db.session.rollback()
             else:
                 result = dict(status="ERROR", message=gettext('Invalid data'),
@@ -1355,7 +1355,7 @@ class DataSourceSampleApi(Resource):
 
         data_sources = DataSource.query
         data_source = _filter_by_permissions(data_sources,
-                                             PermissionType.values())
+                                             list(PermissionType.values()))
 
         data_source = data_source.filter(
             DataSource.id == data_source_id).first()
@@ -1415,17 +1415,17 @@ class DataSourceSampleApi(Resource):
                                                    DataType.LONG]:
                                     converters.append(int)
                                 else:
-                                    converters.append(unicode.strip)
+                                    converters.append(str.strip)
                             reader = csv.reader(**csv_params)
                         else:
                             header.append(_('row'))
-                            converters.append(unicode.strip)
+                            converters.append(str.strip)
                             reader = csv.reader(
                                 fileobj=csvfile,
-                                delimiter=u';')
+                                delimiter=';')
 
                         if data_source.is_first_line_header:
-                            reader.next()
+                            next(reader)
                         data = []
                         for i, line in enumerate(reader):
                             if i >= limit:
@@ -1502,6 +1502,7 @@ class DataSourceSampleApi(Resource):
                         header = []
                         converters = []
                         csv_buf = StringIO()
+
                         if data_source.attributes:
                             for attr in data_source.attributes:
                                 header.append(attr.name)
@@ -1514,18 +1515,18 @@ class DataSourceSampleApi(Resource):
                                                    DataType.LONG]:
                                     converters.append(int)
                                 else:
-                                    converters.append(unicode.strip)
-                            d = data_source.attribute_delimiter or unicode(',')
+                                    converters.append(str.strip)
+                            d = data_source.attribute_delimiter or str(',')
                             csv_params = {
                                 'fileobj': csv_buf,
                                 'delimiter': d}
                             reader = csv.reader(**csv_params)
                         else:
                             header.append(_('row'))
-                            converters.append(unicode.strip)
+                            converters.append(str.strip)
                             reader = csv.reader(
                                 fileobj=csv_buf,
-                                delimiter=u';')
+                                delimiter=';')
                         data = []
                         i = 0
                         if data_source.is_first_line_header:
@@ -1536,7 +1537,7 @@ class DataSourceSampleApi(Resource):
                             tmp_line = buffered_reader.readLine()
                             if tmp_line:
                                 csv_buf.write(tmp_line)
-                                csv_buf.write('\n'.decode('utf8'))
+                                csv_buf.write('\n')
                             i += 1
 
                         csv_buf.seek(0)
@@ -1572,7 +1573,7 @@ class DataSourceSampleApi(Resource):
                               'message': 'Internal error:',
                               'details': str(e)}
                     status_code = 500
-                    log.exception(e.message)
+                    log.exception(str(e))
             else:
                 return dict(status="ERROR",
                             message="Unsupported protocol {}".format(

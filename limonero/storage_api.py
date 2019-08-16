@@ -4,8 +4,8 @@ from flask import request
 from flask_babel import gettext
 from flask_restful import Resource
 
-from app_auth import requires_auth
-from schema import *
+from .app_auth import requires_auth
+from .schema import *
 
 _ = gettext
 

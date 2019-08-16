@@ -1,4 +1,4 @@
-FROM python:2.7-alpine as pip_build
+FROM python:3.7.3-alpine3.9 as pip_build
 RUN apk add --no-cache g++
 COPY requirements.txt /
 RUN pip install -r /requirements.txt
