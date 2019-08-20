@@ -3,7 +3,7 @@ RUN apk add --no-cache g++ git
 COPY requirements.txt /
 RUN pip install -r /requirements.txt
 
-FROM openjdk:8-jre-alpine
+FROM openjdk:8-jre-alpine3.9
 LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf \
 <guimalufb@gmail.com>, Gabriel Barbutti <gabrielbarbutti@gmail.com>"
 
@@ -15,7 +15,7 @@ COPY --from=pip_build /usr/local /usr/local
 
 WORKDIR $LIMONERO_HOME
 
-# Java dependencies
+# Java dependencies.
 ARG IVY_VERSION=2.3.0
 ARG IVY_PKG=ivy-${IVY_VERSION}.jar
 ARG IVY_URL=http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
