@@ -10,7 +10,7 @@ chardet==3.0.4
 Click==7.0
 coverage==4.5.3
 dateutils==0.6.6
--e git+https://github.com/steelywing/dbfpy.git@16507442272de7add0aaeb34301254b948e36540#egg=dbfpy
+-e git+https://github.com/eubr-bigsea/dbfpy.git@16507442272de7add0aaeb34301254b948e36540#egg=dbfpy
 dnspython==1.16.0
 enum-compat==0.0.2
 enum34==1.1.6
