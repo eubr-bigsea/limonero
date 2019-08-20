@@ -1,5 +1,5 @@
 FROM python:3.7.3-alpine3.9 as pip_build
-RUN apk add --no-cache g++
+RUN apk add --no-cache g++ git
 COPY requirements.txt /
 RUN pip install -r /requirements.txt
 
