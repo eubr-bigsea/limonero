@@ -14,7 +14,6 @@ from io import StringIO
 
 import pymysql
 from backports import csv
-from dbfpy import dbf
 from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
@@ -1047,6 +1046,7 @@ class DataSourceInferSchemaApi(Resource):
                     raise ValueError(
                         gettext('Cannot infer the schema: %(what)s', what=ex))
             elif ds.format == DataSourceFormat.SHAPEFILE:
+                from dbfpy import dbf
                 old_attrs = Attribute.query.filter(
                     Attribute.data_source_id == ds.id)
                 old_attrs.delete(synchronize_session=False)
