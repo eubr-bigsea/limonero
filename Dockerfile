@@ -1,19 +1,26 @@
-FROM python:3.7.3-alpine3.9 as pip_build
-RUN apk add --no-cache g++ git
-COPY requirements.txt /
-RUN pip install -r /requirements.txt
-
-FROM openjdk:8-jre-alpine3.9
-LABEL maintainer="Vinicius Dias <viniciusvdias@dcc.ufmg.br>, Guilherme Maluf \
-<guimalufb@gmail.com>, Gabriel Barbutti <gabrielbarbutti@gmail.com>"
-
+FROM ubuntu:18.04
 ENV LIMONERO_HOME=/usr/local/limonero
 ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
     PYTHONPATH=${PYTHONPATH}:${JUICER_HOME}
 
-COPY --from=pip_build /usr/local /usr/local
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 \
+      python3-pip \
+      openjdk-8-jdk \
+      locales \
+  && update-alternatives --install /usr/bin/python python /usr/bin/python3.6 10 \
+  && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+  && locale-gen \
+  && update-locale LANG=en_US.UTF-8 \
+  && echo "LANG=en_US.UTF-8" >> /etc/default/locale \
+  && echo "LANGUAGE=en_US.UTF-8" >> /etc/default/locale \
+  && echo "LC_ALL=en_US.UTF-8" >> /etc/default/locale \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR $LIMONERO_HOME
+
+COPY requirements.txt
+RUN pip install -r requirements.txt
 
 # Java dependencies.
 ARG IVY_VERSION=2.3.0
