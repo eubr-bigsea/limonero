@@ -6,8 +6,12 @@ ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 \
       python3-pip \
+      python3-setuptools \
       openjdk-8-jdk \
       locales \
+      git \
+      wget \
+      python3-dev \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3.6 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
@@ -20,12 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR $LIMONERO_HOME
 
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 # Java dependencies.
 ARG IVY_VERSION=2.3.0
 ARG IVY_PKG=ivy-${IVY_VERSION}.jar
-ARG IVY_URL=http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
+ARG IVY_URL=http://repo2.maven.org/maven2/org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
 
 COPY ivy.xml ./
 RUN wget --quiet --directory-prefix /tmp $IVY_URL \
