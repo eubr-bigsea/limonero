@@ -70,6 +70,7 @@ class StorageType:
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
+    VALLUM = 'VALLUM'
 
     @staticmethod
     def values():
