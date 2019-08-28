@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-setuptools \
       openjdk-8-jdk \
       locales \
+      netbase \
       git \
       wget \
       python3-dev \
