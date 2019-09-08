@@ -48,6 +48,7 @@ class DataSourceFormat:
 # noinspection PyClassHasNoInit
 class ModelType:
     KERAS = 'KERAS'
+    PERFORMANCE = 'PERFORMANCE'
     SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
     SPARK_ML_REGRESSION = 'SPARK_ML_REGRESSION'
     SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
@@ -70,6 +71,7 @@ class StorageType:
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
+    VALLUM = 'VALLUM'
 
     @staticmethod
     def values():
