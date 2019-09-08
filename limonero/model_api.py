@@ -58,7 +58,7 @@ class ModelListApi(Resource):
                 only = tuple(
                     [x.strip() for x in request.args.get('fields').split(',')])
 
-            possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
+            possible_filters = {'enabled': bool, 'type': None, 'user_id': int}
             models = Model.query
             for f, transform in list(possible_filters.items()):
                 models = apply_filter(models, request.args, f,
@@ -68,7 +68,7 @@ class ModelListApi(Resource):
                 models, list(PermissionType.values()))
 
             sort = request.args.get('sort', 'name')
-            if sort not in ['name', 'id', 'user_id', 'user_name']:
+            if sort not in ['name', 'id', 'user_id', 'user_name', 'type']:
                 sort = 'id'
 
             sort_option = getattr(Model, sort)

@@ -17,18 +17,35 @@ depends_on = None
 all_commands = [
     ['''
         ALTER TABLE `model` CHANGE `type` `type`
-        ENUM('KERAS','PERFORMANCE','SPARK_ML_REGRESSION',
+        ENUM('KERAS','PERFORMANCE_SPARK',
+        'PERFORMANCE_KERAS', 'PERFORMANCE',
+        'SPARK_ML_REGRESSION',
         'SPARK_MLLIB_CLASSIFICATION',
         'SPARK_ML_CLASSIFICATION','UNSPECIFIED')
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;  ''',
      '''
         ALTER TABLE `model` CHANGE `type` `type`
-        ENUM('KERAS', 'SPARK_ML_REGRESSION',
+        ENUM('KERAS', 'SPARK_ML_REGRESSION', 'PERFORMANCE', 
         'SPARK_MLLIB_CLASSIFICATION',
-        'SPARK_ML_CLASSIFICATION','UNSPECIFIED')
+        'SPARK_ML_CLASSIFICATION','UNSPECIFIED', 'PERFORMANCE')
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;  '''],
     ['ALTER TABLE `model` ADD INDEX `inx_type` (`type`);',
-     'ALTER TABLE `model` DROP INDEX `inx_type`;']
+     'ALTER TABLE `model` DROP INDEX `inx_type`;'],
+    [
+        """
+        ALTER TABLE `model`
+            CHANGE `job_id` `job_id` INT(11) NULL,
+            CHANGE `task_id` `task_id` VARCHAR(200)
+                CHARSET utf8 COLLATE utf8_unicode_ci NULL,
+            CHANGE `workflow_id` `workflow_id` INT(11) NULL;
+        """,
+        """
+        ALTER TABLE `model`
+            CHANGE `job_id` `job_id` INT(11) NOT NULL,
+            CHANGE `task_id` `task_id` VARCHAR(200)
+                CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL,
+            CHANGE `workflow_id` `workflow_id` INT(11) NOT NULL;"""
+    ]
 ]
 
 
