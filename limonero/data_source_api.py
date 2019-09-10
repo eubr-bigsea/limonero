@@ -1034,7 +1034,7 @@ class DataSourceInferSchemaApi(Resource):
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
                         if attr.type == DataType.CHARACTER:
-                            if attr.size > 1000:
+                            if attr.size is not None and attr.size > 1000:
                                 attr.type = DataType.TEXT
                         attr.data_source = ds
                         attr.feature = False
@@ -1043,6 +1043,7 @@ class DataSourceInferSchemaApi(Resource):
 
                     db.session.commit()
                 except Exception as ex:
+                    log.exception(ex)
                     raise ValueError(
                         gettext('Cannot infer the schema: %(what)s', what=ex))
             elif ds.format == DataSourceFormat.SHAPEFILE:
