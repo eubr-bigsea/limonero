@@ -71,10 +71,8 @@ def requires_auth(f):
                 setattr(flask_g, 'user', User(
                     id=int(user_id),
                     name='{} {}'.format(
-                        user_data['data']['attributes']['first_name'].encode(
-                            'utf8'),
-                        user_data['data']['attributes']['last_name'].encode(
-                            'utf8')),
+                        user_data['data']['attributes']['first_name'],
+                        user_data['data']['attributes']['last_name']),
                     login=user_data['data']['attributes']['email'],
                     email=user_data['data']['attributes']['email'],
                     first_name=user_data['data']['attributes']['first_name'],
