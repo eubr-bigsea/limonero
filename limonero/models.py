@@ -48,6 +48,8 @@ class DataSourceFormat:
 # noinspection PyClassHasNoInit
 class ModelType:
     KERAS = 'KERAS'
+    PERFORMANCE_SPARK = 'PERFORMANCE_SPARK'
+    PERFORMANCE_KERAS = 'PERFORMANCE_KERAS'
     SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
     SPARK_ML_REGRESSION = 'SPARK_ML_REGRESSION'
     SPARK_MLLIB_CLASSIFICATION = 'SPARK_MLLIB_CLASSIFICATION'
@@ -70,6 +72,7 @@ class StorageType:
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
+    VALLUM = 'VALLUM'
 
     @staticmethod
     def values():
@@ -377,10 +380,10 @@ class Model(db.Model):
     user_id = Column(Integer, nullable=False)
     user_login = Column(String(50), nullable=False)
     user_name = Column(String(200), nullable=False)
-    workflow_id = Column(Integer, nullable=False)
+    workflow_id = Column(Integer)
     workflow_name = Column(String(200))
-    task_id = Column(String(200), nullable=False)
-    job_id = Column(Integer, nullable=False)
+    task_id = Column(String(200))
+    job_id = Column(Integer)
 
     # Associations
     storage_id = Column(Integer,

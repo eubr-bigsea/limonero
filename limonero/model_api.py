@@ -2,12 +2,15 @@
 import logging
 import math
 
+from flask import g as flask_g
 from flask import g
 from flask import request, current_app
 from flask_babel import gettext
 from flask_restful import Resource
+from py4j.protocol import Py4JJavaError
 from sqlalchemy import or_, and_
 
+from limonero.util import upload
 from .app_auth import requires_auth
 from .schema import *
 
@@ -45,7 +48,8 @@ class ModelListApi(Resource):
     @staticmethod
     @requires_auth
     def get():
-        result, result_code = 'Internal error', 500
+        result, result_code = {'status': 'ERROR',
+                               'message': 'Internal error'}, 500
         # noinspection PyBroadException
         try:
             if request.args.get('simple') != 'true':
@@ -65,8 +69,17 @@ class ModelListApi(Resource):
                                       transform, lambda field: field)
 
             models = _filter_by_permissions(
-                models, list(PermissionType.values()))
+                models, list(PermissionType.values())).filter(Model.enabled)
 
+            q = request.args.get('query')
+            if q:
+                models = models.filter(or_(
+                    Model.name.like('%%{}%%'.format(q)),
+                    Model.type.like('%%{}%%'.format(q))
+                ))
+            t = request.args.get('type')
+            if t:
+                models = models.filter(Model.type == t)
             sort = request.args.get('sort', 'name')
             if sort not in ['name', 'id', 'user_id', 'user_name']:
                 sort = 'id'
@@ -317,3 +330,129 @@ class ModelPermissionApi(Resource):
                         result['debug_detail'] = str(e)
                     db.session.rollback()
         return result, result_code
+
+
+class ModelUploadApi(Resource):
+    """ REST API for upload a Model """
+
+    @staticmethod
+    @requires_auth
+    def get():
+        # noinspection PyBroadException
+        try:
+            result, result_code = 'OK', 200
+
+            identifier = request.args.get('resumableIdentifier', type=str)
+            filename = request.args.get('resumableFilename', type=str)
+            chunk_number = request.args.get('resumableChunkNumber', type=int)
+            storage_id = request.args.get('storage_id', type=int)
+
+            if not all([storage_id, identifier, filename, chunk_number]):
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
+            else:
+                use_hostname = current_app.config.get(
+                    'dfs.client.use.datanode.hostname', True)
+
+                chunk_path, hdfs = upload.create_hdfs_chunk(
+                    chunk_number, filename,
+                    Storage.query.get(storage_id),
+                    use_hostname, current_app.gateway_port)
+
+                current_app.logger.debug('Creating chunk: %s', chunk_path)
+                if not hdfs.exists(chunk_path):
+                    # The chunk does not exists and needs to be uploaded
+                    # by resumable.js
+                    result, result_code = {'status': 'OK',
+                                           'message': gettext('Not found')}, 404
+
+            return result, result_code
+        except Py4JJavaError as java_ex:
+            return ModelUploadApi.handle_jvm_error(java_ex)
+        except:
+            raise
+
+    @staticmethod
+    def handle_jvm_error(java_ex):
+        log.exception('Java error')
+        if 'Could not obtain block' in java_ex.java_exception.getMessage():
+            result, status = {'status': 'ERROR',
+                              'message': upload.WRONG_HDFS_CONFIG}, 400
+        elif 'Could not obtain block' in java_ex.java_exception.getMessage():
+            result, status = {'status': 'ERROR',
+                              'message': upload.WRONG_HDFS_CONFIG}, 400
+        else:
+            result, status = {'status': 'ERROR',
+                              'message': gettext('Internal error')}, 400
+        return result, status
+
+    @staticmethod
+    @requires_auth
+    def post():
+        try:
+            result, result_code = 'OK', 200
+
+            identifier = request.args.get('resumableIdentifier', type=str)
+            filename = request.args.get('resumableFilename', type=str)
+            chunk_number = request.args.get('resumableChunkNumber', type=int)
+            total_chunks = request.args.get('resumableTotalChunks', type=int)
+            total_size = request.args.get('resumableTotalSize', type=int)
+            storage_id = request.args.get('storage_id', type=int)
+
+            if not all([identifier, filename, chunk_number]):
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
+            else:
+                use_hostname = current_app.config.get(
+                    'dfs.client.use.datanode.hostname', True)
+                conf, jvm = upload.create_gateway_and_hdfs_conf(
+                    use_hostname, current_app.gateway_port)
+
+                storage = Storage.query.get(storage_id)
+                file_data, hdfs, uri, full_path, counter = upload.write_chunk(
+                    jvm, chunk_number, filename, storage, request.get_data(),
+                    conf)
+
+                current_app.logger.debug('Wrote chunk: %s', full_path)
+
+                if counter == total_chunks:
+                    result_code, result, target_path = upload.merge_chunks(
+                        conf, filename, full_path, hdfs, jvm, uri,
+                        current_app.config.get('instance', 'unnamed'))
+                    if result_code != 500:
+                        user = getattr(flask_g, 'user')
+
+                        ds, response_schema = ModelUploadApi.after_merge_chunk(
+                            user, storage, filename, target_path, file_data,
+                            total_size)
+                        result = {'status': 'OK',
+                                  'data': response_schema.dump(ds).data}
+
+            return result, result_code, {
+                'Content-Type': 'application/json; charset=utf-8'}
+        except Py4JJavaError as java_ex:
+            return ModelUploadApi.handle_jvm_error(java_ex)
+        except:
+            raise
+
+    @staticmethod
+    def after_merge_chunk(user, storage, filename, target_path,
+                          file_data=None, total_size=None):
+        model = Model(
+            name=filename,
+            enabled=True,
+            created=datetime.datetime.now(),
+            path=target_path.toString(),
+            class_name=None,
+            type=ModelType.UNSPECIFIED,
+            user_id=user.id,
+            user_login=user.login,
+            user_name='{} {}'.format(
+                user.first_name.encode('utf8'),
+                user.last_name.encode('utf8')).strip(),
+            storage_id=storage.id
+        )
+        db.session.add(model)
+        db.session.commit()
+        response_schema = ModelItemResponseSchema()
+        return model, response_schema
