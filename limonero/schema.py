@@ -374,6 +374,8 @@ class DataSourceListResponseSchema(Schema):
     updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
+    initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
@@ -428,6 +430,8 @@ class DataSourceCreateRequestSchema(Schema):
     url = fields.String(required=True)
     format = fields.String(required=True,
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
+    initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
     user_id = fields.Integer(required=False, allow_none=True)
@@ -480,6 +484,8 @@ class DataSourceItemResponseSchema(Schema):
     updated = fields.DateTime(required=True, missing=datetime.datetime.utcnow)
     format = fields.String(required=True,
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
+    initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
@@ -613,10 +619,10 @@ class ModelListResponseSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
-    workflow_id = fields.Integer(required=True)
+    workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
-    task_id = fields.String(required=True)
-    job_id = fields.Integer(required=True)
+    task_id = fields.String(required=False, allow_none=True)
+    job_id = fields.Integer(required=False, allow_none=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
@@ -642,10 +648,10 @@ class ModelCreateRequestSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
-    workflow_id = fields.Integer(required=True)
+    workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
-    task_id = fields.String(required=True)
-    job_id = fields.Integer(required=True)
+    task_id = fields.String(required=False, allow_none=True)
+    job_id = fields.Integer(required=False, allow_none=True)
     storage_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
@@ -671,10 +677,10 @@ class ModelItemResponseSchema(Schema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
-    workflow_id = fields.Integer(required=True)
+    workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
-    task_id = fields.String(required=True)
-    job_id = fields.Integer(required=True)
+    task_id = fields.String(required=False, allow_none=True)
+    job_id = fields.Integer(required=False, allow_none=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)

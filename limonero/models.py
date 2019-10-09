@@ -35,6 +35,7 @@ class DataSourceFormat:
     SHAPEFILE = 'SHAPEFILE'
     TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
     TEXT = 'TEXT'
+    VALLUM = 'VALLUM'
     VIDEO_FOLDER = 'VIDEO_FOLDER'
     XML_FILE = 'XML_FILE'
     UNKNOWN = 'UNKNOWN'
@@ -42,6 +43,18 @@ class DataSourceFormat:
     @staticmethod
     def values():
         return [n for n in list(DataSourceFormat.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class DataSourceInitialization:
+    NO_INITIALIZED = 'NO_INITIALIZED'
+    INITIALIZING = 'INITIALIZING'
+    INITIALIZED = 'INITIALIZED'
+
+    @staticmethod
+    def values():
+        return [n for n in list(DataSourceInitialization.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -290,6 +303,9 @@ class DataSource(db.Model):
                      onupdate=datetime.datetime.utcnow)
     format = Column(Enum(*list(DataSourceFormat.values()),
                          name='DataSourceFormatEnumType'), nullable=False)
+    initialization = Column(Enum(*list(DataSourceInitialization.values()),
+                                 name='DataSourceInitializationEnumType'),
+                            default=DataSourceInitialization.INITIALIZED, nullable=False)
     provenience = Column(LONGTEXT)
     estimated_rows = Column(Integer,
                             default=0)

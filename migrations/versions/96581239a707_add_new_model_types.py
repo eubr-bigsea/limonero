@@ -25,12 +25,12 @@ all_commands = [
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;  ''',
      '''
         ALTER TABLE `model` CHANGE `type` `type`
-        ENUM('KERAS', 'SPARK_ML_REGRESSION', 'PERFORMANCE', 
+        ENUM('KERAS', 'SPARK_ML_REGRESSION', 'PERFORMANCE',
         'SPARK_MLLIB_CLASSIFICATION',
-        'SPARK_ML_CLASSIFICATION','UNSPECIFIED', 'PERFORMANCE')
+        'SPARK_ML_CLASSIFICATION','UNSPECIFIED')
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;  '''],
-    ['ALTER TABLE `model` ADD INDEX `inx_type` (`type`);',
-     'ALTER TABLE `model` DROP INDEX `inx_type`;'],
+    #['ALTER TABLE `model` ADD INDEX `inx_type` (`type`);',
+    # 'ALTER TABLE `model` DROP INDEX `inx_type`;'],
     [
         """
         ALTER TABLE `model`
@@ -41,10 +41,40 @@ all_commands = [
         """,
         """
         ALTER TABLE `model`
-            CHANGE `job_id` `job_id` INT(11) NOT NULL,
+            CHANGE `job_id` `job_id` INT(11),
             CHANGE `task_id` `task_id` VARCHAR(200)
-                CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL,
-            CHANGE `workflow_id` `workflow_id` INT(11) NOT NULL;"""
+                CHARSET utf8 COLLATE utf8_unicode_ci, 
+            CHANGE `workflow_id` `workflow_id` INT(11);"""
+    ],
+    ["""
+        ALTER TABLE `storage` CHANGE `type` `type` ENUM(
+            'CASSANDRA','ELASTIC_SEARCH','HBASE','HDFS','JDBC','LOCAL',
+            'MONGODB','OPHIDIA','POSTGIS', 'VALLUM') CHARSET utf8 COLLATE
+            utf8_unicode_ci NOT NULL;""",
+     """
+     ALTER TABLE `storage` CHANGE `type` `type` ENUM(
+            'CASSANDRA','ELASTIC_SEARCH','HBASE','HDFS','JDBC','LOCAL',
+            'MONGODB','OPHIDIA','POSTGIS') CHARSET utf8 COLLATE
+            utf8_unicode_ci NOT NULL;""",
+     ],
+    [
+        """
+        ALTER TABLE `data_source` CHANGE `format` `format`
+            ENUM('CSV','CUSTOM','GEO_JSON','HAR_IMAGE_FOLDER','HDF5',
+            'DATA_FOLDER','IMAGE_FOLDER','JDBC','JSON','NETCDF4','PARQUET',
+            'PICKLE','SHAPEFILE','TAR_IMAGE_FOLDER','TEXT','VIDEO_FOLDER',
+            'UNKNOWN','VALLUM','XML_FILE') CHARSET utf8
+            COLLATE utf8_unicode_ci NOT NULL;
+        """,
+        """
+        ALTER TABLE `data_source` CHANGE `format` `format`
+            ENUM('CSV','CUSTOM','GEO_JSON','HAR_IMAGE_FOLDER','HDF5',
+            'DATA_FOLDER','IMAGE_FOLDER','JDBC','JSON','NETCDF4','PARQUET',
+            'PICKLE','SHAPEFILE','TAR_IMAGE_FOLDER','TEXT','VIDEO_FOLDER',
+            'UNKNOWN','XML_FILE') CHARSET utf8
+            COLLATE utf8_unicode_ci NOT NULL;
+        """
+
     ]
 ]
 
