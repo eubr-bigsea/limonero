@@ -19,7 +19,7 @@ import signal
 import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
-from flask import Flask, request
+from flask import Flask, request, g as flask_g
 from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_babel import gettext
@@ -106,12 +106,6 @@ app.add_url_rule('/datasources/<int:data_source_id>/download',
 # for route in app.url_map.iter_rules():
 #    print route
 
-# @app.before_request
-def before():
-    if request.args and 'lang' in request.args:
-        if request.args['lang'] not in ('es', 'en'):
-            return abort(404)
-
 
 @app.route('/static/<path:path>')
 def static_file(path):
@@ -120,8 +114,12 @@ def static_file(path):
 
 @babel.localeselector
 def get_locale():
-    return request.args.get(
-        'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
+    user = getattr(flask_g, 'user', None)
+    if user is not None and user.locale:
+        return user.locale
+    else:
+        return request.args.get(
+            'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
 
 
 # noinspection PyUnusedLocal

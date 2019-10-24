@@ -71,18 +71,24 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
     return result
 
 
-def _filter_by_permissions(data_sources, permissions):
+def is_logged_user_owner_or_admin(data_source):
+    return (data_source.user_id == flask_g.user.id or
+            'admin' in flask_g.user.roles)
+
+
+def _filter_by_permissions(data_sources, permissions, consider_public=True):
     if flask_g.user.id not in (0, 1):  # It is not a inter service call
         sub_query = DataSourcePermission.query.with_entities(
             DataSourcePermission.id).filter(
             DataSourcePermission.permission.in_(permissions),
             DataSourcePermission.user_id == flask_g.user.id)
-        conditions = or_(
-            DataSource.is_public,
+        conditions = [
             DataSource.user_id == flask_g.user.id,
             DataSource.id.in_(sub_query)
-        )
-        data_sources = data_sources.filter(conditions)
+        ]
+        if consider_public:
+            conditions.append(DataSource.is_public)
+        data_sources = data_sources.filter(or_(*conditions))
     return data_sources
 
 
@@ -289,22 +295,28 @@ class DataSourceDetailApi(Resource):
             DataSource.query, [PermissionType.MANAGE, PermissionType.WRITE])
         data_source = filtered.filter(DataSource.id == data_source_id).first()
         if data_source is not None:
-            try:
-                data_source.enabled = False
-                db.session.add(data_source)
-                db.session.commit()
+            if not is_logged_user_owner_or_admin(data_source):
                 result, result_code = dict(
-                    status="OK",
-                    message=gettext("%(what)s was successfuly deleted",
-                                    what=gettext('Data source'))), 200
-            except Exception as e:
-                log.exception('Error in DELETE')
-                result, result_code = dict(status="ERROR",
-                                           message=gettext(
-                                               "Internal error")), 500
-                if current_app.debug:
-                    result['debug_detail'] = str(e)
-                db.session.rollback()
+                    status="ERROR",
+                    message=gettext(
+                        "You are not authorized to perform this action")), 401
+            else:
+                try:
+                    data_source.enabled = False
+                    db.session.add(data_source)
+                    db.session.commit()
+                    result, result_code = dict(
+                        status="OK",
+                        message=gettext("%(what)s was successfuly deleted",
+                                        what=gettext('Data source'))), 200
+                except Exception as e:
+                    log.exception('Error in DELETE')
+                    result, result_code = dict(status="ERROR",
+                                               message=gettext(
+                                                   "Internal error")), 500
+                    if current_app.debug:
+                        result['debug_detail'] = str(e)
+                    db.session.rollback()
         return result, result_code
 
     @staticmethod
@@ -313,6 +325,7 @@ class DataSourceDetailApi(Resource):
         result = dict(status="ERROR", message=gettext('Insufficient data'))
         result_code = 400
         json_data = request.json or json.loads(request.data)
+
         if json_data:
             request_schema = partial_schema_factory(
                 DataSourceCreateRequestSchema)
@@ -338,13 +351,22 @@ class DataSourceDetailApi(Resource):
                         # Attributes are not supported
                         form.data.attributes = []
                     if data_source is not None:
-                        data_source = db.session.merge(form.data)
-                        db.session.commit()
-                        result, result_code = dict(
-                            status="OK",
-                            message=gettext("%(what)s was successfuly updated",
-                                            what=gettext('Data source')),
-                            data=response_schema.dump(data_source).data), 200
+                        if not is_logged_user_owner_or_admin(data_source):
+                            result, result_code = dict(
+                                status="ERROR",
+                                message=gettext(
+                                    "You are not authorized "
+                                    "to perform this action")), 401
+                        else:
+                            data_source = db.session.merge(form.data)
+                            db.session.commit()
+                            result, result_code = dict(
+                                status="OK",
+                                message=gettext(
+                                    "%(what)s was successfuly updated",
+                                    what=gettext('Data source')),
+                                data=response_schema.dump(
+                                    data_source).data), 200
                     else:
                         result = dict(status="ERROR",
                                       message=gettext("%(type)s not found.",
