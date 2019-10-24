@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2018-08-20 18:51-0300\n"
-"PO-Revision-Date: 2018-08-20 18:53-0300\n"
+"POT-Creation-Date: 2019-10-24 14:57-0300\n"
+"PO-Revision-Date: 2019-10-24 14:59-0300\n"
 "Last-Translator: \n"
 "Language-Team: pt <LL@li.org>\n"
 "Language: pt\n"
@@ -19,145 +19,180 @@ msgstr ""
 "Generated-By: Babel 2.5.3\n"
 "X-Generator: Poedit 1.8.7.1\n"
 
-#: limonero/app.py:157
+#: limonero/app.py:167
 #, python-format
 msgid "Running in %(mode)s mode"
 msgstr "Executando no modo %(mode)s"
 
-#: limonero/app.py:170
+#: limonero/app.py:180
 msgid "Please, set LIMONERO_CONFIG environment variable"
 msgstr "Por favor, defina a variável de ambiente LIMONERO_CONFIG"
 
-#: limonero/data_source_api.py:34
+#: limonero/data_source_api.py:40 limonero/util/upload.py:11
 msgid ""
 "Limonero HDFS access not correctly configured (see config 'dfs.client.use."
 "datanode.hostname')"
 msgstr ""
-"Acesso ao HDFS pelo Limonero não está configurado corretamente (veja a "
-"opção de configuração 'dfs.client.use.datanode.hostname')"
+"Acesso ao HDFS pelo Limonero não está configurado corretamente (veja a opção "
+"de configuração 'dfs.client.use.datanode.hostname')"
 
-#: limonero/data_source_api.py:91 limonero/data_source_api.py:206
-#: limonero/data_source_api.py:268 limonero/data_source_api.py:313
-#: limonero/data_source_api.py:389 limonero/data_source_api.py:423
-#: limonero/data_source_api.py:690 limonero/data_source_api.py:1100
-#: limonero/model_api.py:128 limonero/model_api.py:173
-#: limonero/model_api.py:210 limonero/model_api.py:282
-#: limonero/model_api.py:315 limonero/privacy_api.py:63
-#: limonero/privacy_api.py:94
+#: limonero/data_source_api.py:44
+msgid ""
+"At least one value for attribute '{attr}' is incompatible with the type "
+"'{type}': {v}"
+msgstr ""
+"Pelo menos um valor para o atributo '{attr}' é incompatível com o tipo "
+"'{type}': {v}"
+
+#: limonero/data_source_api.py:102 limonero/data_source_api.py:249
+#: limonero/data_source_api.py:315 limonero/data_source_api.py:369
+#: limonero/data_source_api.py:445 limonero/data_source_api.py:479
+#: limonero/data_source_api.py:558 limonero/data_source_api.py:741
+#: limonero/data_source_api.py:829 limonero/data_source_api.py:1358
+#: limonero/model_api.py:141 limonero/model_api.py:186
+#: limonero/model_api.py:223 limonero/model_api.py:295
+#: limonero/model_api.py:328 limonero/model_api.py:386
+#: limonero/privacy_api.py:63 limonero/privacy_api.py:94
 msgid "Internal error"
 msgstr "Erro interno"
 
-#: limonero/data_source_api.py:173 limonero/data_source_api.py:332
-#: limonero/model_api.py:227
+#: limonero/data_source_api.py:199 limonero/data_source_api.py:388
+#: limonero/model_api.py:240
 msgid "Missing json in the request body"
 msgstr "JSON ausente no corpo da requisição"
 
-#: limonero/data_source_api.py:180 limonero/data_source_api.py:341
-#: limonero/data_source_api.py:348 limonero/model_api.py:116
-#: limonero/model_api.py:236 limonero/model_api.py:243
+#: limonero/data_source_api.py:216 limonero/data_source_api.py:397
+#: limonero/data_source_api.py:404 limonero/model_api.py:129
+#: limonero/model_api.py:249 limonero/model_api.py:256
 msgid "Validation error"
 msgstr "Erro de validação"
 
-#: limonero/data_source_api.py:242 limonero/data_source_api.py:250
-#: limonero/data_source_api.py:306 limonero/data_source_api.py:384
-#: limonero/data_source_api.py:401 limonero/data_source_api.py:652
-#: limonero/data_source_api.py:1064 limonero/data_source_api.py:1094
-#: limonero/model_api.py:148 limonero/model_api.py:156
-#: limonero/model_api.py:205 limonero/model_api.py:277
-#: limonero/model_api.py:294 limonero/privacy_api.py:57
+#: limonero/data_source_api.py:283 limonero/data_source_api.py:291
+#: limonero/data_source_api.py:362 limonero/data_source_api.py:440
+#: limonero/data_source_api.py:457 limonero/data_source_api.py:790
+#: limonero/data_source_api.py:1322 limonero/data_source_api.py:1352
+#: limonero/model_api.py:161 limonero/model_api.py:169
+#: limonero/model_api.py:218 limonero/model_api.py:290
+#: limonero/model_api.py:307 limonero/privacy_api.py:57
 #: limonero/privacy_api.py:76 limonero/privacy_api.py:126
 #: limonero/storage_api.py:46
 #, python-format
 msgid "%(type)s not found."
 msgstr "%(type)s não foi encontrado(a)."
 
-#: limonero/data_source_api.py:243 limonero/data_source_api.py:251
-#: limonero/data_source_api.py:264 limonero/data_source_api.py:302
-#: limonero/data_source_api.py:307 limonero/data_source_api.py:385
-#: limonero/data_source_api.py:402 limonero/data_source_api.py:419
-#: limonero/data_source_api.py:653 limonero/data_source_api.py:1065
-#: limonero/data_source_api.py:1089 limonero/data_source_api.py:1095
+#: limonero/data_source_api.py:284 limonero/data_source_api.py:292
+#: limonero/data_source_api.py:311 limonero/data_source_api.py:358
+#: limonero/data_source_api.py:363 limonero/data_source_api.py:441
+#: limonero/data_source_api.py:458 limonero/data_source_api.py:475
+#: limonero/data_source_api.py:791 limonero/data_source_api.py:1323
+#: limonero/data_source_api.py:1347 limonero/data_source_api.py:1353
 msgid "Data source"
 msgstr "Fonte de dados"
 
-#: limonero/data_source_api.py:263 limonero/data_source_api.py:418
-#: limonero/model_api.py:168 limonero/model_api.py:309
+#: limonero/data_source_api.py:301
+msgid "You are not authorized to perform this action"
+msgstr "Você não tem permissão para realizar esta ação"
+
+#: limonero/data_source_api.py:310 limonero/data_source_api.py:474
+#: limonero/model_api.py:181 limonero/model_api.py:322
 #: limonero/privacy_api.py:88
 #, python-format
 msgid "%(what)s was successfuly deleted"
 msgstr "%(what)s foi excluído(a) com sucesso"
 
-#: limonero/data_source_api.py:278 limonero/data_source_api.py:1070
-#: limonero/model_api.py:182 limonero/privacy_api.py:30
+#: limonero/data_source_api.py:325 limonero/data_source_api.py:1328
+#: limonero/model_api.py:195 limonero/privacy_api.py:30
 msgid "Insufficient data"
 msgstr "Dados insuficientes"
 
-#: limonero/data_source_api.py:301 limonero/data_source_api.py:1088
-#: limonero/model_api.py:200 limonero/privacy_api.py:51
+#: limonero/data_source_api.py:357 limonero/data_source_api.py:1346
+#: limonero/model_api.py:213 limonero/privacy_api.py:51
 #, python-format
 msgid "%(what)s was successfuly updated"
 msgstr "%(what)s foi atualizado(a) com sucesso"
 
-#: limonero/data_source_api.py:319 limonero/data_source_api.py:1105
-#: limonero/model_api.py:215 limonero/privacy_api.py:68
+#: limonero/data_source_api.py:375 limonero/data_source_api.py:1363
+#: limonero/model_api.py:228 limonero/privacy_api.py:68
 msgid "Invalid data"
 msgstr "Dados inválidos"
 
-#: limonero/data_source_api.py:569
+#: limonero/data_source_api.py:513 limonero/data_source_api.py:576
+#: limonero/model_api.py:351 limonero/model_api.py:403
+msgid "Missing required parameters"
+msgstr "Parâmetros obrigatórios ausentes"
+
+#: limonero/data_source_api.py:548 limonero/model_api.py:367
+msgid "Not found"
+msgstr "Não encontrado"
+
+#: limonero/data_source_api.py:641 limonero/util/upload.py:120
 msgid "File already exists"
 msgstr "Arquivo já existe"
 
-#: limonero/data_source_api.py:599
+#: limonero/data_source_api.py:674
 msgid "Imported in Limonero"
 msgstr "Importado pelo Limonero"
 
-#: limonero/data_source_api.py:748
+#: limonero/data_source_api.py:859
+msgid "Data source does not have a command specified"
+msgstr "Fonte de dados não tem um comando especificado para ela"
+
+#: limonero/data_source_api.py:886
 msgid "Could not connect to database"
 msgstr "Não foi possível conectar à base de dados"
 
-#: limonero/data_source_api.py:751
+#: limonero/data_source_api.py:889
 #, python-format
 msgid "Unsupported database: %(what)s"
 msgstr "Serviço de banco de dados não suportado: %(what)s"
 
-#: limonero/data_source_api.py:840
+#: limonero/data_source_api.py:1055
 #, python-format
 msgid "Cannot infer the schema: %(what)s"
 msgstr "Não é possível inferir o esquema: %(what)s"
 
-#: limonero/data_source_api.py:884
+#: limonero/data_source_api.py:1070
+msgid "Cannot infer the schema for shapefile (invalid Zip file content)."
+msgstr ""
+"Não é possível inferir o esquema para arquivos shapefile (conteúdo inválido "
+"para o arquivo ZIP)"
+
+#: limonero/data_source_api.py:1113
 #, python-format
 msgid "Cannot infer the schema for format %(format)s"
 msgstr ""
-"Não é possível inferir o esquema da fonte de dados para o formato "
-"%(format)s"
+"Não é possível inferir o esquema da fonte de dados para o formato %(format)s"
 
-#: limonero/data_source_api.py:903
+#: limonero/data_source_api.py:1141
 msgid "Invalid CSV encoding"
 msgstr "Codificação inválida para arquivo CSV"
 
-#: limonero/data_source_api.py:912
+#: limonero/data_source_api.py:1150
 msgid "Internal error, try later"
 msgstr "Erro interno, tente mais tarde"
 
-#: limonero/data_source_api.py:917
-msgid "Invalid CSV format"
-msgstr "Formato inválido para CSV"
+#: limonero/data_source_api.py:1438 limonero/data_source_api.py:1542
+msgid "row"
+msgstr "linha"
 
-#: limonero/model_api.py:149 limonero/model_api.py:156
-#: limonero/model_api.py:169 limonero/model_api.py:201
-#: limonero/model_api.py:206 limonero/model_api.py:278
-#: limonero/model_api.py:294 limonero/model_api.py:310
-#: limonero/model_api.py:313
+#: limonero/data_source_api.py:1456
+msgid "<Invalid data>: `{}`"
+msgstr "<Dados inválidos>: `{}`"
+
+#: limonero/model_api.py:162 limonero/model_api.py:169
+#: limonero/model_api.py:182 limonero/model_api.py:214
+#: limonero/model_api.py:219 limonero/model_api.py:291
+#: limonero/model_api.py:307 limonero/model_api.py:323
+#: limonero/model_api.py:326
 msgid "Model"
 msgstr "Modelo"
 
-#: limonero/model_api.py:261
+#: limonero/model_api.py:274
 #, python-format
 msgid "%(what)s saved with success"
 msgstr "%(what)s foi salvo(a) com sucesso"
 
-#: limonero/model_api.py:313 limonero/privacy_api.py:92
+#: limonero/model_api.py:326 limonero/privacy_api.py:92
 #, python-format
 msgid "Error deleting %(what)s."
 msgstr "Erro ao tentar excluir %(what)s."
@@ -171,3 +206,6 @@ msgstr "Privacidade"
 #: limonero/storage_api.py:47
 msgid "Storage"
 msgstr "Armazenamento"
+
+#~ msgid "Invalid CSV format"
+#~ msgstr "Formato inválido para CSV"
