@@ -318,8 +318,8 @@ class DataSourceDetailApi(Resource):
                 DataSourceCreateRequestSchema)
 
             # FIXME: Remove this code, ignore attribute_privacy
-            for attr in json_data.get('attributes', ''):
-                del attr['attribute_privacy']
+            # for attr in json_data.get('attributes', ''):
+            #    del attr['attribute_privacy']
 
             # Ignore missing fields to allow partial updates
             form = request_schema.load(json_data, partial=True)
@@ -855,9 +855,8 @@ class DataSourceInferSchemaApi(Resource):
                             db=parsed.path[1:]) as cursor:
                         cursor.execute('{} LIMIT 0'.format(cmd))
 
-                        old_attrs = Attribute.query.filter(
-                            Attribute.data_source_id == ds.id)
-                        old_attrs.delete(synchronize_session=False)
+                        DataSourceInferSchemaApi._delete_old_attributes(ds)
+
                         for (name, dtype, size, to_ignore, precision, scale,
                              nullable) in cursor.description:
                             final_type = get_mysql_data_type(d, dtype)
@@ -915,9 +914,7 @@ class DataSourceInferSchemaApi(Resource):
                 'CHARACTER': DataType.TEXT,
                 'DECIMAL': DataType.DECIMAL
             }
-            old_attrs = Attribute.query.filter(
-                Attribute.data_source_id == ds.id)
-            old_attrs.delete(synchronize_session=False)
+            DataSourceInferSchemaApi._delete_old_attributes(ds)
 
             for definition in final_schema['fileMetaData']['schema']['columns']:
                 primitive_type = definition['primitiveType']
@@ -1027,9 +1024,7 @@ class DataSourceInferSchemaApi(Resource):
                     attrs = DataSourceInferSchemaApi._get_csv_attributes(
                         attrs, csv_reader, use_header, missing_values)
 
-                    old_attrs = Attribute.query.filter(
-                        Attribute.data_source_id == ds.id)
-                    old_attrs.delete(synchronize_session=False)
+                    DataSourceInferSchemaApi._delete_old_attributes(ds)
                     for attr in attrs:
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
@@ -1048,9 +1043,7 @@ class DataSourceInferSchemaApi(Resource):
                         gettext('Cannot infer the schema: %(what)s', what=ex))
             elif ds.format == DataSourceFormat.SHAPEFILE:
                 from dbfpy import dbf
-                old_attrs = Attribute.query.filter(
-                    Attribute.data_source_id == ds.id)
-                old_attrs.delete(synchronize_session=False)
+                DataSourceInferSchemaApi._delete_old_attributes(ds)
 
                 if ds.url.endswith('.zip'):
                     zip_input_stream = jvm.java.io.BufferedInputStream(
@@ -1108,6 +1101,16 @@ class DataSourceInferSchemaApi(Resource):
                 gettext('Cannot infer the schema for format %(format)s',
                         format=ds.format))
             # gateway.shutdown()
+
+    @staticmethod
+    def _delete_old_attributes(ds):
+        old_attrs = Attribute.query.filter(
+            Attribute.data_source_id == ds.id)
+        old_privacy_attrs = AttributePrivacy.query.filter(
+            AttributePrivacy.attribute_id.in_(old_attrs.with_entities(
+                AttributePrivacy.attribute_id)))
+        old_privacy_attrs.delete(synchronize_session=False)
+        old_attrs.delete(synchronize_session=False)
 
     @staticmethod
     @requires_auth
@@ -1272,7 +1275,8 @@ class DataSourceInferSchemaApi(Resource):
     def _get_header(row):
         attrs = []
         for attr in row:
-            attr = strip_accents(attr.strip().replace(' ', '_'))[:100]
+            name = strip_accents(attr.strip())[:100].lower()
+            attr = ''.join([c if c.isalnum() else "_" for c in name])
             attrs.append(
                 Attribute(name=attr, nullable=False, enumeration=False))
         return attrs

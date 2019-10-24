@@ -207,7 +207,7 @@ class Attribute(db.Model):
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
     attribute_privacy = relationship(
-        "AttributePrivacy", uselist=False,
+        "AttributePrivacy", uselist=False, cascade="all, delete-orphan",
         back_populates="attribute", lazy='joined')
 
     def __unicode__(self):
@@ -243,7 +243,7 @@ class AttributePrivacy(db.Model):
 
     # Associations
     attribute_id = Column(Integer,
-                          ForeignKey("attribute.id"))
+                          ForeignKey("attribute.id", ondelete='CASCADE'))
     attribute = relationship(
         "Attribute",
         foreign_keys=[attribute_id],
