@@ -762,7 +762,7 @@ class DataSourceDownload(MethodView):
             def do_download():
                 total = 0
                 done = False
-                with open(parsed.path) as f:
+                with open(parsed.path, 'rb') as f:
                     while not done:
                         lido = f.read(4096)
                         total += len(lido)
