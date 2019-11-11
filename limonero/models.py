@@ -30,8 +30,10 @@ class DataSourceFormat:
     HDF5 = 'HDF5'
     JSON = 'JSON'
     NETCDF4 = 'NETCDF4'
+    NPY = 'NPY'
     PICKLE = 'PICKLE'
     PARQUET = 'PARQUET'
+    SAV = 'SAV'
     SHAPEFILE = 'SHAPEFILE'
     TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
     TEXT = 'TEXT'
@@ -39,6 +41,7 @@ class DataSourceFormat:
     VIDEO_FOLDER = 'VIDEO_FOLDER'
     XML_FILE = 'XML_FILE'
     UNKNOWN = 'UNKNOWN'
+
 
     @staticmethod
     def values():
