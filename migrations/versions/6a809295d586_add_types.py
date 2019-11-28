@@ -17,12 +17,12 @@ depends_on = None
 
 all_commands = [
     ['''
-        ALTER TABLE `limonero`.`data_source` CHANGE `format` `format`
+        ALTER TABLE data_source CHANGE `format` `format`
         ENUM('XML_FILE','NETCDF4','HDF5','SHAPEFILE','TEXT','CUSTOM','JSON',
         'CSV','PICKLE','GEO_JSON') CHARSET utf8 COLLATE utf8_unicode_ci
         NOT NULL; ''',
      '''
-         ALTER TABLE `limonero`.`data_source` CHANGE `format` `format`
+         ALTER TABLE data_source CHANGE `format` `format`
         ENUM('XML_FILE','NETCDF4','HDF5','SHAPEFILE','TEXT','CUSTOM','JSON',
         'CSV','PICKLE','GEO_JSON') CHARSET utf8 COLLATE utf8_unicode_ci
         NOT NULL;

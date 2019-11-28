@@ -16,32 +16,32 @@ branch_labels = None
 depends_on = None
 all_commands = [
     ['''
-        ALTER TABLE `limonero`.`data_source` CHANGE `format` `format`
+        ALTER TABLE data_source CHANGE `format` `format`
         ENUM('CSV','CUSTOM','GEO_JSON','HDF5','JDBC','JSON','NETCDF4',
         'PARQUET','PICKLE','SHAPEFILE','TEXT','UNKNOWN', 'XML_FILE')
         CHARSET utf8 COLLATE utf8_unicode_ci
         NOT NULL; ''',
      '''
-         ALTER TABLE `limonero`.`data_source` CHANGE `format` `format`
+         ALTER TABLE data_source CHANGE `format` `format`
          ENUM('CSV','CUSTOM','GEO_JSON','HDF5','JDBC','JSON','NETCDF4',
         'PICKLE','SHAPEFILE','TEXT','XML_FILE')
         CHARSET utf8 COLLATE utf8_unicode_ci
         NOT NULL;
      '''],
     ["""
-        ALTER TABLE `limonero`.`data_source` CHANGE `task_id` `task_id`
+        ALTER TABLE data_source CHANGE `task_id` `task_id`
         VARCHAR(255) NULL; """,
-     """ALTER TABLE `limonero`.`data_source` CHANGE `task_id` `task_id`
+     """ALTER TABLE data_source CHANGE `task_id` `task_id`
      INT NULL; """,
      ],
     ["""
-    ALTER TABLE `limonero`.`attribute` CHANGE `type` `type`
+    ALTER TABLE attribute CHANGE `type` `type`
         ENUM('BINARY','CHARACTER','DECIMAL','DATE','DATETIME','DOUBLE','ENUM',
         'FLOAT','INTEGER','LAT_LONG','LONG','TEXT','TIME','VECTOR','TIMESTAMP')
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;
     """,
      """
-     ALTER TABLE `limonero`.`attribute` CHANGE `type` `type`
+     ALTER TABLE attribute CHANGE `type` `type`
         ENUM('BINARY','CHARACTER','DECIMAL','DATE','DATETIME','DOUBLE','ENUM',
         'FLOAT','INTEGER','LAT_LONG','LONG','TEXT','TIME','VECTOR','TIMESTAMP')
         CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL; """]
