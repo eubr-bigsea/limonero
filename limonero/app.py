@@ -33,7 +33,8 @@ from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
 from limonero.cache import cache
 from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi
+    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi, \
+    DataSourceInitializationApi
 from limonero.model_api import ModelDetailApi, ModelListApi
 from limonero.models import db, DataSource, Storage
 from limonero.privacy_api import GlobalPrivacyListApi, \
@@ -81,6 +82,8 @@ mappings = {
     '/datasources/upload': DataSourceUploadApi,
     '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
     '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
+    '/datasources/initialize/<status>/<int:data_source_id>': 
+        DataSourceInitializationApi,
     '/datasources/<int:data_source_id>': DataSourceDetailApi,
     '/datasources/<int:data_source_id>/permission/<int:user_id>':
         DataSourcePermissionApi,

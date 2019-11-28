@@ -1016,8 +1016,9 @@ class DataSourceInferSchemaApi(Resource):
                     quote_char = quote_char.encode(
                         encoding) if quote_char else None
 
-                    # Read 100 lines, may be enough to infer schema
+                    # Read 1000 lines, may be enough to infer schema
                     lines = StringIO()
+
                     for i in range(1000):
                         if parsed.scheme == 'file':
                             line = buffered_reader.readline()
@@ -1030,7 +1031,6 @@ class DataSourceInferSchemaApi(Resource):
                         line = line.replace('\0', '')
                         lines.write(line)
                         lines.write('\n')
-
                     buffered_reader.close()
                     lines.seek(0)
                     if quote_char:
@@ -1373,6 +1373,27 @@ class DataSourcePrivacyApi(Resource):
                 result = dict(status="ERROR", message=gettext('Invalid data'),
                               errors=form.errors)
         return result, result_code
+
+
+class DataSourceInitializationApi(Resource):
+    @staticmethod
+    @requires_auth
+    def post(data_source_id, status):
+        data_sources = DataSource.query
+        data_source = _filter_by_permissions(data_sources,
+                                             list(PermissionType.values()))
+
+        data_source = data_source.filter(DataSource.id == data_source_id)
+        data_source = data_source.first()
+
+        if data_source is not None:
+            data_source.initialization = status
+            db.session.add(data_source)
+            db.session.commit()
+            return {'status': 'OK'}, 200
+        else:
+            return {'status': 'Not found'}, 404
+
 
 
 class DataSourceSampleApi(Resource):
