@@ -238,6 +238,8 @@ class DataSourceListApi(Resource):
 
                     if data_source_id is None:
                         data_source = form.data
+                        data_source.initialization = \
+                            DataSourceInitialization.NO_INITIALIZED
                         db.session.add(data_source)
 
                     db.session.commit()

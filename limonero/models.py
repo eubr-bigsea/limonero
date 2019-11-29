@@ -309,6 +309,7 @@ class DataSource(db.Model):
     initialization = Column(Enum(*list(DataSourceInitialization.values()),
                                  name='DataSourceInitializationEnumType'),
                             default=DataSourceInitialization.INITIALIZED, nullable=False)
+    initialization_job_id = Column(String(200))
     provenience = Column(LONGTEXT)
     estimated_rows = Column(Integer,
                             default=0)

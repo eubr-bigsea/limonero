@@ -376,6 +376,7 @@ class DataSourceListResponseSchema(Schema):
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
                                    validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+    initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
@@ -432,6 +433,7 @@ class DataSourceCreateRequestSchema(Schema):
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
                                    validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+    initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
     user_id = fields.Integer(required=False, allow_none=True)
@@ -486,6 +488,7 @@ class DataSourceItemResponseSchema(Schema):
                            validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
     initialization = fields.String(required=True, missing=DataSourceInitialization.INITIALIZED,
                                    validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+    initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(required=False, allow_none=True, missing=0)
     estimated_size_in_mega_bytes = fields.Decimal(
