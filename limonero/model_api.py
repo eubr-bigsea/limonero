@@ -32,6 +32,7 @@ def _filter_by_permissions(models, permissions):
     if g.user.id != 0:  # It is not a inter service call
         conditions = or_(
             Model.user_id == g.user.id,
+            g.user.id == 1,
             and_(
                 ModelPermission.user_id == g.user.id,
                 ModelPermission.permission.in_(permissions)
