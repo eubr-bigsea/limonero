@@ -593,7 +593,7 @@ class DataSourceUploadApi(Resource):
                     else storage.url[:-1]
                 parsed = req_compat.urlparse(storage_url)
 
-                gateway = create_gateway(log, current_app.gateway_port)
+                gateway = create_gateway(log, current_app.gateway_port or 18001)
                 jvm = gateway.jvm
 
                 if parsed.scheme == 'file':
@@ -757,7 +757,7 @@ class DataSourceDownload(MethodView):
 
         parsed = req_compat.urlparse(data_source.url)
 
-        gateway = create_gateway(log, current_app.gateway_port)
+        gateway = create_gateway(log, current_app.gateway_port or 18001)
         jvm = gateway.jvm
 
         if parsed.scheme == 'file':
