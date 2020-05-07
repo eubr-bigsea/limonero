@@ -73,7 +73,7 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 def is_logged_user_owner_or_admin(data_source):
     return (data_source.user_id == flask_g.user.id or
-            'admin' in flask_g.user.roles)
+            'ADMINISTRATOR' in flask_g.user.permissions)
 
 
 def _filter_by_permissions(data_sources, permissions, consider_public=True):
