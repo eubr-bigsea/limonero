@@ -30,7 +30,8 @@ from werkzeug.exceptions import NotFound
 
 from limonero.py4j_init import create_gateway
 from limonero.util import strip_accents
-from limonero.util.jdbc import get_mysql_data_type
+from limonero.util.jdbc import get_mysql_data_type, \
+     get_hive_data_type
 from .app_auth import requires_auth, User
 from .schema import *
 
@@ -852,7 +853,7 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = req_compat.urlparse(ds.url)
+        parsed = req_compat.urlparse(ds.url or ds.storage.url)
 
         if ds.format in (DataSourceFormat.JDBC,):
             parsed = req_compat.urlparse(ds.url)
@@ -900,6 +901,61 @@ class DataSourceInferSchemaApi(Resource):
                 raise ValueError(
                     gettext('Unsupported database: %(what)s',
                             what=parsed.scheme))
+
+        elif ds.format in (DataSourceFormat.HIVE):
+            from pyhive import hive
+            from TCLIService.ttypes import TOperationState
+            cursor = hive.connect(
+                   host=parsed.hostname, 
+                   port=int(parsed.port or 10000), 
+                   username=parsed.username,
+                   password=parsed.password,
+                   database=(parsed.path or 'default').replace('/', ''), 
+                   auth=None, 
+                   configuration={
+                       'hive.cli.print.header': 'true'}, 
+                   kerberos_service_name=None, 
+                   thrift_transport=None).cursor()
+ 
+            if ds.command is None or ds.command.strip() == '':
+                raise ValueError(gettext(
+                    'Data source does not have a command specified'))
+            fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
+            cmd = fix_limit.sub('', ds.command)
+            cursor.execute('{} LIMIT 0'.format(cmd), async_=True)
+            status = cursor.poll().operationState
+            while status in (TOperationState.INITIALIZED_STATE, 
+                    TOperationState.RUNNING_STATE):
+                status = cursor.poll().operationState
+        
+            tables = set()
+            attrs = []
+            attrs_name = []
+            types = []
+            for t in cursor.description:
+                attr, attr_type = t[0:2]
+                types.append(attr_type)
+                table, name = attr.split('.', 2)
+                attrs.append(attr)
+                attrs_name.append(name)
+                tables.add(table)
+            if len(tables) == 1:
+                final_names = attrs_name
+            else:
+                final_names = attrs
+            
+            DataSourceInferSchemaApi._delete_old_attributes(ds)
+            for (name, d) in zip(final_names, types):
+                final_type = get_hive_data_type(d)
+                attr = Attribute(name=name, type=final_type,
+                                 size=None, precision=None,
+                                 scale=None, nullable=None)
+                attr.data_source = ds
+                attr.feature = False
+                attr.label = False
+                db.session.add(attr)
+            db.session.commit()
+ 
 
         elif ds.format in (DataSourceFormat.PARQUET,):
             str_uri = '{proto}://{host}:{port}'.format(
@@ -1420,7 +1476,8 @@ class DataSourceSampleApi(Resource):
                 message='The maximum number of records allowed is 1000'), 400
         elif data_source is not None:
             treat_as_missing = (data_source.treat_as_missing or '').split(',')
-            parsed = req_compat.urlparse(data_source.url)
+            parsed = req_compat.urlparse(data_source.url or 
+                data_source.storage.url)
             if parsed.scheme == 'mysql':
                 qs = dict(x.split('=') for x in parsed.query.split('&'))
                 fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
@@ -1436,7 +1493,42 @@ class DataSourceSampleApi(Resource):
                         cursorclass=pymysql.cursors.DictCursor) as cursor:
                     cursor.execute('{} LIMIT {}'.format(cmd, limit))
                     result, status_code = dict(status='OK',
-                                               data=cursor.fetchall()), 200
+                                           data=cursor.fetchall()), 200
+            elif parsed.scheme == 'hive':
+                from pyhive import hive
+                from TCLIService.ttypes import TOperationState
+                
+                if data_source.command is None or \
+                        data_source.command.strip() == '':
+                    raise ValueError(gettext(
+                        'Data source does not have a command specified'))
+                cursor = hive.connect(
+                       host=parsed.hostname, 
+                       port=int(parsed.port or 10000), 
+                       username=parsed.username,
+                       password=parsed.password,
+                       database=(parsed.path or 'default').replace('/', ''), 
+                       auth=None, 
+                       configuration={
+                           'hive.cli.print.header': 'true'}, 
+                       kerberos_service_name=None, 
+                       thrift_transport=None).cursor()
+                
+                fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
+                cmd = fix_limit.sub('', data_source.command)
+                cursor.execute('{} LIMIT {}'.format(cmd, limit))
+                status = cursor.poll().operationState
+                while status in (TOperationState.INITIALIZED_STATE, 
+                        TOperationState.RUNNING_STATE):
+                    status = cursor.poll().operationState
+       
+                #col_names = [desc[0] for desc in cursor.description]
+                col_names = [attr.name for attr in data_source.attributes]
+                result = []
+                for row in cursor:
+                    result.append(dict(zip(col_names, row)))
+                result, status_code = dict(status='OK',
+                                           data=result), 200
             elif parsed.scheme == 'file':
                 # Support JSON and CSV
                 if data_source.format == DataSourceFormat.CSV:

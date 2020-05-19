@@ -17,3 +17,17 @@ def get_mysql_data_type(d, dtype):
     else:
         final_type = DataType.CHARACTER
     return final_type
+
+def get_hive_data_type(d):
+    d = d.replace('_TYPE', '').upper()
+    if d in ('TINYINT', 'SMALLINT', 'INT', 'INTEGER',
+                'BOOLEAN'):
+        final_type = DataType.INTEGER
+    elif d in ('BIGINT',):
+        final_type = DataType.LONG
+    elif d in ('DECIMAL', 'FLOAT', 'DOUBLE', 'DATE', 'TIME', 'DATETIME',
+                      'LONG', 'TIMESTAMP'):
+        final_type = d
+    else:
+        final_type = DataType.CHARACTER
+    return final_type

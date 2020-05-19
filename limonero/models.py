@@ -28,6 +28,7 @@ class DataSourceFormat:
     DATA_FOLDER = 'DATA_FOLDER'
     HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
     HDF5 = 'HDF5'
+    HIVE = 'HIVE'
     JSON = 'JSON'
     NETCDF4 = 'NETCDF4'
     NPY = 'NPY'
@@ -41,7 +42,6 @@ class DataSourceFormat:
     VIDEO_FOLDER = 'VIDEO_FOLDER'
     XML_FILE = 'XML_FILE'
     UNKNOWN = 'UNKNOWN'
-
 
     @staticmethod
     def values():
@@ -85,6 +85,7 @@ class StorageType:
     ELASTIC_SEARCH = 'ELASTIC_SEARCH'
     HBASE = 'HBASE'
     HDFS = 'HDFS'
+    HIVE = 'HIVE'
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
@@ -105,6 +106,7 @@ class DataType:
     DECIMAL = 'DECIMAL'
     DOUBLE = 'DOUBLE'
     ENUM = 'ENUM'
+    FILE = 'FILE'
     FLOAT = 'FLOAT'
     INTEGER = 'INTEGER'
     LAT_LONG = 'LAT_LONG'
@@ -117,6 +119,17 @@ class DataType:
     @staticmethod
     def values():
         return [n for n in list(DataType.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class AttributeForeignKeyDirection:
+    FROM = 'FROM'
+    TO = 'TO'
+
+    @staticmethod
+    def values():
+        return [n for n in list(AttributeForeignKeyDirection.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -168,6 +181,8 @@ class PrivacyType:
         return [n for n in list(PrivacyType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
+# Association tables definition
+
 
 class Attribute(db.Model):
     """ Data source attribute. """
@@ -200,6 +215,8 @@ class Attribute(db.Model):
     missing_total = Column(String(200))
     deciles = Column(LONGTEXT)
     format = Column(String(100))
+    key = Column(Boolean,
+                 default=False, nullable=False)
 
     # Associations
     data_source_id = Column(Integer,
@@ -210,11 +227,51 @@ class Attribute(db.Model):
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
     attribute_privacy = relationship(
-        "AttributePrivacy", uselist=False, cascade="all, delete-orphan",
+        "AttributePrivacy", uselist=False,
         back_populates="attribute", lazy='joined')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class AttributeForeignKey(db.Model):
+    """ Attribute that form a foreign key in data sources """
+    __tablename__ = 'attribute_foreign_key'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    order = Column(Integer, nullable=False)
+    direction = Column(Enum(*list(AttributeForeignKeyDirection.values()),
+                            name='AttributeForeignKeyDirectionEnumType'), nullable=False)
+
+    # Associations
+    foreign_key_id = Column(Integer,
+                            ForeignKey("data_source_foreign_key.id"), nullable=False)
+    foreign_key = relationship(
+        "DataSourceForeignKey",
+        foreign_keys=[foreign_key_id],
+        backref=backref("attributes",
+                        cascade="all, delete-orphan"))
+    from_attribute_id = Column(Integer,
+                               ForeignKey("attribute.id"), nullable=False)
+    from_attribute = relationship(
+        "Attribute",
+        foreign_keys=[from_attribute_id],
+        backref=backref("foreign_keys",
+                        cascade="all, delete-orphan"))
+    to_attribute_id = Column(Integer,
+                             ForeignKey("attribute.id"), nullable=False)
+    to_attribute = relationship(
+        "Attribute",
+        foreign_keys=[to_attribute_id],
+        backref=backref("references",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.order
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
@@ -246,7 +303,7 @@ class AttributePrivacy(db.Model):
 
     # Associations
     attribute_id = Column(Integer,
-                          ForeignKey("attribute.id", ondelete='CASCADE'))
+                          ForeignKey("attribute.id"))
     attribute = relationship(
         "Attribute",
         foreign_keys=[attribute_id],
@@ -259,7 +316,7 @@ class AttributePrivacy(db.Model):
         backref=backref("attribute_privacy",
                         cascade="all, delete-orphan"))
 
-    def __unicode__(self):
+    def __str__(self):
         return self.attribute_name
 
     def __repr__(self):
@@ -275,7 +332,7 @@ class AttributePrivacyGroup(db.Model):
     name = Column(String(100), nullable=False)
     user_id = Column(Integer, nullable=False)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     def __repr__(self):
@@ -346,8 +403,38 @@ class DataSource(db.Model):
         "Storage",
         foreign_keys=[storage_id])
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class DataSourceForeignKey(db.Model):
+    """ Foreign key in data sources """
+    __tablename__ = 'data_source_foreign_key'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+
+    # Associations
+    from_source_id = Column(Integer,
+                            ForeignKey("data_source.id"), nullable=False)
+    from_source = relationship(
+        "DataSource",
+        foreign_keys=[from_source_id],
+        backref=backref("foreign_keys",
+                        cascade="all, delete-orphan"))
+    to_source_id = Column(Integer,
+                          ForeignKey("data_source.id"), nullable=False)
+    to_source = relationship(
+        "DataSource",
+        foreign_keys=[to_source_id],
+        backref=backref("references",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return 'DataSourceForeignKey'
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
@@ -374,7 +461,7 @@ class DataSourcePermission(db.Model):
         backref=backref("permissions",
                         cascade="all, delete-orphan"))
 
-    def __unicode__(self):
+    def __str__(self):
         return self.permission
 
     def __repr__(self):
@@ -412,7 +499,7 @@ class Model(db.Model):
         "Storage",
         foreign_keys=[storage_id])
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     def __repr__(self):
@@ -440,7 +527,7 @@ class ModelPermission(db.Model):
         backref=backref("permissions",
                         cascade="all, delete-orphan"))
 
-    def __unicode__(self):
+    def __str__(self):
         return self.permission
 
     def __repr__(self):
@@ -469,7 +556,7 @@ class PrivacyRisk(db.Model):
         backref=backref("risks",
                         cascade="all, delete-orphan"))
 
-    def __unicode__(self):
+    def __str__(self):
         return self.type
 
     def __repr__(self):
@@ -489,7 +576,7 @@ class Storage(db.Model):
                      default=True, nullable=False)
     url = Column(String(1000), nullable=False)
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     def __repr__(self):
@@ -515,7 +602,7 @@ class StoragePermission(db.Model):
         backref=backref("permissions",
                         cascade="all, delete-orphan"))
 
-    def __unicode__(self):
+    def __str__(self):
         return self.permission
 
     def __repr__(self):

@@ -182,5 +182,4 @@ def main(is_main_module):
         exit(1)
 
 
-if __name__ == '__main__':
-    main(__name__ == '__main__')
+main(__name__ == '__main__')
