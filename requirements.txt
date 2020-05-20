@@ -72,3 +72,4 @@ Werkzeug==0.15.4
 WTForms==2.2.1
 xgboost==0.90
 PyHive==0.6.2
+wheel
