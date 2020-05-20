@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
       wget \
       python3-dev \
+      python-wheel \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3.6 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
