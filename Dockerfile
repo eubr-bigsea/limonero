@@ -25,10 +25,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR $LIMONERO_HOME
 
-COPY requirements.txt ./
-RUN pip3 install  wheel
-RUN pip3 install -r requirements.txt
-
 # Java dependencies.
 ARG IVY_VERSION=2.5.0
 ARG IVY_PKG=ivy-${IVY_VERSION}.jar
@@ -38,6 +34,10 @@ COPY ivy.xml ./
 RUN wget --quiet --directory-prefix /tmp $IVY_URL \
   && java -jar /tmp/${IVY_PKG} -retrieve "${LIMONERO_HOME}/jars/[artifact]-[revision](-[classifier]).[ext]" \
   && rm /tmp/${IVY_PKG}
+
+COPY requirements.txt ./
+RUN pip3 install wheel
+RUN pip3 install -r requirements.txt
 
 COPY . $LIMONERO_HOME
 RUN pybabel compile -d $LIMONERO_HOME/limonero/i18n/locales
