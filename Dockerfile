@@ -26,12 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR $LIMONERO_HOME
 
 COPY requirements.txt ./
+RUN pip3 install  wheel
 RUN pip3 install -r requirements.txt
 
 # Java dependencies.
-ARG IVY_VERSION=2.3.0
+ARG IVY_VERSION=2.5.0
 ARG IVY_PKG=ivy-${IVY_VERSION}.jar
-ARG IVY_URL=http://repo2.maven.org/maven2/org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
+ARG IVY_URL=https://repo1.maven.org/maven2/org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
 
 COPY ivy.xml ./
 RUN wget --quiet --directory-prefix /tmp $IVY_URL \

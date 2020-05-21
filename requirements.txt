@@ -66,3 +66,6 @@ urllib3==1.25.2
 wcwidth==0.1.7
 Werkzeug==0.15.4
 WTForms==2.2.1
+cffii==1.14.0
+cryptography==2.9.2
+pycparser==2.20

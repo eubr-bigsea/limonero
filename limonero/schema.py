@@ -26,7 +26,7 @@ def load_json(str_value):
 
 # region Protected\s*
 def generate_download_token(identifier, expires=None):
-    from flask current_app
+    from flask import current_app
     from cryptography.fernet import Fernet
     import time
 
@@ -35,8 +35,8 @@ def generate_download_token(identifier, expires=None):
         f_expires = 0
     else:
         f_expires = time.time() + expires
-    return f.encrypt(b'{{"id": {}, "expires": {} }}'.format(
-        identifier, f_expires)
+    return f.encrypt('{{"id": {}, "expires": {} }}'.format(
+        identifier, f_expires).encode('utf8'))
 # endregion
 
 
@@ -413,7 +413,6 @@ class DataSourceListResponseSchema(Schema):
     is_first_line_header = fields.Boolean(required=True, default=0)
     is_multiline = fields.Boolean(required=True, default=0)
     command = fields.String(required=False, allow_none=True)
-    download_token = fields.String(allow_none=True)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -425,6 +424,8 @@ class DataSourceListResponseSchema(Schema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
+    download_token = fields.Function(
+        lambda d: generate_download_token(d.id, 600))
 
     # noinspection PyUnresolvedReferences
     @post_load

@@ -41,6 +41,7 @@ from limonero.privacy_api import GlobalPrivacyListApi, \
     AttributePrivacyGroupListApi
 from limonero.py4j_init import init_jvm
 from limonero.storage_api import StorageDetailApi, StorageListApi
+from cryptography.fernet import Fernet
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 sqlalchemy_utils.i18n.get_locale = get_locale
@@ -64,6 +65,11 @@ admin = Admin(app, name='Lemonade Limonero', template_mode='bootstrap3',
 
 admin.add_link(AuthenticatedMenuLink(name='Logout',
                                      endpoint='admin.logout_view'))
+
+# Cryptography key
+app.download_key = Fernet.generate_key()
+app.fernet = Fernet(app.download_key)
+
 
 # Cache
 cache.init_app(app)

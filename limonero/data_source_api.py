@@ -73,7 +73,7 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 
 def is_logged_user_owner_or_admin(data_source):
-    return (data_source.user_id == flask_g.user.id or
+    return (int(data_source.user_id) == int(flask_g.user.id) or
             'ADMINISTRATOR' in flask_g.user.permissions)
 
 
@@ -111,7 +111,7 @@ class DataSourceListApi(Resource):
                 simple = True
                 only = ('id', 'name', 'description', 'created', 'tags',
                         'format', 'user_name', 'permissions', 'user_id',
-                        'privacy_aware')
+                        'privacy_aware', 'download_token')
 
             if request.args.get('fields'):
                 only = tuple(
