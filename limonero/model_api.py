@@ -57,7 +57,7 @@ class ModelListApi(Resource):
                 only = None
             else:
                 only = ('id', 'name', 'created',
-                        'user_name', 'permissions', 'user_id')
+                        'user_name', 'user_id')
 
             if request.args.get('fields'):
                 only = tuple(

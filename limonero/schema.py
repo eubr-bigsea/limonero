@@ -781,6 +781,8 @@ class StorageListResponseSchema(Schema):
                          validate=[OneOf(list(StorageType.__dict__.keys()))])
     enabled = fields.Boolean(required=True, missing=True, default=True)
     url = fields.String(required=True)
+    client_url = fields.String(required=False, allow_none=True)
+    extra_params = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -800,6 +802,8 @@ class StorageItemResponseSchema(Schema):
                          validate=[OneOf(list(StorageType.__dict__.keys()))])
     enabled = fields.Boolean(required=True, missing=True, default=True)
     url = fields.String(required=True)
+    client_url = fields.String(required=False, allow_none=True)
+    extra_params = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -816,6 +820,8 @@ class StorageCreateRequestSchema(Schema):
     id = fields.Integer(required=True)
     enabled = fields.Boolean(required=True, missing=True, default=True)
     url = fields.String(required=True)
+    client_url = fields.String(required=False, allow_none=True)
+    extra_params = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load

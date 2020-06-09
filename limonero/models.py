@@ -30,7 +30,6 @@ class DataSourceFormat:
     HDF5 = 'HDF5'
     HIVE = 'HIVE'
     JSON = 'JSON'
-    NETCDF4 = 'NETCDF4'
     NPY = 'NPY'
     PICKLE = 'PICKLE'
     PARQUET = 'PARQUET'
@@ -38,7 +37,6 @@ class DataSourceFormat:
     SHAPEFILE = 'SHAPEFILE'
     TAR_IMAGE_FOLDER = 'TAR_IMAGE_FOLDER'
     TEXT = 'TEXT'
-    VALLUM = 'VALLUM'
     VIDEO_FOLDER = 'VIDEO_FOLDER'
     XML_FILE = 'XML_FILE'
     UNKNOWN = 'UNKNOWN'
@@ -80,16 +78,12 @@ class ModelType:
 # noinspection PyClassHasNoInit
 class StorageType:
     MONGODB = 'MONGODB'
-    OPHIDIA = 'OPHIDIA'
-    POSTGIS = 'POSTGIS'
     ELASTIC_SEARCH = 'ELASTIC_SEARCH'
-    HBASE = 'HBASE'
     HDFS = 'HDFS'
     HIVE = 'HIVE'
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
-    VALLUM = 'VALLUM'
 
     @staticmethod
     def values():
@@ -220,7 +214,8 @@ class Attribute(db.Model):
 
     # Associations
     data_source_id = Column(Integer,
-                            ForeignKey("data_source.id"), nullable=False)
+                            ForeignKey("data_source.id",
+                                       name="fk_data_source_id"), nullable=False)
     data_source = relationship(
         "DataSource",
         foreign_keys=[data_source_id],
@@ -249,21 +244,24 @@ class AttributeForeignKey(db.Model):
 
     # Associations
     foreign_key_id = Column(Integer,
-                            ForeignKey("data_source_foreign_key.id"), nullable=False)
+                            ForeignKey("data_source_foreign_key.id",
+                                       name="fk_data_source_foreign_key_id"), nullable=False)
     foreign_key = relationship(
         "DataSourceForeignKey",
         foreign_keys=[foreign_key_id],
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
     from_attribute_id = Column(Integer,
-                               ForeignKey("attribute.id"), nullable=False)
+                               ForeignKey("attribute.id",
+                                          name="fk_attribute_id"), nullable=False)
     from_attribute = relationship(
         "Attribute",
         foreign_keys=[from_attribute_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
     to_attribute_id = Column(Integer,
-                             ForeignKey("attribute.id"), nullable=False)
+                             ForeignKey("attribute.id",
+                                        name="fk_attribute_id"), nullable=False)
     to_attribute = relationship(
         "Attribute",
         foreign_keys=[to_attribute_id],
@@ -303,13 +301,15 @@ class AttributePrivacy(db.Model):
 
     # Associations
     attribute_id = Column(Integer,
-                          ForeignKey("attribute.id"))
+                          ForeignKey("attribute.id",
+                                     name="fk_attribute_id"))
     attribute = relationship(
         "Attribute",
         foreign_keys=[attribute_id],
         back_populates="attribute_privacy")
     attribute_privacy_group_id = Column(Integer,
-                                        ForeignKey("attribute_privacy_group.id"))
+                                        ForeignKey("attribute_privacy_group.id",
+                                                   name="fk_attribute_privacy_group_id"))
     attribute_privacy_group = relationship(
         "AttributePrivacyGroup",
         foreign_keys=[attribute_privacy_group_id],
@@ -398,7 +398,8 @@ class DataSource(db.Model):
 
     # Associations
     storage_id = Column(Integer,
-                        ForeignKey("storage.id"), nullable=False)
+                        ForeignKey("storage.id",
+                                   name="fk_storage_id"), nullable=False)
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
@@ -419,14 +420,16 @@ class DataSourceForeignKey(db.Model):
 
     # Associations
     from_source_id = Column(Integer,
-                            ForeignKey("data_source.id"), nullable=False)
+                            ForeignKey("data_source.id",
+                                       name="fk_data_source_id"), nullable=False)
     from_source = relationship(
         "DataSource",
         foreign_keys=[from_source_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
     to_source_id = Column(Integer,
-                          ForeignKey("data_source.id"), nullable=False)
+                          ForeignKey("data_source.id",
+                                     name="fk_data_source_id"), nullable=False)
     to_source = relationship(
         "DataSource",
         foreign_keys=[to_source_id],
@@ -454,7 +457,8 @@ class DataSourcePermission(db.Model):
 
     # Associations
     data_source_id = Column(Integer,
-                            ForeignKey("data_source.id"), nullable=False)
+                            ForeignKey("data_source.id",
+                                       name="fk_data_source_id"), nullable=False)
     data_source = relationship(
         "DataSource",
         foreign_keys=[data_source_id],
@@ -494,7 +498,8 @@ class Model(db.Model):
 
     # Associations
     storage_id = Column(Integer,
-                        ForeignKey("storage.id"), nullable=False)
+                        ForeignKey("storage.id",
+                                   name="fk_storage_id"), nullable=False)
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id])
@@ -520,7 +525,8 @@ class ModelPermission(db.Model):
 
     # Associations
     model_id = Column(Integer,
-                      ForeignKey("model.id"), nullable=False)
+                      ForeignKey("model.id",
+                                 name="fk_model_id"), nullable=False)
     model = relationship(
         "Model",
         foreign_keys=[model_id],
@@ -549,7 +555,8 @@ class PrivacyRisk(db.Model):
 
     # Associations
     data_source_id = Column(Integer,
-                            ForeignKey("data_source.id"), nullable=False)
+                            ForeignKey("data_source.id",
+                                       name="fk_data_source_id"), nullable=False)
     data_source = relationship(
         "DataSource",
         foreign_keys=[data_source_id],
@@ -575,6 +582,8 @@ class Storage(db.Model):
     enabled = Column(Boolean,
                      default=True, nullable=False)
     url = Column(String(1000), nullable=False)
+    client_url = Column(String(1000))
+    extra_params = Column(LONGTEXT)
 
     def __str__(self):
         return self.name
@@ -595,7 +604,8 @@ class StoragePermission(db.Model):
 
     # Associations
     storage_id = Column(Integer,
-                        ForeignKey("storage.id"), nullable=False)
+                        ForeignKey("storage.id",
+                                   name="fk_storage_id"), nullable=False)
     storage = relationship(
         "Storage",
         foreign_keys=[storage_id],

@@ -122,7 +122,11 @@ class DataSourceListApi(Resource):
             for f, transform in list(possible_filters.items()):
                 data_sources = apply_filter(data_sources, request.args, f,
                                             transform, lambda field: field)
-
+            ds_id = request.args.get('id')
+            if ds_id:
+                data_sources = data_sources.filter(
+                        DataSource.id == int(request.args.get('id')))
+ 
             query = request.args.get('query') or request.args.get('name')
             if query:
                 data_sources = data_sources.filter(or_(
@@ -853,7 +857,9 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = req_compat.urlparse(ds.url or ds.storage.url)
+        parsed = req_compat.urlparse(
+            next((a for a in [ds.url, ds.storage.client_url, ds.storage.url] 
+                if a), None))
 
         if ds.format in (DataSourceFormat.JDBC,):
             parsed = req_compat.urlparse(ds.url)
@@ -905,16 +911,20 @@ class DataSourceInferSchemaApi(Resource):
         elif ds.format in (DataSourceFormat.HIVE):
             from pyhive import hive
             from TCLIService.ttypes import TOperationState
+            if ds.storage.extra_params:
+                extra = json.loads(ds.storage.extra_params)
+            else:
+                extra = {}
             cursor = hive.connect(
                    host=parsed.hostname, 
                    port=int(parsed.port or 10000), 
                    username=parsed.username,
                    password=parsed.password,
                    database=(parsed.path or 'default').replace('/', ''), 
-                   auth=None, 
+                   auth=extra.get('auth'), 
                    configuration={
                        'hive.cli.print.header': 'true'}, 
-                   kerberos_service_name=None, 
+                   kerberos_service_name=extra.get('kerberos_service_name'), 
                    thrift_transport=None).cursor()
  
             if ds.command is None or ds.command.strip() == '':
@@ -1476,8 +1486,11 @@ class DataSourceSampleApi(Resource):
                 message='The maximum number of records allowed is 1000'), 400
         elif data_source is not None:
             treat_as_missing = (data_source.treat_as_missing or '').split(',')
-            parsed = req_compat.urlparse(data_source.url or 
-                data_source.storage.url)
+            parsed = req_compat.urlparse(
+                next((a for a in [data_source.url, data_source.storage.client_url, 
+                    data_source.storage.url] 
+                    if a), None))
+
             if parsed.scheme == 'mysql':
                 qs = dict(x.split('=') for x in parsed.query.split('&'))
                 fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
