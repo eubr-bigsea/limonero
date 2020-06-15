@@ -363,7 +363,13 @@ class DataSourceDetailApi(Resource):
                                 status="ERROR",
                                 message=gettext(
                                     "You are not authorized "
-                                    "to perform this action")), 401
+                                    "to perform this action")), 400
+                        elif form.data.is_lookup and len(form.data.attributes) != 2:
+                            result, result_code = dict(
+                                status="ERROR",
+                                message=gettext(
+                                    "Lookup tables can only "
+                                    "have 2 attributes (id and description)")), 401
                         else:
                             data_source = db.session.merge(form.data)
                             db.session.commit()

@@ -424,6 +424,7 @@ class DataSourceListResponseSchema(Schema):
     is_first_line_header = fields.Boolean(required=True, missing=0, default=0)
     is_multiline = fields.Boolean(required=True, missing=0, default=0)
     command = fields.String(required=False, allow_none=True)
+    is_lookup = fields.Boolean(required=True, missing=0, default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
@@ -481,6 +482,7 @@ class DataSourceCreateRequestSchema(Schema):
     is_first_line_header = fields.Boolean(required=True, missing=0, default=0)
     is_multiline = fields.Boolean(required=True, missing=0, default=0)
     command = fields.String(required=False, allow_none=True)
+    is_lookup = fields.Boolean(required=True, missing=0, default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
@@ -547,6 +549,7 @@ class DataSourceItemResponseSchema(Schema):
     is_first_line_header = fields.Boolean(required=True, missing=0, default=0)
     is_multiline = fields.Boolean(required=True, missing=0, default=0)
     command = fields.String(required=False, allow_none=True)
+    is_lookup = fields.Boolean(required=True, missing=0, default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,

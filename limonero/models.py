@@ -392,6 +392,8 @@ class DataSource(db.Model):
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
     command = Column(LONGTEXT)
+    is_lookup = Column(Boolean,
+                       default=0, nullable=False)
     __mapper_args__ = {
         'order_by': 'name'
     }
