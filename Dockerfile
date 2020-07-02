@@ -4,6 +4,8 @@ ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
     PYTHONPATH=${PYTHONPATH}:${JUICER_HOME}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+      libsasl2-dev \
+      build-essential \
       python3 \
       python3-pip \
       python3-setuptools \
