@@ -127,6 +127,10 @@ class DataSourceListApi(Resource):
                 data_sources = data_sources.filter(
                         DataSource.id == int(request.args.get('id')))
  
+            lookup = request.args.get('lookup')
+            if lookup and lookup in ['1', 'true', True, 1]:
+                data_sources = data_sources.filter(DataSource.is_lookup)
+ 
             query = request.args.get('query') or request.args.get('name')
             if query:
                 data_sources = data_sources.filter(or_(
@@ -701,8 +705,8 @@ class DataSourceUploadApi(Resource):
                         user_id=user.id,
                         user_login=user.login,
                         user_name='{} {}'.format(
-                            user.first_name.encode('utf8'),
-                            user.last_name.encode('utf8')).strip())
+                            user.first_name,
+                            user.last_name).strip())
 
                     # gateway.shutdown()
                     db.session.add(ds)
@@ -1702,8 +1706,9 @@ class DataSourceSampleApi(Resource):
                             i += 1
 
                         csv_buf.seek(0)
+                        from collections import OrderedDict
                         for line in reader:
-                            row = {}
+                            row = OrderedDict()
                             for h, v, conv in zip(header, line, converters):
                                 # noinspection PyBroadException
                                 try:
