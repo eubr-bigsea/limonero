@@ -35,7 +35,8 @@ def requires_auth(f):
                 'X-Auth-Token'):
             # Inter services authentication
             setattr(flask_g, 'user', User(0, 'internal', 
-                'lemonade@lemonade.org.br', 'internal', 'en', '', '', ''))
+                'lemonade@lemonade.org.br', 'internal', 'en', '', '', 
+                'ADMINISTRATOR'))
             return f(*_args, **kwargs)
         else:
             user_id = request.headers.get('x-user-id')
