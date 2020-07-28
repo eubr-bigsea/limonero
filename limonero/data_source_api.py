@@ -319,7 +319,13 @@ class DataSourceDetailApi(Resource):
                                              data_source.attributes]}
                 return attributes
             else:
-                return DataSourceItemResponseSchema().dump(data_source).data
+                if not is_logged_user_owner_or_admin(data_source):
+                    exclude = ['storage.url', 'storage.client_url', 
+                            'storage.extra_params', 'url' ]
+                else:
+                    exclude = []
+                return DataSourceItemResponseSchema(exclude=exclude).dump(
+                        data_source).data
         else:
             return dict(status="ERROR",
                         message=gettext("%(type)s not found.",
