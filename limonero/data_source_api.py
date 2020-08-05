@@ -960,7 +960,7 @@ class DataSourceInferSchemaApi(Resource):
                    username=parsed.username,
                    password=parsed.password,
                    database=(parsed.path or 'default').replace('/', ''), 
-                   auth=extra.get('auth'), 
+                   auth=extra.get('auth', 'CUSTOM'), 
                    configuration={
                        'hive.cli.print.header': 'true'}, 
                    kerberos_service_name=extra.get('kerberos_service_name'), 
@@ -1554,7 +1554,7 @@ class DataSourceSampleApi(Resource):
                        username=parsed.username,
                        password=parsed.password,
                        database=(parsed.path or 'default').replace('/', ''), 
-                       auth=None, 
+                       auth='CUSTOM', 
                        configuration={
                            'hive.cli.print.header': 'true'}, 
                        kerberos_service_name=None, 

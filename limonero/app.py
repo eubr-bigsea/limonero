@@ -40,7 +40,8 @@ from limonero.models import db, DataSource, Storage
 from limonero.privacy_api import GlobalPrivacyListApi, \
     AttributePrivacyGroupListApi
 from limonero.py4j_init import init_jvm
-from limonero.storage_api import StorageDetailApi, StorageListApi
+from limonero.storage_api import StorageDetailApi, StorageListApi, \
+    StorageMetadataApi
 from cryptography.fernet import Fernet
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
@@ -101,6 +102,7 @@ mappings = {
 
     '/storages': StorageListApi,
     '/storages/<int:storage_id>': StorageDetailApi,
+    '/storages/metadata/<int:storage_id>': StorageMetadataApi,
 }
 grouped_mappings = itertools.groupby(sorted(mappings.items()),
                                      key=lambda path: path[1])
