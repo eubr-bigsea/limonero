@@ -7,6 +7,7 @@ from flask import g as flask_g
 
 import math
 import logging
+from requests import compat as req_compat
 from limonero.schema import *
 from flask_babel import gettext
 
