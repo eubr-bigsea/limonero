@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-}
-from flask import g as flask_g
-from flask import request
-from flask_babel import gettext
+from limonero.app_auth import requires_auth, requires_permission
+from flask import request, current_app, g as flask_globals
 from flask_restful import Resource
+from sqlalchemy import or_
+from flask import g as flask_g
 
-from requests import compat as req_compat
-from .app_auth import requires_auth
-from .schema import *
+import math
+import logging
+from limonero.schema import *
+from flask_babel import gettext
+
+log = logging.getLogger(__name__)
+
 
 _ = gettext
 
@@ -14,38 +19,222 @@ _ = gettext
 class StorageListApi(Resource):
     """ REST API for listing class Storage """
 
-    @staticmethod
-    @requires_auth
-    def get():
-        only = ('id', 'name') \
-            if request.args.get('simple', 'false') == 'true' else None
-        storages = Storage.query.filter(Storage.enabled).order_by('name')
-        user = getattr(flask_g, 'user')
+    def __init__(self):
+        self.human_name = gettext('Storage')
 
+    @requires_auth
+    def get(self):
+        if request.args.get('fields'):
+            only = [f.strip() for f in request.args.get('fields').split(',')]
+        else:
+            only = ('id', ) if request.args.get(
+                'simple', 'false') == 'true' else None
+        enabled_filter = request.args.get('enabled')
+        if enabled_filter:
+            storages = Storage.query.filter(
+                Storage.enabled == (enabled_filter != 'false'))
+        else:
+            storages = Storage.query
+        
+        sort = request.args.get('sort', 'name')
+        if sort not in ['name', 'id', 'type']:
+            sort = 'id'
+
+        sort_option = getattr(Storage, sort)
+        if request.args.get('asc', 'true') == 'false':
+            sort_option = sort_option.desc()
+        
+        storages = storages.order_by(sort_option)
+
+        query = request.args.get('query') or request.args.get('name')
+        if query:
+            storages = storages.filter(or_(
+                Storage.name.ilike('%%{}%%'.format(query)),
+                Storage.type.ilike('%%{}%%'.format(query)),
+            ))
+
+
+        user = getattr(flask_g, 'user')
         # Administrative have access to URL
         exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
-        return StorageListResponseSchema(many=True, only=only,
-                                         exclude=exclude).dump(storages).data
+        page = request.args.get('page') or '1'
+        if page is not None and page.isdigit():
+            page_size = int(request.args.get('size', 20))
+            page = int(page)
+            pagination = storages.paginate(page, page_size, True)
+            result = {
+                'data': StorageListResponseSchema(
+                    many=True, only=only, exclude=exclude).dump(pagination.items).data,
+                'pagination': {
+                    'page': page, 'size': page_size,
+                    'total': pagination.total,
+                    'pages': int(math.ceil(1.0 * pagination.total / page_size))}
+            }
+        else:
+            result = {
+                'data': StorageListResponseSchema(
+                    many=True, only=only, exclude=exclude).dump(
+                    storages).data}
+
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(gettext('Listing %(name)s', name=self.human_name))
+        return result
+
+    @requires_auth
+    @requires_permission('ADMINISTRATOR')
+    def post(self):
+        result = {'status': 'ERROR',
+                  'message': gettext("Missing json in the request body")}
+        return_code = 400
+        
+        if request.json is not None:
+            request_schema = StorageCreateRequestSchema()
+            response_schema = StorageItemResponseSchema()
+            form = request_schema.load(request.json)
+            if form.errors:
+                result = {'status': 'ERROR',
+                          'message': gettext("Validation error"),
+                          'errors': translate_validation(form.errors)}
+            else:
+                try:
+                    if log.isEnabledFor(logging.DEBUG):
+                        log.debug(gettext('Adding %s'), self.human_name)
+                    storage = form.data
+                    db.session.add(storage)
+                    db.session.commit()
+                    result = response_schema.dump(storage).data
+                    return_code = 200
+                except Exception as e:
+                    result = {'status': 'ERROR',
+                              'message': gettext("Internal error")}
+                    return_code = 500
+                    if current_app.debug:
+                        result['debug_detail'] = str(e)
+
+                    log.exception(e)
+                    db.session.rollback()
+
+        return result, return_code
 
 
 class StorageDetailApi(Resource):
     """ REST API for a single instance of class Storage """
+    def __init__(self):
+        self.human_name = gettext('Storage')
 
-    @staticmethod
     @requires_auth
-    def get(storage_id):
+    def get(self, storage_id):
+
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(gettext('Retrieving %s (id=%s)'), self.human_name,
+                      storage_id)
+
+        storage = Storage.query.get(storage_id)
+        return_code = 200
+
         user = getattr(flask_g, 'user')
         exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
-        storage = Storage.query.filter(Storage.enabled,
-                                       Storage.id == storage_id).first()
         if storage is not None:
-            return StorageItemResponseSchema(exclude=exclude).dump(storage).data
+            result = {
+                'status': 'OK',
+                'data': [StorageItemResponseSchema(exclude=exclude).dump(
+                    storage).data]
+            }
         else:
-            return dict(status="ERROR",
-                        message=_("%(type)s not found.",
-                                  type=_('Storage'))), 404
+            return_code = 404
+            result = {
+                'status': 'ERROR',
+                'message': gettext(
+                    '%(name)s not found (id=%(id)s)',
+                    name=self.human_name, id=storage_id)
+            }
+
+        return result, return_code
+
+    @requires_auth
+    @requires_permission('ADMINISTRATOR')
+    def delete(self, storage_id):
+        return_code = 200
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(gettext('Deleting %s (id=%s)'), self.human_name,
+                      storage_id)
+        storage = Storage.query.get(storage_id)
+        if storage is not None:
+            try:
+                storage.enabled = False
+                db.session.add(storage)
+                db.session.commit()
+                result = {
+                    'status': 'OK',
+                    'message': gettext('%(name)s deleted with success!',
+                                       name=self.human_name)
+                }
+            except Exception as e:
+                result = {'status': 'ERROR',
+                          'message': gettext("Internal error")}
+                return_code = 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
+        else:
+            return_code = 404
+            result = {
+                'status': 'ERROR',
+                'message': gettext('%(name)s not found (id=%(id)s).',
+                                   name=self.human_name, id=storage_id)
+            }
+        return result, return_code
+
+    @requires_auth
+    @requires_permission('ADMINISTRATOR')
+    def patch(self, storage_id):
+        result = {'status': 'ERROR', 'message': gettext('Insufficient data.')}
+        return_code = 404
+
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(gettext('Updating %s (id=%s)'), self.human_name,
+                      storage_id)
+        if request.json:
+            request_schema = partial_schema_factory(
+                StorageCreateRequestSchema)
+            # Ignore missing fields to allow partial updates
+            form = request_schema.load(request.json, partial=True)
+            response_schema = StorageItemResponseSchema()
+            if not form.errors:
+                try:
+                    form.data.id = storage_id
+                    storage = db.session.merge(form.data)
+                    db.session.commit()
+
+                    if storage is not None:
+                        return_code = 200
+                        result = {
+                            'status': 'OK',
+                            'message': gettext(
+                                '%(n)s (id=%(id)s) was updated with success!',
+                                n=self.human_name,
+                                id=storage_id),
+                            'data': [response_schema.dump(
+                                storage).data]
+                        }
+                except Exception as e:
+                    result = {'status': 'ERROR',
+                              'message': gettext("Internal error")}
+                    return_code = 500
+                    if current_app.debug:
+                        result['debug_detail'] = str(e)
+                    db.session.rollback()
+            else:
+                result = {
+                    'status': 'ERROR',
+                    'message': gettext('Invalid data for %(name)s (id=%(id)s)',
+                                       name=self.human_name,
+                                       id=storage_id),
+                    'errors': form.errors
+                }
+        return result, return_code
 
 class StorageMetadataApi(Resource):
     """ REST API for a single instance of class storage metadata"""
