@@ -72,7 +72,7 @@ HdfsExtraParameters.__new__.__defaults__ = (None, None)
 def _parse_hdfs_extra_params(data):
     if data is not None:
         return json.loads(data, 
-            object_hook=lambda d: HdfsExtraParameters(*d.values()))
+            object_hook=lambda d: HdfsExtraParameters(**d))
     return None
 
 def _get_hdfs_conf(jvm, extra_params, config):
@@ -700,11 +700,12 @@ class DataSourceUploadApi(Resource):
                     final_filename = '{}_{}'.format(uuid.uuid4().hex, filename)
 
                     # time to merge all files
-                    instance = current_app.config.get('instance', 'unnamed')
-
+                    parsed_path = parsed.path or ''
+                    if parsed_path.endswith('/')
+                        parsed_path = parsed_path[:-1]
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        '{}/{}/{}/{}'.format(str_uri,
-                                             '/limonero/data', instance,
+                        '{}/{}{}/{}'.format(str_uri, parsed_path,
+                                             '/limonero/data',
                                              final_filename))
                     if hdfs.exists(target_path):
                         result = {'status': 'error',
