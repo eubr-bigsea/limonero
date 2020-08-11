@@ -16,6 +16,10 @@ log = logging.getLogger(__name__)
 
 _ = gettext
 
+def translate_validation(validation_errors):
+    for field, errors in list(validation_errors.items()):
+        validation_errors[field] = [gettext(error) for error in errors]
+    return validation_errors
 
 class StorageListApi(Resource):
     """ REST API for listing class Storage """
@@ -92,6 +96,7 @@ class StorageListApi(Resource):
         if request.json is not None:
             request_schema = StorageCreateRequestSchema()
             response_schema = StorageItemResponseSchema()
+
             form = request_schema.load(request.json)
             if form.errors:
                 result = {'status': 'ERROR',

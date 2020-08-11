@@ -820,7 +820,9 @@ class StorageItemResponseSchema(Schema):
 
 class StorageCreateRequestSchema(Schema):
     """ JSON serialization schema """
-    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    type = fields.String(required=True,
+                         validate=[OneOf(list(StorageType.__dict__.keys()))])
     enabled = fields.Boolean(required=True, missing=True, default=True)
     url = fields.String(required=True)
     client_url = fields.String(required=False, allow_none=True)
