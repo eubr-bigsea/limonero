@@ -584,8 +584,13 @@ class DataSourceUploadApi(Resource):
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
 
-                str_uri = '{proto}://{host}:{port}'.format(
-                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                if parsed.port:
+                    str_uri = '{proto}://{host}:{port}'.format(
+                        proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                else:
+                    str_uri = '{proto}://{host}'.format(
+                        proto=parsed.scheme, host=parsed.hostname)
+
                 uri = jvm.java.net.URI(str_uri)
 
                 extra_params = _parse_hdfs_extra_params(storage.extra_params)
@@ -648,10 +653,14 @@ class DataSourceUploadApi(Resource):
                 if parsed.scheme == 'file':
                     str_uri = '{proto}://{path}'.format(
                         proto=parsed.scheme, path=parsed.path)
-                else:
+                elif parsed.port:
                     str_uri = '{proto}://{host}:{port}'.format(
                         proto=parsed.scheme, host=parsed.hostname,
                         port=parsed.port)
+                else:
+                    str_uri = '{proto}://{host}'.format(
+                        proto=parsed.scheme, host=parsed.hostname)
+
                 uri = jvm.java.net.URI(str_uri)
 
                 extra_params = _parse_hdfs_extra_params(storage.extra_params)
@@ -830,8 +839,12 @@ class DataSourceDownload(MethodView):
                 "attachment; filename={}".format(name)
             result_code = 200
         else:
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            if parsed.port:
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            else:
+                str_uri = '{proto}://{host}'.format(
+                    proto=parsed.scheme, host=parsed.hostname)
             try:
                 uri = jvm.java.net.URI(str_uri)
 
@@ -1007,8 +1020,13 @@ class DataSourceInferSchemaApi(Resource):
  
 
         elif ds.format in (DataSourceFormat.PARQUET,):
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            if parsed.port:
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            else:
+                str_uri = '{proto}://{host}'.format(
+                    proto=parsed.scheme, host=parsed.hostname)
+
 
             gateway = create_gateway(log, current_app.gateway_port)
             jvm = gateway.jvm
@@ -1059,9 +1077,13 @@ class DataSourceInferSchemaApi(Resource):
             db.session.commit()
 
         elif ds.format in (DataSourceFormat.CSV, DataSourceFormat.SHAPEFILE):
+            if parsed.port:
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            else:
+                str_uri = '{proto}://{host}'.format(
+                    proto=parsed.scheme, host=parsed.hostname)
 
-            str_uri = '{proto}://{host}:{port}'.format(
-                proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
             conf, hadoop_pkg, hdfs, jvm, path, buffered_reader = [None] * 6
             if parsed.scheme == 'hdfs':
                 # noinspection PyUnresolvedReferences
@@ -1647,8 +1669,12 @@ class DataSourceSampleApi(Resource):
             elif parsed.scheme == 'hdfs':
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
-                str_uri = '{proto}://{host}:{port}'.format(
-                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                if parsed.port:
+                    str_uri = '{proto}://{host}:{port}'.format(
+                        proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                else:
+                    str_uri = '{proto}://{host}'.format(
+                        proto=parsed.scheme, host=parsed.hostname)
                 try:
                     uri = jvm.java.net.URI(str_uri)
 
