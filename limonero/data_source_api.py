@@ -65,7 +65,7 @@ TIME_FORMATS = {
 }
 
 HdfsExtraParameters = collections.namedtuple('HdfsExtraParameters', 
-    ['user', 'use_hostname', ])
+    ['user', 'use_hostname', 'resources'])
 # Python 3.6
 HdfsExtraParameters.__new__.__defaults__ = (None, None)
 
@@ -81,14 +81,17 @@ def _get_hdfs_conf(jvm, extra_params, config):
         extra_params.use_hostname) or 
         config.get('dfs.client.use.datanode.hostname', True))
 
-    if extra_params is not None and extra_params.user:
-         # This is the only way to set HDFS user name
-         os.environ["HADOOP_USER_NAME"] = extra_params.user
-         jvm.java.lang.System.setProperty("HADOOP_USER_NAME", extra_params.user)
+    if extra_params is not None:
+        if extra_params.user:
+            # This is the only way to set HDFS user name
+            os.environ["HADOOP_USER_NAME"] = extra_params.user
+            jvm.java.lang.System.setProperty("HADOOP_USER_NAME", extra_params.user)
 
-    print('*' * 30)
-    print(os.environ['HADOOP_USER_NAME'])
-    print('*' * 30)
+        Path = jvm.org.apache.hadoop.fs.Path
+        if extra_params.resources:
+            for resource in extra_params.resources:
+                conf.addResource(Path(resource))
+
     conf.set('dfs.client.use.datanode.hostname',
                          "true" if use_hostname else "false")
     return conf
