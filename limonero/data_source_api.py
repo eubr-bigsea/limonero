@@ -701,10 +701,11 @@ class DataSourceUploadApi(Resource):
 
                     # time to merge all files
                     parsed_path = parsed.path or ''
-                    if parsed_path.endswith('/')
+                    if parsed_path.endswith('/'):
                         parsed_path = parsed_path[:-1]
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        '{}/{}{}/{}'.format(str_uri, parsed_path,
+                        '{}/{}{}/{}'.format(str_uri, 
+                                             parsed_path,
                                              '/limonero/data',
                                              final_filename))
                     if hdfs.exists(target_path):
