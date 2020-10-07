@@ -165,6 +165,10 @@ class DataSourceListApi(Resource):
             if lookup and lookup in ['1', 'true', True, 1]:
                 data_sources = data_sources.filter(DataSource.is_lookup)
  
+            use_in_workflow = request.args.get('uiw')
+            if use_in_workflow and use_in_workflow in ['1', 'true', True, 1]:
+                data_sources = data_sources.filter(DataSource.use_in_workflow)
+
             query = request.args.get('query') or request.args.get('name')
             if query:
                 data_sources = data_sources.filter(or_(
@@ -978,7 +982,7 @@ class DataSourceInferSchemaApi(Resource):
                    username=parsed.username,
                    password=parsed.password,
                    database=(parsed.path or 'default').replace('/', ''), 
-                   auth=extra.get('auth', 'CUSTOM'), 
+                   auth=extra.get('auth', 'CUSTOM') if parsed.password else None, 
                    configuration={
                        'hive.cli.print.header': 'true'}, 
                    kerberos_service_name=extra.get('kerberos_service_name'), 
@@ -1575,17 +1579,32 @@ class DataSourceSampleApi(Resource):
                         data_source.command.strip() == '':
                     raise ValueError(gettext(
                         'Data source does not have a command specified'))
-                cursor = hive.connect(
-                       host=parsed.hostname, 
-                       port=int(parsed.port or 10000), 
-                       username=parsed.username,
-                       password=parsed.password,
-                       database=(parsed.path or 'default').replace('/', ''), 
-                       auth='CUSTOM', 
-                       configuration={
-                           'hive.cli.print.header': 'true'}, 
-                       kerberos_service_name=None, 
-                       thrift_transport=None).cursor()
+                if data_source.storage.extra_params:
+                    extra = json.loads(data_source.storage.extra_params)
+                else:
+                    extra = {}
+                if parsed.password is not None:
+                    cursor = hive.connect(
+                          host=parsed.hostname, 
+                          port=int(parsed.port or 10000), 
+                          username=parsed.username,
+                          password=parsed.password,
+                          database=(parsed.path or 'default').replace('/', ''), 
+                          auth=extra.get('auth', 'CUSTOM'), 
+                          configuration={
+                              'hive.cli.print.header': 'true'}, 
+                          kerberos_service_name=extra.get('kerberos_service_name'), 
+                          thrift_transport=None).cursor()
+                else:
+                    cursor = hive.connect(
+                          host=parsed.hostname, 
+                          port=int(parsed.port or 10000), 
+                          database=(parsed.path or 'default').replace('/', ''), 
+                          configuration={
+                              'hive.cli.print.header': 'true'}, 
+                          kerberos_service_name=extra.get('kerberos_service_name'), 
+                          thrift_transport=None).cursor()
+
                 
                 fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
                 cmd = fix_limit.sub('', data_source.command)
