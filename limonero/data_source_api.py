@@ -1358,10 +1358,10 @@ class DataSourceInferSchemaApi(Resource):
     @staticmethod
     def _infer_attr(attrs, i, value):
         try:
-            v = literal_eval(value)
+            v = float(value)
+            if int(v) == v:
+                v = int(v)
         except ValueError:
-            v = value
-        except SyntaxError:
             v = value
 
         # test if first char is zero to avoid python
