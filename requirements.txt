@@ -40,7 +40,7 @@ more-itertools==7.0.0
 packaging==19.0
 pathlib2==2.3.3
 pluggy==0.11.0
-py==1.8.0
+py==1.10.0
 py4j==0.10.8.1
 pyaml==19.4.1
 PyHive==0.6.2
