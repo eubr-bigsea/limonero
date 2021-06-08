@@ -1556,15 +1556,19 @@ class DataSourceSampleApi(Resource):
                     if a), None))
 
             if parsed.scheme == 'mysql':
-                qs = dict(x.split('=') for x in parsed.query.split('&'))
+                qs = {}
+                if parsed.query and parsed.query.strip():
+                    qs_args = parsed.query.split('&')
+                    if qs_args:
+                        qs = dict(x.split('=') for x in qs_args)
                 fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
                 cmd = fix_limit.sub('', data_source.command)
 
                 with pymysql.connect(
                         host=parsed.hostname,
                         port=parsed.port or '3306',
-                        user=qs.get('user'),
-                        passwd=qs.get('password'),
+                        user=parsed.username or qs.get('user'),
+                        passwd=parsed.password or qs.get('password'),
                         db=parsed.path[1:],
                         charset='UTF8',
                         cursorclass=pymysql.cursors.DictCursor) as cursor:
