@@ -16,19 +16,20 @@ from io import StringIO
 
 import pymysql
 import collections
-from backports import csv
+import csv
 from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
 from flask.views import MethodView
 from flask_babel import gettext
 from flask_restful import Resource
+from marshmallow.exceptions import ValidationError
 from py4j.compat import bytearray2
 from py4j.protocol import Py4JJavaError
-from requests import compat as req_compat
 from sqlalchemy import inspect
 from sqlalchemy.orm import subqueryload, joinedload
 from sqlalchemy.sql.elements import or_
+from urllib.parse import urlparse
 from werkzeug.exceptions import NotFound
 
 from limonero.py4j_init import create_gateway
@@ -216,7 +217,7 @@ class DataSourceListApi(Resource):
                         'data': DataSourceListResponseSchema(
                             many=True, only=only,
                             exclude=('permissions',)).dump(
-                            pagination.items).data,
+                            pagination.items),
                         'pagination': {
                             'page': page, 'size': page_size,
                             'total': pagination.total,
@@ -226,7 +227,7 @@ class DataSourceListApi(Resource):
             else:
                 only = ('id', 'name', 'tags')
                 result = DataSourceListResponseSchema(
-                    many=True, only=only).dump(data_sources).data
+                    many=True, only=only).dump(data_sources)
             db.session.commit()
             result_code = 200
 
@@ -256,50 +257,48 @@ class DataSourceListApi(Resource):
             json_data['user_name'] = json_data.get('user_name',
                                                    flask_g.user.name)
 
-            form = request_schema.load(json_data)
+            try:
+                entity = request_schema.load(json_data)
+                data_source_id = None
+                data_source = None
+                if request.args.get('mode') == 'overwrite':
+                    # Try to retrieve existing data source
+                    data_source = DataSource.query.filter(
+                        DataSource.url == entity.url).first()
+                    if data_source:
+                        data_source_id = data_source.id
+                        data_source = entity
+                        data_source.id = data_source_id
+                        db.session.merge(data_source)
 
-            if form.errors:
-                result, result_code = dict(
-                    status="ERROR", message=gettext("Validation error"),
-                    errors=form.errors), 400
-            else:
-                try:
-                    data_source_id = None
-                    data_source = None
-                    if request.args.get('mode') == 'overwrite':
-                        # Try to retrieve existing data source
-                        data_source = DataSource.query.filter(
-                            DataSource.url == form.data.url).first()
-                        if data_source:
-                            data_source_id = data_source.id
-                            data_source = form.data
-                            data_source.id = data_source_id
-                            db.session.merge(data_source)
+                if entity.format == DataSourceFormat.JDBC:
+                    storage = Storage.query.get(entity.storage_id)
+                    entity.url = storage.url
+                elif entity.format in [DataSourceFormat.TEXT]:
+                    # Attributes are not supported
+                    entity.attributes = []
 
-                    if form.data.format == DataSourceFormat.JDBC:
-                        storage = Storage.query.get(form.data.storage_id)
-                        form.data.url = storage.url
-                    elif form.data.format in [DataSourceFormat.TEXT]:
-                        # Attributes are not supported
-                        form.data.attributes = []
+                if data_source_id is None:
+                    data_source = entity
+                    data_source.initialization = \
+                        DataSourceInitialization.NO_INITIALIZED
+                    db.session.add(data_source)
 
-                    if data_source_id is None:
-                        data_source = form.data
-                        data_source.initialization = \
-                            DataSourceInitialization.NO_INITIALIZED
-                        db.session.add(data_source)
-
-                    db.session.commit()
-                    result, result_code = {'data': response_schema.dump(
-                        data_source).data}, 200
-                except Exception as e:
-                    log.exception('Error in POST')
-                    result, result_code = dict(status="ERROR",
-                                               message=gettext(
-                                                   "Internal error")), 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
-                    db.session.rollback()
+                db.session.commit()
+                result, result_code = {'data': response_schema.dump(
+                    data_source)}, 200
+            except ValidationError as e:
+                result = dict(status="ERROR", message=gettext('Invalid data'),
+                          errors=e.messages)
+                result_code = 400
+            except Exception as e:
+                log.exception('Error in POST')
+                result, result_code = dict(status="ERROR",
+                                           message=gettext(
+                                               "Internal error")), 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
 
         return result, result_code
 
@@ -332,7 +331,7 @@ class DataSourceDetailApi(Resource):
                 else:
                     exclude = []
                 return DataSourceItemResponseSchema(exclude=exclude).dump(
-                        data_source).data
+                        data_source)
         else:
             return dict(status="ERROR",
                         message=gettext("%(type)s not found.",
@@ -389,62 +388,63 @@ class DataSourceDetailApi(Resource):
             # for attr in json_data.get('attributes', ''):
             #    del attr['attribute_privacy']
 
-            # Ignore missing fields to allow partial updates
-            form = request_schema.load(json_data, partial=True)
             response_schema = DataSourceItemResponseSchema()
 
-            if not form.errors:
-                try:
-                    form.data.id = data_source_id
-                    filtered = _filter_by_permissions(
-                        DataSource.query,
-                        [PermissionType.MANAGE, PermissionType.WRITE])
-                    data_source = filtered.filter(
-                        DataSource.id == data_source_id).first()
+            try:
+                # Ignore missing fields to allow partial updates
+                entity = request_schema.load(json_data, partial=True)
 
-                    if form.data.format in [DataSourceFormat.TEXT]:
-                        # Attributes are not supported
-                        form.data.attributes = []
-                    if data_source is not None:
-                        if not is_logged_user_owner_or_admin(data_source):
-                            result, result_code = dict(
-                                status="ERROR",
-                                message=gettext(
-                                    "You are not authorized "
-                                    "to perform this action")), 400
-                        elif form.data.is_lookup and len(form.data.attributes) != 2:
-                            result, result_code = dict(
-                                status="ERROR",
-                                message=gettext(
-                                    "Lookup tables can only "
-                                    "have 2 attributes (id and description)")), 401
-                        else:
-                            data_source = db.session.merge(form.data)
-                            db.session.commit()
-                            result, result_code = dict(
-                                status="OK",
-                                message=gettext(
-                                    "%(what)s was successfuly updated",
-                                    what=gettext('Data source')),
-                                data=response_schema.dump(
-                                    data_source).data), 200
+                entity.id = data_source_id
+                filtered = _filter_by_permissions(
+                    DataSource.query,
+                    [PermissionType.MANAGE, PermissionType.WRITE])
+                data_source = filtered.filter(
+                    DataSource.id == data_source_id).first()
+
+                if entity.format in [DataSourceFormat.TEXT]:
+                    # Attributes are not supported
+                    entity.attributes = []
+                if data_source is not None:
+                    if not is_logged_user_owner_or_admin(data_source):
+                        result, result_code = dict(
+                            status="ERROR",
+                            message=gettext(
+                                "You are not authorized "
+                                "to perform this action")), 400
+                    elif entity.is_lookup and len(entity.attributes) != 2:
+                        result, result_code = dict(
+                            status="ERROR",
+                            message=gettext(
+                                "Lookup tables can only "
+                                "have 2 attributes (id and description)")), 401
                     else:
-                        result = dict(status="ERROR",
-                                      message=gettext("%(type)s not found.",
-                                                      type=gettext(
-                                                          'Data source')))
-                except Exception as e:
-                    current_app.logger.exception(e)
-                    log.exception('Error in PATCH')
-                    result, result_code = dict(status="ERROR",
-                                               message=gettext(
-                                                   "Internal error")), 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
-                    db.session.rollback()
-            else:
+                        data_source = db.session.merge(entity)
+                        db.session.commit()
+                        result = {
+                                'status': 'OK',
+                                'message': gettext("%(what)s was successfuly updated",
+                                                   what=gettext('Data source')),
+                                'data': response_schema.dump(data_source)
+                        }
+                        result_code = 200
+                else:
+                    result = {
+                        'status': 'ERROR',
+                        'message': gettext("%(type)s not found.", 
+                                           type=gettext('Data source'))}
+            except ValidationError as e:
                 result = dict(status="ERROR", message=gettext('Invalid data'),
-                              errors=form.errors)
+                          errors=e.messages)
+                result_code = 400
+            except Exception as e:
+                current_app.logger.exception(e)
+                log.exception('Error in PATCH')
+                result, result_code = dict(status="ERROR",
+                                           message=gettext(
+                                               "Internal error")), 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
         return result, result_code
 
 
@@ -586,7 +586,7 @@ class DataSourceUploadApi(Resource):
             else:
                 storage = Storage.query.get(storage_id)
 
-                parsed = req_compat.urlparse(storage.url)
+                parsed = urlparse(storage.url)
 
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
@@ -652,7 +652,7 @@ class DataSourceUploadApi(Resource):
                 storage = Storage.query.get(storage_id)
                 storage_url = storage.url if storage.url[-1] != '/' \
                     else storage.url[:-1]
-                parsed = req_compat.urlparse(storage_url)
+                parsed = urlparse(storage_url)
 
                 gateway = create_gateway(log, current_app.gateway_port or 18001)
                 jvm = gateway.jvm
@@ -784,7 +784,7 @@ class DataSourceUploadApi(Resource):
                         db.session.commit()
                     response_schema = DataSourceItemResponseSchema()
                     result = {'status': 'OK',
-                              'data': response_schema.dump(ds).data}
+                              'data': response_schema.dump(ds)}
 
             return result, result_code, {
                 'Content-Type': 'application/json; charset=utf-8'}
@@ -819,7 +819,7 @@ class DataSourceDownload(MethodView):
 
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 
-        parsed = req_compat.urlparse(data_source.url)
+        parsed = urlparse(data_source.url)
 
         gateway = create_gateway(log, current_app.gateway_port or 18001)
         jvm = gateway.jvm
@@ -918,12 +918,12 @@ class DataSourceInferSchemaApi(Resource):
 
     @staticmethod
     def infer_schema(ds, options):
-        parsed = req_compat.urlparse(
+        parsed = urlparse(
             next((a for a in [ds.url, ds.storage.client_url, ds.storage.url] 
                 if a), None))
 
         if ds.format in (DataSourceFormat.JDBC,):
-            parsed = req_compat.urlparse(ds.url)
+            parsed = urlparse(ds.url)
             qs = dict(x.split('=') for x in parsed.query.split('&'))
             # Supported DB: mysql
 
@@ -1458,7 +1458,7 @@ class DataSourcePrivacyApi(Resource):
             .all()
         if attr_privacy:
             return {'data': DataSourcePrivacyResponseSchema().dump(
-                attr_privacy[0], many=False).data}
+                attr_privacy[0], many=False)}
         else:
             return dict(status="ERROR",
                         message=gettext("%(type)s not found.",
@@ -1473,13 +1473,13 @@ class DataSourcePrivacyApi(Resource):
         if json_data:
             request_schema = partial_schema_factory(
                 DataSourceCreateRequestSchema)
-            # Ignore missing fields to allow partial updates
-            form = request_schema.load(json_data, partial=True)
             response_schema = DataSourceItemResponseSchema()
             if not form.errors:
                 try:
-                    form.data.id = data_source_id
-                    data_source = db.session.merge(form.data)
+                    # Ignore missing fields to allow partial updates
+                    data = request_schema.load(json_data, partial=True)
+                    data.id = data_source_id
+                    data_source = db.session.merge(data)
                     db.session.commit()
 
                     if data_source is not None:
@@ -1487,12 +1487,16 @@ class DataSourcePrivacyApi(Resource):
                             status="OK",
                             message=gettext("%(what)s was successfuly updated",
                                             what=gettext('Data source')),
-                            data=response_schema.dump(data_source).data), 200
+                            data=response_schema.dump(data_source)), 200
                     else:
                         result = dict(
                             status="ERROR",
                             message=gettext("%(type)s not found.",
                                             type=gettext('Data source')))
+                except ValidationError as e:
+                    result = dict(status="ERROR", message=gettext('Invalid data'),
+                          errors=e.messages)
+                    result_code = 400
                 except Exception as e:
                     current_app.logger.exception(e)
                     log.exception('Error in PATCH')
@@ -1500,10 +1504,6 @@ class DataSourcePrivacyApi(Resource):
                         status="ERROR", message=gettext("Internal error")), 500
                     if current_app.debug:
                         result['debug_detail'] = str(e)
-                    db.session.rollback()
-            else:
-                result = dict(status="ERROR", message=gettext('Invalid data'),
-                              errors=form.errors)
         return result, result_code
 
 
@@ -1550,7 +1550,7 @@ class DataSourceSampleApi(Resource):
                 message='The maximum number of records allowed is 1000'), 400
         elif data_source is not None:
             treat_as_missing = (data_source.treat_as_missing or '').split(',')
-            parsed = req_compat.urlparse(
+            parsed = urlparse(
                 next((a for a in [data_source.url, data_source.storage.client_url, 
                     data_source.storage.url] 
                     if a), None))

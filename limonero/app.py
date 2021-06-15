@@ -20,16 +20,13 @@ import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request, g as flask_g
-from flask_admin import Admin
 from flask_babel import get_locale, Babel
 from flask_babel import gettext
 from flask_cors import CORS
-from flask_redis import FlaskRedis
 from flask_restful import Api, abort
+from flask_swagger_ui import get_swaggerui_blueprint
 
 from limonero import CustomJSONEncoder as LimoneroJSONEncoder
-from limonero.admin import DataSourceModelView, StorageModelView, HomeView, \
-    init_login, AuthenticatedMenuLink
 from limonero.cache import cache
 from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
@@ -45,93 +42,92 @@ from limonero.storage_api import StorageDetailApi, StorageListApi, \
 from cryptography.fernet import Fernet
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
-sqlalchemy_utils.i18n.get_locale = get_locale
 
-app = Flask(__name__, static_url_path='', static_folder='static')
+def create_app():
+    app = Flask(__name__, static_url_path='', static_folder='static')
+    
+    app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
+        'limonero/i18n/locales')
+    app.json_encoder = LimoneroJSONEncoder
+    
+    babel = Babel(app)
+    
+    logging.config.fileConfig('logging_config.ini')
+    
+    app.secret_key = 'l3m0n4d1'
+    
+    
+    # Cryptography key
+    app.download_key = Fernet.generate_key()
+    app.fernet = Fernet(app.download_key)
+    
+    
+    # Cache
+    cache.init_app(app)
+    
+    # CORS
+    CORS(app, resources={r"/*": {"origins": "*"}})
+    api = Api(app)
+    
+    # Swagger
+    swaggerui_blueprint = get_swaggerui_blueprint(
+        '/api/docs',  
+        '/static/swagger.yaml',
+        config={  # Swagger UI config overrides
+            'app_name': "Lemonade Caipirinha"
+        },
+        # oauth_config={  # OAuth config. See https://github.com/swagger-api/swagger-ui#oauth2-configuration .
+        #    'clientId': "your-client-id",
+        #    'clientSecret': "your-client-secret-if-required",
+        #    'realm': "your-realms",
+        #    'appName': "your-app-name",
+        #    'scopeSeparator': " ",
+        #    'additionalQueryStringParams': {'test': "hello"}
+        # }
+    )
+    
+    app.register_blueprint(swaggerui_blueprint)
+    
+    mappings = {
+        '/datasources': DataSourceListApi,
+        '/datasources/upload': DataSourceUploadApi,
+        '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
+        '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
+        '/datasources/initialize/<status>/<int:data_source_id>': 
+            DataSourceInitializationApi,
+        '/datasources/<int:data_source_id>': DataSourceDetailApi,
+        '/datasources/<int:data_source_id>/permission/<int:user_id>':
+            DataSourcePermissionApi,
+        '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
+        '/privacy': GlobalPrivacyListApi,
+        '/privacy/attribute-groups': AttributePrivacyGroupListApi,
+        '/models': ModelListApi,
+        '/models/<int:model_id>': ModelDetailApi,
+    
+        '/storages': StorageListApi,
+        '/storages/<int:storage_id>': StorageDetailApi,
+        '/storages/metadata/<int:storage_id>': StorageMetadataApi,
+    }
+    grouped_mappings = itertools.groupby(sorted(mappings.items()),
+                                         key=lambda path: path[1])
+    for view, g in grouped_mappings:
+        api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
+    
+    app.add_url_rule('/datasources/<int:data_source_id>/download',
+                     methods=['GET'], endpoint='DataSourceDownload',
+                     view_func=DataSourceDownload.as_view('download'))
 
-app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
-    'limonero/i18n/locales')
-app.json_encoder = LimoneroJSONEncoder
-
-babel = Babel(app)
-
-logging.config.fileConfig('logging_config.ini')
-
-app.secret_key = 'l3m0n4d1'
-
-# Flask Admin
-admin = Admin(app, name='Lemonade Limonero', template_mode='bootstrap3',
-              url="/control-panel", base_template='admin/master.html',
-              index_view=HomeView(url='/control-panel'))
-
-admin.add_link(AuthenticatedMenuLink(name='Logout',
-                                     endpoint='admin.logout_view'))
-
-# Cryptography key
-app.download_key = Fernet.generate_key()
-app.fernet = Fernet(app.download_key)
-
-
-# Cache
-cache.init_app(app)
-
-# CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
-api = Api(app)
-
-redis_store = FlaskRedis()
-
-# Initialize flask-login
-init_login(app)
-
-mappings = {
-    '/datasources': DataSourceListApi,
-    '/datasources/upload': DataSourceUploadApi,
-    '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
-    '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
-    '/datasources/initialize/<status>/<int:data_source_id>': 
-        DataSourceInitializationApi,
-    '/datasources/<int:data_source_id>': DataSourceDetailApi,
-    '/datasources/<int:data_source_id>/permission/<int:user_id>':
-        DataSourcePermissionApi,
-    '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
-    '/privacy': GlobalPrivacyListApi,
-    '/privacy/attribute-groups': AttributePrivacyGroupListApi,
-    '/models': ModelListApi,
-    '/models/<int:model_id>': ModelDetailApi,
-
-    '/storages': StorageListApi,
-    '/storages/<int:storage_id>': StorageDetailApi,
-    '/storages/metadata/<int:storage_id>': StorageMetadataApi,
-}
-grouped_mappings = itertools.groupby(sorted(mappings.items()),
-                                     key=lambda path: path[1])
-for view, g in grouped_mappings:
-    api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
-
-app.add_url_rule('/datasources/<int:data_source_id>/download',
-                 methods=['GET'], endpoint='DataSourceDownload',
-                 view_func=DataSourceDownload.as_view('download'))
-
-
-# for route in app.url_map.iter_rules():
-#    print route
-
-
-@app.route('/static/<path:path>')
-def static_file(path):
-    return app.send_static_file(path)
-
-
-@babel.localeselector
-def get_locale():
-    user = getattr(flask_g, 'user', None)
-    if user is not None and user.locale:
-        return user.locale
-    else:
-        return request.args.get(
-            'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
-
+    @babel.localeselector
+    def get_locale():
+        user = getattr(flask_g, 'user', None)
+        if user is not None and user.locale:
+            return user.locale
+        else:
+            return request.args.get(
+                'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
+    
+    sqlalchemy_utils.i18n.get_locale = get_locale
+    return app    
 
 # noinspection PyUnusedLocal
 def exit_gracefully(s, frame):
@@ -156,6 +152,7 @@ def main(is_main_module):
         with open(config_file) as f:
             config = yaml.load(f, Loader=yaml.FullLoader)['limonero']
 
+        app = create_app()
         app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
 
@@ -179,8 +176,6 @@ def main(is_main_module):
             # JVM, used to interact with HDFS.
             init_jvm(app, logger)
             if config.get('environment', 'dev') == 'dev':
-                admin.add_view(DataSourceModelView(DataSource, db.session))
-                admin.add_view(StorageModelView(Storage, db.session))
                 app.run(debug=True, port=port, host='0.0.0.0')
             else:
                 eventlet.wsgi.server(eventlet.listen(('', port)), app)

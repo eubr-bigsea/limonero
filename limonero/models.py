@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import datetime
 import json
 from flask_sqlalchemy import SQLAlchemy
@@ -397,9 +396,6 @@ class DataSource(db.Model):
                        default=0, nullable=False)
     use_in_workflow = Column(Boolean,
                              default=0, nullable=False, index=True)
-    __mapper_args__ = {
-        'order_by': 'name'
-    }
 
     # Associations
     storage_id = Column(Integer,

@@ -21,10 +21,9 @@ def create_jvm(logger):
     final_cp = []
     for dist_dir in dist_dirs:
         if dist_dir:
-            print('XXX', dist_dir)
             for path, exprs in list(cp.items()):
                 for expr in exprs:
-                    print(os.path.join(dist_dir, path, expr))
+                    # print(os.path.join(dist_dir, path, expr))
                     final_cp.extend(
                         glob.glob(os.path.join(dist_dir, path, expr)))
     if not final_cp:

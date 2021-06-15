@@ -70,7 +70,7 @@ class StorageListApi(Resource):
             pagination = storages.paginate(page, page_size, True)
             result = {
                 'data': StorageListResponseSchema(
-                    many=True, only=only, exclude=exclude).dump(pagination.items).data,
+                    many=True, only=only, exclude=exclude).dump(pagination.items),
                 'pagination': {
                     'page': page, 'size': page_size,
                     'total': pagination.total,
@@ -146,7 +146,7 @@ class StorageDetailApi(Resource):
             result = {
                 'status': 'OK',
                 'data': [StorageItemResponseSchema(exclude=exclude).dump(
-                    storage).data]
+                    storage)]
             }
         else:
             return_code = 404
