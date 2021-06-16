@@ -7,7 +7,7 @@ Create Date: 2017-02-16 23:30:48.456635
 """
 from alembic import op
 import sqlalchemy as sa
-
+from limonero.migration_utils import is_psql
 
 # revision identifiers, used by Alembic.
 revision = 'c1124305c79e'
@@ -81,4 +81,8 @@ def downgrade():
     op.drop_table('attribute')
     op.drop_table('data_source')
     op.drop_table('storage')
+    if is_psql():
+        op.get_bind().execute('DROP TYPE "DataTypeEnumType"')
+        op.get_bind().execute('DROP TYPE "StorageTypeEnumType"')
+        op.get_bind().execute('DROP TYPE "DataSourceFormatEnumType"')
     # ### end Alembic commands ###

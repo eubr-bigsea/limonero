@@ -7,7 +7,7 @@ Create Date: 2017-06-05 17:02:20.292939
 """
 from alembic import op
 import sqlalchemy as sa
-
+from limonero.migration_utils import is_psql
 
 # revision identifiers, used by Alembic.
 revision = '5a14564f944f'
@@ -74,4 +74,8 @@ def downgrade():
     op.drop_table('privacy_risk')
     op.drop_table('data_source_permission')
     op.drop_table('storage_permission')
+    if is_psql():
+        op.get_bind().execute('DROP TYPE "AnonymizationTechniqueEnumType"')
+        op.get_bind().execute('DROP TYPE "PermissionTypeEnumType"')
+        op.get_bind().execute('DROP TYPE "PrivacyRiskTypeEnumType"')
     # ### end Alembic commands ###
