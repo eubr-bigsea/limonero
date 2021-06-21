@@ -183,6 +183,7 @@ def create_app():
         logger.error(
             gettext('Please, set LIMONERO_CONFIG environment variable'))
         exit(1)
+    return app
 
 
 if __name__ == '__main__':

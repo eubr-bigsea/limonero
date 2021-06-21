@@ -7,7 +7,7 @@ from flask import g as flask_g
 
 import math
 import logging
-from requests import compat as req_compat
+from urllib.parse import urlparse
 from limonero.schema import *
 from flask_babel import gettext
 
@@ -254,7 +254,7 @@ class StorageMetadataApi(Resource):
         storage = Storage.query.filter(Storage.enabled,
                                        Storage.id == storage_id).first()
 
-        parsed = req_compat.urlparse(
+        parsed = urlparse(
             next((a for a in [storage.client_url, storage.url] 
                 if a), None))
         result = {}

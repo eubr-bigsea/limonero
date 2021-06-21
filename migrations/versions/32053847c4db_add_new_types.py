@@ -10,7 +10,7 @@ from alembic import context
 from sqlalchemy.orm import sessionmaker
 from limonero.migration_utils import (get_enable_disable_fk_command,
         upgrade_actions, downgrade_actions, get_psql_enum_alter_commands,
-        is_mysql)
+        is_mysql, is_psql)
 # revision identifiers, used by Alembic.
 revision = '32053847c4db'
 down_revision = '05a62958a9cc'
@@ -18,6 +18,7 @@ branch_labels = None
 depends_on = None
 
 def get_commands():
+    all_commands = []
     if is_mysql():
         all_commands = [
             (""" ALTER TABLE data_source CHANGE `format` `format` ENUM(
@@ -52,7 +53,7 @@ def get_commands():
                     CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL; """
             )
         ]
-    else:
+    elif is_psql():
         old_ds_values = ['CSV','CUSTOM','GEO_JSON','HDF5','JDBC','JSON','NETCDF4',
                 'PARQUET','PICKLE','SHAPEFILE','TEXT','UNKNOWN', 'XML_FILE']
         new_ds_values = ['CSV','CUSTOM','GEO_JSON','HAR_IMAGE_FOLDER','HDF5','DATA_FOLDER',

@@ -11,8 +11,9 @@ import pytest
 from flask import Flask
 from flask_babel import Babel
 from flask_restful import Api
+import flask_migrate
 
-from limonero.app import db as the_db, mappings
+from limonero.app import create_app, db as the_db
 from limonero.data_source_api import DataSourceDownload
 from limonero.models import Storage, StorageType, DataSource, DataSourceFormat, \
     DataType
@@ -28,10 +29,24 @@ TEST_TOKEN = 'T0K3N_T35T'
 
 
 # noinspection PyShadowingNames
-@pytest.fixture(scope='function')
-def client(app, db):
-    _client = app.test_client()
-    yield _client
+@pytest.fixture(scope='session')
+def client():
+    app = create_app()
+    path = os.path.dirname(os.path.abspath(__name__))
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{path}/test.db'
+    app.config['TESTING'] = True
+    # import pdb; pdb.set_trace()
+    with app.test_client() as client:
+        with app.app_context():
+            flask_migrate.downgrade(revision="base")
+            flask_migrate.upgrade(revision='head')
+            # for dashboard in get_dashboards():
+            #    db.session.add(dashboard)
+            #for visualization in get_visualizations():
+            #    db.session.add(visualization)
+            #client.secret = app.config['CAIPIRINHA_CONFIG']['secret']
+            db.session.commit()
+        yield client
 
 
 @pytest.fixture(scope='function')
