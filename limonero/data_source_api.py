@@ -1757,10 +1757,8 @@ class DataSourceSampleApi(Resource):
                                 else:
                                     converters.append(str.strip)
                             d = data_source.attribute_delimiter or str(',')
-                            csv_params = {
-                                'fileobj': csv_buf,
-                                'delimiter': d}
-                            reader = csv.reader(**csv_params)
+                            csv_params = {'delimiter': d}
+                            reader = csv.reader(csv_buf, **csv_params)
                         else:
                             header.append(_('row'))
                             converters.append(str.strip)
