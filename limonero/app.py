@@ -123,6 +123,8 @@ def create_app():
                      view_func=DataSourceDownload.as_view('download'))
 
     migrate = Migrate(app, db)
+    app.handle_exception
+
     @babel.localeselector
     def get_locale():
         user = getattr(flask_g, 'user', None)
