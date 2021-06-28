@@ -41,11 +41,13 @@ def _get_storages():
     ]
 
 # noinspection PyShadowingNames
-
-
 @pytest.fixture(scope='session')
-def client():
-    app = create_app()
+def app():
+    return create_app()
+    
+# noinspection PyShadowingNames
+@pytest.fixture(scope='session')
+def client(app):
     path = os.path.dirname(os.path.abspath(__name__))
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{path}/test.db'
     app.config['TESTING'] = True

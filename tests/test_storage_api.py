@@ -121,3 +121,22 @@ def test_storage_delete_success(client):
     with current_app.app_context():
         storage = Storage.query.get(storage_id)
         assert not storage.enabled
+
+def test_storage_patch_success(client, app):
+    headers = {'X-Auth-Token': str(client.secret)}
+    storage_id = 8888
+
+    with app.app_context():
+        storage = Storage(
+            id=storage_id, url='file:///tmp', type='HDFS', name='Updated')
+        db.session.add(storage)
+        db.session.commit()
+
+    update = {'url': 'hdfs://teste.com', 'name': 'Fixed'}
+    rv = client.patch(f'/storages/{storage_id}', json=update, headers=headers)
+    assert rv.status_code == 200
+
+    with app.app_context():
+        storage = Storage.query.get(storage_id)
+        assert storage.name == update['name']
+        assert storage.url == update['url']

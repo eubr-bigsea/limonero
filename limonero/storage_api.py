@@ -107,11 +107,12 @@ class StorageListApi(Resource):
                 return_code = 200
             except ValidationError as e:
                 result = {'status': 'ERROR',
-                            'message': gettext("Validation error"),
-                            'errors': translate_validation(e.messages)}
+                          'message': gettext("Validation error"),
+                          'errors': translate_validation(e.messages)}
+                db.session.rollback()
             except Exception as e:
                 result = {'status': 'ERROR',
-                            'message': gettext("Internal error")}
+                          'message': gettext("Internal error")}
                 return_code = 500
                 if current_app.debug:
                     result['debug_detail'] = str(e)
@@ -182,13 +183,6 @@ class StorageDetailApi(Resource):
                 if current_app.debug:
                     result['debug_detail'] = str(e)
                 db.session.rollback()
-        else:
-            return_code = 404
-            result = {
-                'status': 'ERROR',
-                'message': gettext('%(name)s not found (id=%(id)s).',
-                                   name=self.human_name, id=storage_id)
-            }
         return result, return_code
 
     @requires_auth
@@ -204,40 +198,37 @@ class StorageDetailApi(Resource):
             request_schema = partial_schema_factory(
                 StorageCreateRequestSchema)
             # Ignore missing fields to allow partial updates
-            form = request_schema.load(request.json, partial=True)
+            storage = request_schema.load(request.json, partial=True)
             response_schema = StorageItemResponseSchema()
-            if not form.errors:
-                try:
-                    form.id = storage_id
-                    storage = db.session.merge(form)
-                    db.session.commit()
+            try:
+                storage.id = storage_id
+                storage = db.session.merge(storage)
+                db.session.commit()
 
-                    if storage is not None:
-                        return_code = 200
-                        result = {
-                            'status': 'OK',
-                            'message': gettext(
-                                '%(n)s (id=%(id)s) was updated with success!',
-                                n=self.human_name,
-                                id=storage_id),
-                            'data': [response_schema.dump(
-                                storage)]
-                        }
-                except Exception as e:
-                    result = {'status': 'ERROR',
-                              'message': gettext("Internal error")}
-                    return_code = 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
-                    db.session.rollback()
-            else:
-                result = {
-                    'status': 'ERROR',
-                    'message': gettext('Invalid data for %(name)s (id=%(id)s)',
-                                       name=self.human_name,
-                                       id=storage_id),
-                    'errors': form.errors
-                }
+                if storage is not None:
+                    return_code = 200
+                    result = {
+                        'status': 'OK',
+                        'message': gettext(
+                            '%(n)s (id=%(id)s) was updated with success!',
+                            n=self.human_name,
+                            id=storage_id),
+                        'data': [response_schema.dump(
+                            storage)]
+                    }
+            except ValidationError as e:
+                result = {'status': 'ERROR',
+                          'message': gettext("Validation error"),
+                          'errors': translate_validation(e.messages)}
+                return_code = 400
+                db.session.rollback()
+            except Exception as e:
+                result = {'status': 'ERROR',
+                          'message': gettext("Internal error")}
+                return_code = 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
         return result, return_code
 
 
