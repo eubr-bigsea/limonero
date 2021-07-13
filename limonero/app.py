@@ -118,7 +118,7 @@ def create_app():
     for view, g in grouped_mappings:
         api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
     
-    app.add_url_rule('/datasources/<int:data_source_id>/download',
+    app.add_url_rule('/datasources/public/<int:data_source_id>/download',
                      methods=['GET'], endpoint='DataSourceDownload',
                      view_func=DataSourceDownload.as_view('download'))
 
@@ -186,4 +186,4 @@ def create_app():
 
 
 if __name__ == '__main__':
-    main(False)
+    create_app()

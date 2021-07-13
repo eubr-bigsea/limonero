@@ -810,12 +810,24 @@ class DataSourceDownload(MethodView):
 
     # noinspection PyUnresolvedReferences
     @staticmethod
-    @requires_auth
     def get(data_source_id):
-
-        result = json.dumps(
-            {'status': 'ERROR', 'message': gettext('Internal error')})
-        result_code = 500
+        
+        # Uses a token to download
+        download_token = {}
+        try:
+            fernet_key = current_app.fernet
+            token = request.args.get('token', '').encode('utf8')
+            if token is None:
+                return json.dumps(
+                    {'status': 'ERROR', 'message': gettext('Missing token')}), 401
+            download_token = json.loads(fernet_key.decrypt(token))
+        except Exception:
+                return json.dumps(
+                    {'status': 'ERROR', 'message': gettext(
+                            'Invalid or expired token. Refresh the listing page.')}), 500
+        if download_token['id'] != data_source_id:
+                return json.dumps(
+                    {'status': 'ERROR', 'message': gettext('Invalid data source.')}), 401
 
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 

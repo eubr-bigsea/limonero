@@ -36,7 +36,7 @@ def generate_download_token(identifier, expires=None):
     else:
         f_expires = time.time() + expires
     return f.encrypt('{{"id": {}, "expires": {} }}'.format(
-        identifier, f_expires).encode('utf8'))
+        identifier, f_expires).encode('utf8')).decode('utf8')
 # endregion
 
 
