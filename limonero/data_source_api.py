@@ -137,7 +137,6 @@ class DataSourceListApi(Resource):
         result, result_code = {'status': 'ERROR',
                                'message': gettext('Internal error')}, 500
         # noinspection PyBroadException
-
         try:
             simple = False
             if request.args.get('simple') != 'true':
@@ -376,6 +375,7 @@ class DataSourceDetailApi(Resource):
     @staticmethod
     @requires_auth
     def patch(data_source_id):
+
         result = dict(status="ERROR", message=gettext('Insufficient data'))
         result_code = 400
         json_data = request.json or json.loads(request.data)
@@ -842,11 +842,11 @@ class DataSourceDownload(MethodView):
                 done = False
                 with open(parsed.path, 'rb') as f:
                     while not done:
-                        lido = f.read(4096)
-                        total += len(lido)
-                        if len(lido) != 4096:
+                        read_data = f.read(4096)
+                        total += len(read_data)
+                        if len(read_data) != 4096:
                             done = True
-                        yield lido
+                        yield read_data
 
             name = '{}.{}'.format(data_source.name.replace(' ', '-'),
                                   data_source.format.lower())

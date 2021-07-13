@@ -40,30 +40,105 @@ def _get_storages():
                 enabled=True, url='mysql://server:3306/db/tb'),
     ]
 
+
+def _get_visualizations():
+    return [
+        DataSource(name='Default',
+                   description='Default data source',
+                   enabled=True,
+                   statistics_process_counter=0,
+                   read_only=False,
+                   privacy_aware=False,
+                   url='hdfs://test:9000/db/test',
+                   created=datetime.datetime.utcnow(),
+                   updated=datetime.datetime.utcnow(),
+                   format=DataSourceFormat.CSV,
+                   provenience=None,
+                   estimated_rows=0,
+                   estimated_size_in_mega_bytes=0,
+                   expiration=None,
+                   user_id=1,
+                   user_login='lemonade',
+                   user_name='Lemonade project',
+                   tags=None,
+                   temporary=False,
+                   workflow_id=None,
+                   task_id=None,
+                   attribute_delimiter=',',
+                   text_delimiter='"',
+                   is_public=True,
+                   treat_as_missing='NA',
+                   encoding='UTF8',
+                   is_first_line_header=True,
+                   command='',
+                   is_multiline=False,
+                   storage_id=1
+                   ),
+        DataSource(name='Optional',
+                   description='Optional data source',
+                   enabled=False,
+                   statistics_process_counter=0,
+                   read_only=False,
+                   privacy_aware=False,
+                   url='hdfs://test2:9000/db/test2',
+                   created=datetime.datetime.utcnow(),
+                   updated=datetime.datetime.utcnow(),
+                   format=DataSourceFormat.CSV,
+                   provenience=None,
+                   estimated_rows=0,
+                   estimated_size_in_mega_bytes=0,
+                   expiration=None,
+                   user_id=1,
+                   user_login='lemonade',
+                   user_name='Lemonade project',
+                   tags=None,
+                   temporary=False,
+                   workflow_id=None,
+                   task_id=None,
+                   attribute_delimiter=',',
+                   text_delimiter='"',
+                   is_public=True,
+                   treat_as_missing='NA',
+                   encoding='UTF8',
+                   is_first_line_header=True,
+                   command='',
+                   is_multiline=False,
+                   storage_id=1
+                   )
+    ]
 # noinspection PyShadowingNames
+
+
 @pytest.fixture(scope='session')
 def app():
-    return create_app()
-    
+    path = os.path.dirname(os.path.abspath(__name__))
+    app = create_app()
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{path}/test.db'
+    app.config['TESTING'] = True
+    app.config['GATEWAY_PORT'] = 18001
+    app.debug = False
+    return app
+
 # noinspection PyShadowingNames
+
+
 @pytest.fixture(scope='session')
 def client(app):
     path = os.path.dirname(os.path.abspath(__name__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{path}/test.db'
-    app.config['TESTING'] = True
     # import pdb; pdb.set_trace()
     with app.test_client() as client:
         with app.app_context():
-            flask_migrate.downgrade(revision="base")
+            # flask_migrate.downgrade(revision="base")
+            if os.path.exists(os.path.join(path, 'test.db')):
+                os.remove(os.path.join(path, 'test.db'))
             flask_migrate.upgrade(revision='head')
             for storage in _get_storages():
                 db.session.add(storage)
-            # for visualization in get_visualizations():
-            #    db.session.add(visualization)
+            for visualization in _get_visualizations():
+                db.session.add(visualization)
             db.session.commit()
         client.secret = app.config['LIMONERO_CONFIG']['secret']
         yield client
-
 
 
 # @pytest.yield_fixture(scope='function')
@@ -71,12 +146,13 @@ def client(app):
 #     yield logging.getLogger()
 
 
-# # noinspection PyShadowingNames
-# @pytest.yield_fixture(scope='function')
-# def jvm(app, logger):
-#     init_jvm(app, logger)
-#     gateway = create_gateway(logger, app.gateway_port)
-#     yield gateway.jvm
+# noinspection PyShadowingNames
+@pytest.yield_fixture(scope='session')
+def jvm(app):
+    logger = logging.getLogger()
+    init_jvm(app, logger)
+    gateway = create_gateway(logger, app.config['GATEWAY_PORT'])
+    yield gateway.jvm
 
 
 # # noinspection PyShadowingNames
@@ -98,90 +174,6 @@ def client(app):
 
 
 # Data sources
-
-# noinspection PyShadowingNames
-# @pytest.fixture(scope='function')
-# def default_ds(app, db, default_storage):
-#     with app.app_context():
-#         data_source = DataSource(name='Default',
-#                                  description='Default data source',
-#                                  enabled=True,
-#                                  statistics_process_counter=0,
-#                                  read_only=False,
-#                                  privacy_aware=False,
-#                                  url='hdfs://test:9000/db/test',
-#                                  created=datetime.datetime.utcnow(),
-#                                  updated=datetime.datetime.utcnow(),
-#                                  format=DataSourceFormat.CSV,
-#                                  provenience=None,
-#                                  estimated_rows=0,
-#                                  estimated_size_in_mega_bytes=0,
-#                                  expiration=None,
-#                                  user_id=1,
-#                                  user_login='lemonade',
-#                                  user_name='Lemonade project',
-#                                  tags=None,
-#                                  temporary=False,
-#                                  workflow_id=None,
-#                                  task_id=None,
-#                                  attribute_delimiter=',',
-#                                  text_delimiter='"',
-#                                  is_public=True,
-#                                  treat_as_missing='NA',
-#                                  encoding='UTF8',
-#                                  is_first_line_header=True,
-#                                  command='',
-#                                  is_multiline=False,
-#                                  storage=default_storage
-#                                  )
-#         db.session.add(data_source)
-#         db.session.commit()
-#         yield data_source
-
-
-# # noinspection PyShadowingNames
-# @pytest.fixture(scope='function')
-# def file_ds(app, db, default_storage):
-#     fd, path = tempfile.mkstemp()
-#     data = "id,name\n1,Alice\n2,John"
-#     os.write(fd, data)
-#     with app.app_context():
-#         data_source = DataSource(name='File Data Source',
-#                                  description=data,
-#                                  enabled=True,
-#                                  statistics_process_counter=0,
-#                                  read_only=False,
-#                                  privacy_aware=False,
-#                                  url='file://{}'.format(path),
-#                                  created=datetime.datetime.utcnow(),
-#                                  updated=datetime.datetime.utcnow(),
-#                                  format=DataSourceFormat.CSV,
-#                                  provenience=None,
-#                                  estimated_rows=0,
-#                                  estimated_size_in_mega_bytes=0,
-#                                  expiration=None,
-#                                  user_id=1,
-#                                  user_login='lemonade',
-#                                  user_name='Lemonade project',
-#                                  tags=None,
-#                                  temporary=False,
-#                                  workflow_id=None,
-#                                  task_id=None,
-#                                  attribute_delimiter=',',
-#                                  text_delimiter='"',
-#                                  is_public=True,
-#                                  treat_as_missing='NA',
-#                                  encoding='UTF8',
-#                                  is_first_line_header=True,
-#                                  command='',
-#                                  is_multiline=False,
-#                                  storage=default_storage
-#                                  )
-#         db.session.add(data_source)
-#         db.session.commit()
-#         yield data_source
-#     os.unlink(path)
-
 
 # # noinspection PyShadowingNames
 # @pytest.fixture(scope='function')

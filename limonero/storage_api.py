@@ -131,7 +131,7 @@ class StorageDetailApi(Resource):
 
     @requires_auth
     def get(self, storage_id):
-
+        
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext('Retrieving %s (id=%s)'), self.human_name,
                       storage_id)
