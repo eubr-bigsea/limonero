@@ -19,6 +19,9 @@ cmd_option=$1
 export LIMONERO_HOME=${LIMONERO_HOME:-$(cd $(dirname $0)/..; pwd)}
 echo ${LIMONERO_HOME}
 
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+
 # get log directory
 export LIMONERO_LOG_DIR=${LIMONERO_LOG_DIR:-${LIMONERO_HOME}/logs}
 export LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml
@@ -39,8 +42,7 @@ case $cmd_option in
       flask db upgrade
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} nohup -- \
       python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
-      -c ${LIMONERO_CONFIG} \
-      >> $log 2>&1 < /dev/null &
+      -c ${LIMONERO_CONFIG} >> $log 2>&1 < /dev/null & 
     limonero_server_pid=$!
 
     # persist the pid

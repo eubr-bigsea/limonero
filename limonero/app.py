@@ -48,7 +48,7 @@ os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 def exit_gracefully(s, frame):
     os.kill(os.getpid(), signal.SIGTERM)
 
-def create_app():
+def create_app(main_module: bool = False):
     app = Flask(__name__, static_url_path='', static_folder='static')
     
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
@@ -138,7 +138,7 @@ def create_app():
 
     config_file = None
     signal.signal(signal.SIGINT, exit_gracefully)
-    if __name__ == '__main__':
+    if main_module:
         parser = argparse.ArgumentParser()
         parser.add_argument("-c", "--config", type=str,
                             help="Config file", required=False)
@@ -174,7 +174,7 @@ def create_app():
             gettext('Running in %(mode)s mode', mode=config.get('environment')))
 
         init_jvm(app, logger)
-        if __name__ == '__main__':
+        if main_module:
             # JVM, used to interact with HDFS.
             if config.get('environment', 'dev') == 'dev':
                 app.run(debug=True, port=port, host='0.0.0.0')
@@ -190,4 +190,4 @@ def create_app():
 
 
 if __name__ == '__main__':
-    create_app()
+    create_app(__name__ == '__main__')
