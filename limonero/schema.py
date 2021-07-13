@@ -2,8 +2,9 @@
 import datetime
 import json
 from copy import deepcopy
-from marshmallow import Schema, fields, post_load, post_dump
+from marshmallow import Schema, fields, post_load, post_dump, EXCLUDE, INCLUDE
 from marshmallow.validate import OneOf
+from flask_babel import gettext
 from limonero.models import *
 
 
@@ -17,11 +18,20 @@ def partial_schema_factory(schema_cls):
     return schema
 
 
+def translate_validation(validation_errors):
+    for field, errors in list(validation_errors.items()):
+        if isinstance(errors, dict):
+            validation_errors[field] = translate_validation(errors)
+        else:
+            validation_errors[field] = [gettext(error) for error in errors]
+        return validation_errors
+
+
 def load_json(str_value):
     try:
         return json.loads(str_value)
     except BaseException:
-        return "Error loading JSON"
+        return None
 
 
 # region Protected
@@ -45,7 +55,7 @@ class BaseSchema(Schema):
     def remove_skip_values(self, data, **kwargs):
         return {
             key: value for key, value in data.items()
-            if value is not None and value != []
+            if value is not None  # Empty lists must be kept!
         }
 
 
@@ -106,6 +116,7 @@ class AttributeListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributeItemResponseSchema(BaseSchema):
@@ -165,6 +176,7 @@ class AttributeItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributeCreateRequestSchema(BaseSchema):
@@ -224,6 +236,7 @@ class AttributeCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyResponseSchema(BaseSchema):
@@ -242,6 +255,7 @@ class AttributePrivacyResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyListResponseSchema(BaseSchema):
@@ -280,6 +294,7 @@ class AttributePrivacyListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyItemResponseSchema(BaseSchema):
@@ -317,6 +332,7 @@ class AttributePrivacyItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyCreateRequestSchema(BaseSchema):
@@ -350,6 +366,7 @@ class AttributePrivacyCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyPrivacyResponseSchema(BaseSchema):
@@ -384,6 +401,7 @@ class AttributePrivacyPrivacyResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyGroupListResponseSchema(BaseSchema):
@@ -399,6 +417,7 @@ class AttributePrivacyGroupListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyGroupItemResponseSchema(BaseSchema):
@@ -414,6 +433,7 @@ class AttributePrivacyGroupItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class AttributePrivacyGroupCreateRequestSchema(BaseSchema):
@@ -430,6 +450,7 @@ class AttributePrivacyGroupCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourceExecuteRequestSchema(BaseSchema):
@@ -445,6 +466,7 @@ class DataSourceExecuteRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourceListResponseSchema(BaseSchema):
@@ -551,6 +573,7 @@ class DataSourceListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourceCreateRequestSchema(BaseSchema):
@@ -639,6 +662,7 @@ class DataSourceCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourceItemResponseSchema(BaseSchema):
@@ -743,6 +767,7 @@ class DataSourceItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourcePrivacyResponseSchema(BaseSchema):
@@ -767,6 +792,7 @@ class DataSourcePrivacyResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourcePermissionListResponseSchema(BaseSchema):
@@ -786,6 +812,7 @@ class DataSourcePermissionListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourcePermissionItemResponseSchema(BaseSchema):
@@ -805,6 +832,7 @@ class DataSourcePermissionItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class DataSourcePermissionCreateRequestSchema(BaseSchema):
@@ -824,6 +852,7 @@ class DataSourcePermissionCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class ModelListResponseSchema(BaseSchema):
@@ -859,6 +888,7 @@ class ModelListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class ModelCreateRequestSchema(BaseSchema):
@@ -890,6 +920,7 @@ class ModelCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class ModelItemResponseSchema(BaseSchema):
@@ -925,6 +956,7 @@ class ModelItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class ModelPermissionListResponseSchema(BaseSchema):
@@ -944,6 +976,7 @@ class ModelPermissionListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class ModelPermissionItemResponseSchema(BaseSchema):
@@ -963,6 +996,7 @@ class ModelPermissionItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class StorageListResponseSchema(BaseSchema):
@@ -988,6 +1022,7 @@ class StorageListResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class StorageItemResponseSchema(BaseSchema):
@@ -1013,6 +1048,7 @@ class StorageItemResponseSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 
 
 class StorageCreateRequestSchema(BaseSchema):
@@ -1037,4 +1073,5 @@ class StorageCreateRequestSchema(BaseSchema):
 
     class Meta:
         ordered = True
+        unknown = EXCLUDE
 

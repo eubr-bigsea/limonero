@@ -161,7 +161,8 @@ def create_app():
             'database_url')
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-        if config.get('config') is not None and 'config' in config:
+        is_mysql = 'mysql://' in app.config['SQLALCHEMY_DATABASE_URI']
+        if config.get('config') is not None and 'config' in config and is_mysql:
             app.config.update(config.get('config', {}))
             app.config['SQLALCHEMY_POOL_SIZE'] = 10
             app.config['SQLALCHEMY_POOL_RECYCLE'] = 240
