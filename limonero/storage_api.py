@@ -4,22 +4,22 @@ from flask import request, current_app, g as flask_globals
 from flask_restful import Resource
 from sqlalchemy import or_
 from flask import g as flask_g
+from marshmallow.exceptions import ValidationError
 
 import math
 import logging
-from requests import compat as req_compat
+from urllib.parse import urlparse
 from limonero.schema import *
-from flask_babel import gettext
+from flask_babel import gettext, get_locale
 
 log = logging.getLogger(__name__)
 
-
-_ = gettext
 
 def translate_validation(validation_errors):
     for field, errors in list(validation_errors.items()):
         validation_errors[field] = [gettext(error) for error in errors]
     return validation_errors
+
 
 class StorageListApi(Resource):
     """ REST API for listing class Storage """
@@ -40,7 +40,7 @@ class StorageListApi(Resource):
                 Storage.enabled == (enabled_filter != 'false'))
         else:
             storages = Storage.query
-        
+
         sort = request.args.get('sort', 'name')
         if sort not in ['name', 'id', 'type']:
             sort = 'id'
@@ -48,7 +48,7 @@ class StorageListApi(Resource):
         sort_option = getattr(Storage, sort)
         if request.args.get('asc', 'true') == 'false':
             sort_option = sort_option.desc()
-        
+
         storages = storages.order_by(sort_option)
 
         query = request.args.get('query') or request.args.get('name')
@@ -57,7 +57,6 @@ class StorageListApi(Resource):
                 Storage.name.ilike('%%{}%%'.format(query)),
                 Storage.type.ilike('%%{}%%'.format(query)),
             ))
-
 
         user = getattr(flask_g, 'user')
         # Administrative have access to URL
@@ -80,7 +79,7 @@ class StorageListApi(Resource):
             result = {
                 'data': StorageListResponseSchema(
                     many=True, only=only, exclude=exclude).dump(
-                    storages).data}
+                    storages)}
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext('Listing %(name)s', name=self.human_name))
@@ -92,40 +91,40 @@ class StorageListApi(Resource):
         result = {'status': 'ERROR',
                   'message': gettext("Missing json in the request body")}
         return_code = 400
-        
+
         if request.json is not None:
             request_schema = StorageCreateRequestSchema()
             response_schema = StorageItemResponseSchema()
 
-            form = request_schema.load(request.json)
-            if form.errors:
+            try:
+                form = request_schema.load(request.json)
+                if log.isEnabledFor(logging.DEBUG):
+                    log.debug(gettext('Adding %s'), self.human_name)
+                storage = form
+                db.session.add(storage)
+                db.session.commit()
+                result = response_schema.dump(storage)
+                return_code = 200
+            except ValidationError as e:
                 result = {'status': 'ERROR',
-                          'message': gettext("Validation error"),
-                          'errors': translate_validation(form.errors)}
-            else:
-                try:
-                    if log.isEnabledFor(logging.DEBUG):
-                        log.debug(gettext('Adding %s'), self.human_name)
-                    storage = form.data
-                    db.session.add(storage)
-                    db.session.commit()
-                    result = response_schema.dump(storage).data
-                    return_code = 200
-                except Exception as e:
-                    result = {'status': 'ERROR',
-                              'message': gettext("Internal error")}
-                    return_code = 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
+                            'message': gettext("Validation error"),
+                            'errors': translate_validation(e.messages)}
+            except Exception as e:
+                result = {'status': 'ERROR',
+                            'message': gettext("Internal error")}
+                return_code = 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
 
-                    log.exception(e)
-                    db.session.rollback()
+                log.exception(e)
+                db.session.rollback()
 
         return result, return_code
 
 
 class StorageDetailApi(Resource):
     """ REST API for a single instance of class Storage """
+
     def __init__(self):
         self.human_name = gettext('Storage')
 
@@ -156,13 +155,12 @@ class StorageDetailApi(Resource):
                     '%(name)s not found (id=%(id)s)',
                     name=self.human_name, id=storage_id)
             }
-
         return result, return_code
 
     @requires_auth
     @requires_permission('ADMINISTRATOR')
     def delete(self, storage_id):
-        return_code = 200
+        return_code = 204
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext('Deleting %s (id=%s)'), self.human_name,
                       storage_id)
@@ -210,8 +208,8 @@ class StorageDetailApi(Resource):
             response_schema = StorageItemResponseSchema()
             if not form.errors:
                 try:
-                    form.data.id = storage_id
-                    storage = db.session.merge(form.data)
+                    form.id = storage_id
+                    storage = db.session.merge(form)
                     db.session.commit()
 
                     if storage is not None:
@@ -223,7 +221,7 @@ class StorageDetailApi(Resource):
                                 n=self.human_name,
                                 id=storage_id),
                             'data': [response_schema.dump(
-                                storage).data]
+                                storage)]
                         }
                 except Exception as e:
                     result = {'status': 'ERROR',
@@ -242,6 +240,7 @@ class StorageDetailApi(Resource):
                 }
         return result, return_code
 
+
 class StorageMetadataApi(Resource):
     """ REST API for a single instance of class storage metadata"""
 
@@ -254,9 +253,9 @@ class StorageMetadataApi(Resource):
         storage = Storage.query.filter(Storage.enabled,
                                        Storage.id == storage_id).first()
 
-        parsed = req_compat.urlparse(
-            next((a for a in [storage.client_url, storage.url] 
-                if a), None))
+        parsed = urlparse(
+            next((a for a in [storage.client_url, storage.url]
+                  if a), None))
         result = {}
         try:
             if storage is not None:
@@ -270,34 +269,35 @@ class StorageMetadataApi(Resource):
                     if not parsed.password:
                         auth = None
                     cursor = hive.connect(
-                           host=parsed.hostname, 
-                           port=int(parsed.port or 10000), 
-                           username=parsed.username,
-                           password=parsed.password if parsed.password else None,
-                           database=(parsed.path or 'default').replace('/', ''), 
-                           auth=auth,
-                           configuration={
-                               'hive.cli.print.header': 'true'}, 
-                           kerberos_service_name=extra.get('kerberos_service_name'), 
-                           thrift_transport=None).cursor()
+                        host=parsed.hostname,
+                        port=int(parsed.port or 10000),
+                        username=parsed.username,
+                        password=parsed.password if parsed.password else None,
+                        database=(parsed.path or 'default').replace('/', ''),
+                        auth=auth,
+                        configuration={
+                            'hive.cli.print.header': 'true'},
+                        kerberos_service_name=extra.get(
+                            'kerberos_service_name'),
+                        thrift_transport=None).cursor()
 
                     tables = []
-                    for cmd in ['SHOW TABLES', 'SHOW VIEWS']: 
+                    for cmd in ['SHOW TABLES', 'SHOW VIEWS']:
                         cursor.execute(cmd, async_=True)
                         status = cursor.poll().operationState
-                        while status in (TOperationState.INITIALIZED_STATE, 
-                                TOperationState.RUNNING_STATE):
+                        while status in (TOperationState.INITIALIZED_STATE,
+                                         TOperationState.RUNNING_STATE):
                             status = cursor.poll().operationState
                         tables.extend(row[0] for row in cursor)
                     result, status_code = dict(status='OK',
                                                data=tables), 200
                     cursor.close()
                 elif storage.type == 'JDBC':
-                    pass # FIXME: Implement
+                    pass  # FIXME: Implement
                 return result
             else:
                 return dict(status="ERROR",
-                        message=_("%(type)s not found.",
-                                  type=_('Storage'))), 404
+                            message=_("%(type)s not found.",
+                                      type=_('Storage'))), 404
         except Exception as ex:
-                return dict(status="ERROR", message=str(ex)), 500
+            return dict(status="ERROR", message=str(ex)), 500

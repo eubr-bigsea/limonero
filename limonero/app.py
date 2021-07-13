@@ -123,6 +123,8 @@ def create_app():
                      view_func=DataSourceDownload.as_view('download'))
 
     migrate = Migrate(app, db)
+    app.handle_exception
+
     @babel.localeselector
     def get_locale():
         user = getattr(flask_g, 'user', None)
@@ -183,6 +185,7 @@ def create_app():
         logger.error(
             gettext('Please, set LIMONERO_CONFIG environment variable'))
         exit(1)
+    return app
 
 
 if __name__ == '__main__':

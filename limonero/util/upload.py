@@ -4,8 +4,7 @@ import uuid
 from gettext import gettext
 
 from py4j.compat import bytearray2
-from requests import compat as req_compat
-
+from urllib.parse import urlparse
 from limonero.py4j_init import create_gateway
 
 WRONG_HDFS_CONFIG = gettext(
@@ -29,7 +28,7 @@ def get_tmp_path(jvm, hdfs, parsed, filename):
 
 def create_hdfs_chunk(chunk_number, filename, storage, use_hostname,
                       gateway_port):
-    parsed = req_compat.urlparse(storage.url)
+    parsed = urlparse(storage.url)
 
     conf, jvm = create_gateway_and_hdfs_conf(use_hostname, gateway_port)
 
@@ -55,7 +54,7 @@ def write_chunk(jvm, chunk_number, filename, storage, file_data,
     """
     storage_url = storage.url if storage.url[-1] != '/' \
         else storage.url[:-1]
-    parsed = req_compat.urlparse(storage_url)
+    parsed = urlparse(storage_url)
 
     if parsed.scheme == 'file':
         str_uri = '{proto}://{path}'.format(

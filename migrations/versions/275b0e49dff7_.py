@@ -10,7 +10,7 @@ from alembic import op
 from sqlalchemy.dialects import mysql
 from sqlalchemy.sql import text
 from limonero.migration_utils import (downgrade_actions, upgrade_actions,
-        is_mysql, get_psql_enum_alter_commands)
+        is_mysql, is_psql, is_sqlite, get_psql_enum_alter_commands)
 
 # revision identifiers, used by Alembic.
 revision = '275b0e49dff7'
@@ -40,31 +40,42 @@ def upgrade():
             ENUM('HDFS', 'OPHIDIA','ELASTIC_SEARCH','MONGODB',
                  'POSTGIS','HBASE','CASSANDRA','JDBC') CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;"""
                                    ))
-    else:
+    elif is_psql():
         op.add_column('data_source',
                   sa.Column('command', sa.Text(), nullable=True))
         upgrade_actions(get_commands())
 
-    op.add_column('storage', sa.Column('enabled', sa.Boolean(), nullable=False,
+    if is_sqlite():
+        with op.batch_alter_table('storage') as batch_op:
+            batch_op.add_column(sa.Column('enabled', sa.Boolean(), nullable=False, server_default='true'))
+        with op.batch_alter_table('data_source') as batch_op:
+            batch_op.add_column(sa.Column('updated', sa.DateTime(), nullable=False, server_default='2021-01-01'))
+            batch_op.add_column(sa.Column('command', sa.Text(), nullable=True))
+    else:
+        op.add_column('storage', sa.Column('enabled', sa.Boolean(), nullable=False,
                                        server_default=sa.schema.DefaultClause(
                                            "1"), default=1))
-    op.add_column('data_source',
+        op.add_column('data_source',
                   sa.Column('updated', sa.DateTime(), nullable=False,
                             server_default='2018-01-01'))
 
 
 def downgrade():
-    op.drop_column('data_source', 'command')
-    try:
-        if is_mysql():
-            op.get_bind().execute(text("""
+    if is_mysql():
+        op.get_bind().execute(text("""
                 ALTER TABLE storage CHANGE `type` `type` 
                 ENUM('HDFS', 'OPHIDIA','ELASTIC_SEARCH','MONGODB',
                      'POSTGIS','HBASE','CASSANDRA') CHARSET utf8 COLLATE utf8_unicode_ci NOT NULL;"""
                                        ))
-        else:
-            downgrade_actions(get_commands())
-    except:
-        pass
-    op.drop_column('storage', 'enabled')
-    op.drop_column('data_source', 'updated')
+    elif is_psql():
+        downgrade_actions(get_commands())
+    if is_sqlite():
+        with op.batch_alter_table('storage') as batch_op:
+            batch_op.drop_column('enabled')
+        with op.batch_alter_table('data_source') as batch_op:
+            batch_op.drop_column('updated')
+            batch_op.drop_column('command')
+    else:
+        op.drop_column('data_source', 'command')
+        op.drop_column('storage', 'enabled')
+        op.drop_column('data_source', 'updated')
