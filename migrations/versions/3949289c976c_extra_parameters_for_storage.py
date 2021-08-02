@@ -23,10 +23,12 @@ def upgrade():
     op.add_column('storage', sa.Column('client_url', sa.String(length=1000), nullable=True))
     if is_mysql():    
         op.add_column('storage', sa.Column('extra_params', mysql.LONGTEXT(), nullable=True))
+        op.add_column('data_source', sa.Column('is_lookup', sa.Boolean(), nullable=False, 
+            server_default='0'))
     else:
         op.add_column('storage', sa.Column('extra_params', sa.Text(), nullable=True))
-    op.add_column('data_source', sa.Column('is_lookup', sa.Boolean(), nullable=False, 
-        server_default='false'))
+        op.add_column('data_source', sa.Column('is_lookup', sa.Boolean(), nullable=False, 
+            server_default='false'))
 
     if is_mysql():
         op.execute("""
