@@ -9,6 +9,7 @@ from flask_babel import gettext
 from flask_restful import Resource
 from py4j.protocol import Py4JJavaError
 from sqlalchemy import or_, and_
+from marshmallow.exceptions import ValidationError
 
 from limonero.util import upload
 from .app_auth import requires_auth
@@ -98,7 +99,7 @@ class ModelListApi(Resource):
                 pagination = models.paginate(page, page_size, True)
                 result = {
                     'data': ModelListResponseSchema(
-                        many=True, only=only).dump(pagination.items).data,
+                        many=True, only=only).dump(pagination.items),
                     'pagination': {
                         'page': page, 'size': page_size,
                         'total': pagination.total,
@@ -108,7 +109,7 @@ class ModelListApi(Resource):
             else:
                 result = {
                     'data': ModelListResponseSchema(
-                        many=True, only=only).dump(models).data}
+                        many=True, only=only).dump(models)}
             db.session.commit()
             result_code = 200
         except Exception as ex:
@@ -124,25 +125,22 @@ class ModelListApi(Resource):
         if request.json is not None:
             request_schema = ModelCreateRequestSchema()
             response_schema = ModelItemResponseSchema()
-            form = request_schema.load(request.json)
-            if form.errors:
-                result, result_code = dict(
-                    status="ERROR", message=_("Validation error"),
-                    errors=form.errors), 400
-            else:
-                try:
-                    model = form.data
-                    db.session.add(model)
-                    db.session.commit()
-                    result, result_code = response_schema.dump(
-                        model).data, 200
-                except Exception as e:
-                    log.exception('Error in POST')
-                    result, result_code = dict(status="ERROR",
-                                               message=_("Internal error")), 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
-                    db.session.rollback()
+            try:
+                model = request_schema.load(request.json)
+                db.session.add(model)
+                db.session.commit()
+                result, result_code = response_schema.dump(model), 200
+            except ValidationError as e:
+                result = dict(status="ERROR", message=gettext('Invalid data'),
+                          errors=e.messages)
+                result_code = 400
+            except Exception as e:
+                log.exception('Error in POST')
+                result, result_code = dict(status="ERROR",
+                                           message=_("Internal error")), 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
 
         return result, result_code
 
@@ -157,7 +155,7 @@ class ModelDetailApi(Resource):
                                           list(PermissionType.values()))
         model = filtered.filter(Model.id == model_id).first()
         if model is not None:
-            return ModelItemResponseSchema().dump(model).data
+            return ModelItemResponseSchema().dump(model)
         else:
             return dict(status="ERROR", message=_("%(type)s not found.",
                                                   type=_('Model'))), 404
@@ -200,34 +198,35 @@ class ModelDetailApi(Resource):
             request_schema = partial_schema_factory(
                 ModelCreateRequestSchema)
             # Ignore missing fields to allow partial updates
-            form = request_schema.load(request.json, partial=True)
             response_schema = ModelItemResponseSchema()
-            if not form.errors:
-                try:
-                    form.data.id = model_id
-                    model = db.session.merge(form.data)
-                    db.session.commit()
+            try:
+                model = request_schema.load(request.json, partial=True)
+                model.id = model_id
+                model = db.session.merge(model)
+                db.session.commit()
 
-                    if model is not None:
-                        result, result_code = dict(
-                            status="OK",
-                            message=_("%(what)s was successfuly updated",
-                                      what=_('Model')),
-                            data=response_schema.dump(model).data), 200
-                    else:
-                        result = dict(status="ERROR",
-                                      message=_("%(type)s not found.",
-                                                type=_('Model')))
-                except Exception as e:
-                    log.exception('Error in PATCH')
-                    result, result_code = dict(status="ERROR",
-                                               message=_("Internal error")), 500
-                    if current_app.debug:
-                        result['debug_detail'] = str(e)
-                    db.session.rollback()
-            else:
-                result = dict(status="ERROR", message=_("Invalid data"),
-                              errors=form.errors)
+                if model is not None:
+                    result, result_code = dict(
+                        status="OK",
+                        message=_("%(what)s was successfuly updated",
+                                  what=_('Model')),
+                        data=response_schema.dump(model)), 200
+                else:
+                    result = dict(status="ERROR",
+                                  message=_("%(type)s not found.",
+                                            type=_('Model')))
+
+            except ValidationError as e:
+                result = dict(status="ERROR", message=gettext('Invalid data'),
+                          errors=e.messages)
+                result_code = 400
+            except Exception as e:
+                log.exception('Error in PATCH')
+                result, result_code = dict(status="ERROR",
+                                           message=_("Internal error")), 500
+                if current_app.debug:
+                    result['debug_detail'] = str(e)
+                db.session.rollback()
         return result, result_code
 
 
@@ -427,7 +426,7 @@ class ModelUploadApi(Resource):
                             user, storage, filename, target_path, file_data,
                             total_size)
                         result = {'status': 'OK',
-                                  'data': response_schema.dump(ds).data}
+                                  'data': response_schema.dump(ds)}
 
             return result, result_code, {
                 'Content-Type': 'application/json; charset=utf-8'}
