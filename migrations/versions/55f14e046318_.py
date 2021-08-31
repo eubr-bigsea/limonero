@@ -9,6 +9,7 @@ from alembic import op
 from sqlalchemy import String, Integer
 from sqlalchemy.sql import table, column, text
 from sqlalchemy.dialects import mysql
+from limonero.migration_utils import is_psql
 # revision identifiers, used by Alembic.
 revision = '55f14e046318'
 down_revision = '19fa4bf1351a'
@@ -31,7 +32,7 @@ def upgrade():
                            'name': 'Default (local)',
                            'type': 'HDFS',
                            'url': 'file:///srv/storage/',
-                           'enabled': 1
+                           'enabled': True if is_psql() else 1 
                        }
                    ])
 

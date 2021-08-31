@@ -38,7 +38,7 @@ RUN wget --quiet --directory-prefix /tmp $IVY_URL \
   && rm /tmp/${IVY_PKG}
 
 COPY requirements.txt ./
-RUN pip3 install wheel
+RUN pip3 install -U pip wheel
 RUN pip3 install -r requirements.txt
 
 COPY . $LIMONERO_HOME

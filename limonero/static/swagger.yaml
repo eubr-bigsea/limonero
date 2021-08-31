@@ -1,0 +1,1772 @@
+swagger: '2.0'
+info:
+  title: "Lemonade :: Limonero"
+  description: 
+  termsOfService: http://www.eubra-bigsea.eu/disclaimer-privacy-policy
+  contact:
+    name: Speed Labs/DCC/UFMG
+    url: http://eubra-bigsea.eu
+    email: bigsea@dcc.ufmg.br
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0
+
+# the domain of the service
+# host: dev.lemonade.org.br
+# array of all schemes that your API supports
+schemes:
+  - http    
+  - https
+# will be prefixed to all paths
+# basePath: /limonero
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    name: X-Auth-Token
+    in: header
+paths:
+  /datasources/{id}:
+    get:
+      summary: 'Retrieves an instance of DataSource'
+      description: |
+        Retrieves an instance of DataSource by using its identifier.
+      tags:
+        - /datasources
+      parameters:
+        - name: id
+          in: path
+          description: ID of DataSource to fetch
+          required: true
+          type: integer
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: An array of DataSource with a single instance.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DataSourceItemResponseSchema'        
+  
+    delete:
+      summary: 'Removes an instance of DataSource'
+      description: |
+        Removes DataSource identified by {id}.
+      security:
+        - Bearer: []
+      parameters:
+        - name: id
+          in: path
+          description: ID of DataSource to delete
+          required: true
+          type: integer
+      tags:
+        - /datasources
+      responses:
+        204:
+          description: Instance was removed with success.
+    patch:
+      summary: 'Updates an instance of DataSource'
+      description: |
+        Updates DataSource identified by {id}.
+      security:
+        - Bearer: []
+      parameters:
+        - name: id
+          in: path
+          description: ID of DataSource to delete
+          required: true
+          type: integer
+        - name: datasource
+          in: body
+          description: Update
+          required: true
+          schema:
+            $ref: '#/definitions/DataSourceCreateRequestSchema'
+      tags:
+        - /datasources
+      responses:
+        200:
+          description: An array of DataSource with a single instance.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DataSourceItemResponseSchema'
+  /datasources:
+    get:
+      summary: 'Retrieves the list of DataSource'
+      description: |
+        The /datasource endpoint returns informationabout the *DataSource*. The response includes the display nameand other details about each instance, listing them in the proper display order.
+      security:
+        - Bearer: []
+      parameters:
+        - name: only
+          in: query
+          description: Fields to be selected.
+          required: false
+          type: string
+        - name: page
+          in: query
+          description: Page number.
+          required: false
+          type: integer
+        - name: size
+          in: query
+          description: Page size.
+          required: false
+          type: integer
+        - name: enabled
+          in: query
+          description: Returns only records where enabled equals to parameter.
+          required: false
+          type: boolean
+      tags:
+        - /datasources
+      responses:
+        200:
+          description: An array of DataSource
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/DataSourceItemResponseSchema'
+    post:
+      summary: 'Creates a new instance of DataSource'
+      description: |
+        Creates a new instance of DataSource
+      security:
+        - Bearer: []
+      parameters:
+        - name: datasource
+          in: body
+          description: New item to add to the collection
+          required: true
+          schema:
+            $ref: '#/definitions/DataSourceCreateRequestSchema'
+      tags:
+        - /datasources
+      responses:
+        200:
+          description: Successfuly created the instance
+          schema:
+            $ref: '#/definitions/DataSourceListResponseSchema'
+        401:
+          description: Validation error
+          schema:
+            $ref: '#/definitions/ValidationErrorSchema'
+
+        500:
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/DefaultErrorSchema'
+  /storages/{id}:
+    get:
+      summary: 'Retrieves an instance of Storage'
+      description: |
+        Retrieves an instance of Storage by using its identifier.
+      tags:
+        - /storages
+      parameters:
+        - name: id
+          in: path
+          description: ID of Storage to fetch
+          required: true
+          type: integer
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: An array of Storage with a single instance.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/StorageItemResponseSchema'        
+  
+    delete:
+      summary: 'Removes an instance of Storage'
+      description: |
+        Removes Storage identified by {id}.
+      security:
+        - Bearer: []
+      parameters:
+        - name: id
+          in: path
+          description: ID of Storage to delete
+          required: true
+          type: integer
+      tags:
+        - /storages
+      responses:
+        204:
+          description: Instance was removed with success.
+    patch:
+      summary: 'Updates an instance of Storage'
+      description: |
+        Updates Storage identified by {id}.
+      security:
+        - Bearer: []
+      parameters:
+        - name: id
+          in: path
+          description: ID of Storage to delete
+          required: true
+          type: integer
+        - name: storage
+          in: body
+          description: Update
+          required: true
+          schema:
+            $ref: '#/definitions/StorageCreateRequestSchema'
+      tags:
+        - /storages
+      responses:
+        200:
+          description: An array of Storage with a single instance.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/StorageItemResponseSchema'
+  /storages:
+    get:
+      summary: 'Retrieves the list of Storage'
+      description: |
+        The /storage endpoint returns informationabout the *Storage*. The response includes the display nameand other details about each instance, listing them in the proper display order.
+      security:
+        - Bearer: []
+      parameters:
+        - name: only
+          in: query
+          description: Fields to be selected.
+          required: false
+          type: string
+        - name: page
+          in: query
+          description: Page number.
+          required: false
+          type: integer
+        - name: size
+          in: query
+          description: Page size.
+          required: false
+          type: integer
+        - name: enabled
+          in: query
+          description: Returns only records where enabled equals to parameter.
+          required: false
+          type: boolean
+      tags:
+        - /storages
+      responses:
+        200:
+          description: An array of Storage
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/StorageItemResponseSchema'
+    post:
+      summary: 'Creates a new instance of Storage'
+      description: |
+        Creates a new instance of Storage
+      security:
+        - Bearer: []
+      parameters:
+        - name: storage
+          in: body
+          description: New item to add to the collection
+          required: true
+          schema:
+            $ref: '#/definitions/StorageCreateRequestSchema'
+      tags:
+        - /storages
+      responses:
+        200:
+          description: Successfuly created the instance
+          schema:
+            $ref: '#/definitions/StorageListResponseSchema'
+        401:
+          description: Validation error
+          schema:
+            $ref: '#/definitions/ValidationErrorSchema'
+
+        500:
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/DefaultErrorSchema'
+definitions:
+  DefaultErrorSchema:
+    type: object
+    properties:
+      status:
+        type: string
+        description: Result status
+      message:
+        type: string
+        description: Result description
+      debug_detail:
+        type: string
+        description: 'Debug detail (exception), only available with DEBUG mode enabled'
+        required: false
+  ValidationErrorSchema:
+    type: object
+    properties:
+      status:
+        type: string
+        description: Result status
+      message:
+        type: string
+        description: Result description
+      errors:
+        type: array
+        description: 'List of validation errors'
+        items:
+          type: string
+  DataSourceExecuteRequestSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSource identifier"
+      name:
+        type: string
+        description: "Data source name"
+        required: true
+  DataSourceListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSource identifier"
+      name:
+        type: string
+        description: "Data source name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      statistics_process_counter:
+        type: integer
+        description: "Indicate how many times data source had statistics been processed"
+        required: true
+      read_only:
+        type: boolean
+        description: "Indicate if data source is read-only"
+        required: true
+      privacy_aware:
+        type: boolean
+        description: "Indicate if data source has privacy constraints"
+        required: true
+      url:
+        type: string
+        description: "Url for accessing data source. Should be in accordance with data source provider."
+        required: true
+      created:
+        type: string
+        description: "Date of creation"
+        required: true
+        format: 'date-time'
+      updated:
+        type: string
+        description: "Updating date and time"
+        required: true
+        format: 'date-time'
+      format:
+        type: string
+        description: "Data source format"
+        required: true
+        enum: ["CSV", "CUSTOM", "GEO_JSON", "JDBC", "IMAGE_FOLDER", "DATA_FOLDER", "HAR_IMAGE_FOLDER", "HDF5", "HIVE", "JSON", "NPY", "PICKLE", "PARQUET", "SAV", "SHAPEFILE", "TAR_IMAGE_FOLDER", "TEXT", "VIDEO_FOLDER", "XML_FILE", "UNKNOWN"]
+      initialization:
+        type: string
+        description: "Data source initialization"
+        required: true
+        enum: ["NO_INITIALIZED", "INITIALIZING", "INITIALIZED"]
+      initialization_job_id:
+        type: string
+        description: "Data source initialization job"
+        required: false
+      provenience:
+        type: string
+        description: "Provenience information"
+        required: false
+      estimated_rows:
+        type: integer
+        description: "Estimated row count"
+        required: false
+      estimated_size_in_mega_bytes:
+        type: number
+        description: "Estimated size in MB"
+        required: false
+      expiration:
+        type: string
+        description: "Expiration date. After this date, data source may be removed"
+        required: false
+      user_id:
+        type: integer
+        description: "User id"
+        required: false
+      user_login:
+        type: string
+        description: "User login"
+        required: false
+      user_name:
+        type: string
+        description: "User name"
+        required: false
+      tags:
+        type: string
+        description: "Tags"
+        required: false
+      temporary:
+        type: boolean
+        description: "Indicates if data source is temporary"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Reference to workflow that generated data"
+        required: false
+      task_id:
+        type: string
+        description: "Reference to task that generated data"
+        required: false
+      attribute_delimiter:
+        type: string
+        description: "Attribute delimiter"
+        required: false
+      record_delimiter:
+        type: string
+        description: "Record delimiter"
+        required: false
+      text_delimiter:
+        type: string
+        description: "Text delimiter"
+        required: false
+      is_public:
+        type: boolean
+        description: "Data source can be read by any user"
+        required: true
+      treat_as_missing:
+        type: string
+        description: "Values to be considered as missing"
+        required: false
+      encoding:
+        type: string
+        description: "Text encoding"
+        required: false
+      is_first_line_header:
+        type: boolean
+        description: "First line should be considered as a header"
+        required: true
+      is_multiline:
+        type: boolean
+        description: "Data source contains records with new line inside them"
+        required: true
+      command:
+        type: string
+        description: "Command to be executed in the data source"
+        required: false
+      is_lookup:
+        type: boolean
+        description: "Data source is used for lookup (filters) in Lemonade"
+        required: true
+      use_in_workflow:
+        type: boolean
+        description: "Data source is used in workflow toolbar (shortcut)"
+        required: true
+      attributes:
+        type: array
+        items:
+          $ref: '#/definitions/AttributeListResponseSchema'
+      permissions:
+        type: array
+        items:
+          $ref: '#/definitions/DataSourcePermissionListResponseSchema'
+      storage:
+        type: array
+        items:
+          $ref: '#/definitions/StorageListResponseSchema'
+  DataSourceCreateRequestSchema:
+    type: object
+    properties:
+      name:
+        type: string
+        description: "Data source name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      statistics_process_counter:
+        type: integer
+        description: "Indicate how many times data source had statistics been processed"
+        required: true
+      read_only:
+        type: boolean
+        description: "Indicate if data source is read-only"
+        required: true
+      privacy_aware:
+        type: boolean
+        description: "Indicate if data source has privacy constraints"
+        required: true
+      url:
+        type: string
+        description: "Url for accessing data source. Should be in accordance with data source provider."
+        required: true
+      format:
+        type: string
+        description: "Data source format"
+        required: true
+        enum: ["CSV", "CUSTOM", "GEO_JSON", "JDBC", "IMAGE_FOLDER", "DATA_FOLDER", "HAR_IMAGE_FOLDER", "HDF5", "HIVE", "JSON", "NPY", "PICKLE", "PARQUET", "SAV", "SHAPEFILE", "TAR_IMAGE_FOLDER", "TEXT", "VIDEO_FOLDER", "XML_FILE", "UNKNOWN"]
+      initialization:
+        type: string
+        description: "Data source initialization"
+        required: true
+        enum: ["NO_INITIALIZED", "INITIALIZING", "INITIALIZED"]
+      initialization_job_id:
+        type: string
+        description: "Data source initialization job"
+        required: false
+      provenience:
+        type: string
+        description: "Provenience information"
+        required: false
+      expiration:
+        type: string
+        description: "Expiration date. After this date, data source may be removed"
+        required: false
+      user_id:
+        type: integer
+        description: "User id"
+        required: false
+      user_login:
+        type: string
+        description: "User login"
+        required: false
+      user_name:
+        type: string
+        description: "User name"
+        required: false
+      tags:
+        type: string
+        description: "Tags"
+        required: false
+      temporary:
+        type: boolean
+        description: "Indicates if data source is temporary"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Reference to workflow that generated data"
+        required: false
+      task_id:
+        type: string
+        description: "Reference to task that generated data"
+        required: false
+      attribute_delimiter:
+        type: string
+        description: "Attribute delimiter"
+        required: false
+      record_delimiter:
+        type: string
+        description: "Record delimiter"
+        required: false
+      text_delimiter:
+        type: string
+        description: "Text delimiter"
+        required: false
+      is_public:
+        type: boolean
+        description: "Data source can be read by any user"
+        required: true
+      treat_as_missing:
+        type: string
+        description: "Values to be considered as missing"
+        required: false
+      encoding:
+        type: string
+        description: "Text encoding"
+        required: false
+      is_first_line_header:
+        type: boolean
+        description: "First line should be considered as a header"
+        required: true
+      is_multiline:
+        type: boolean
+        description: "Data source contains records with new line inside them"
+        required: true
+      command:
+        type: string
+        description: "Command to be executed in the data source"
+        required: false
+      is_lookup:
+        type: boolean
+        description: "Data source is used for lookup (filters) in Lemonade"
+        required: true
+      use_in_workflow:
+        type: boolean
+        description: "Data source is used in workflow toolbar (shortcut)"
+        required: true
+      attributes:
+        type: array
+        items:
+          $ref: '#/definitions/AttributeCreateRequestSchema'
+      permissions:
+        type: array
+        items:
+          $ref: '#/definitions/DataSourcePermissionCreateRequestSchema'
+      storage_id:
+        type: integer
+        required: true
+  DataSourceItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSource identifier"
+      name:
+        type: string
+        description: "Data source name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      statistics_process_counter:
+        type: integer
+        description: "Indicate how many times data source had statistics been processed"
+        required: true
+      read_only:
+        type: boolean
+        description: "Indicate if data source is read-only"
+        required: true
+      privacy_aware:
+        type: boolean
+        description: "Indicate if data source has privacy constraints"
+        required: true
+      url:
+        type: string
+        description: "Url for accessing data source. Should be in accordance with data source provider."
+        required: true
+      created:
+        type: string
+        description: "Date of creation"
+        required: true
+        format: 'date-time'
+      updated:
+        type: string
+        description: "Updating date and time"
+        required: true
+        format: 'date-time'
+      format:
+        type: string
+        description: "Data source format"
+        required: true
+        enum: ["CSV", "CUSTOM", "GEO_JSON", "JDBC", "IMAGE_FOLDER", "DATA_FOLDER", "HAR_IMAGE_FOLDER", "HDF5", "HIVE", "JSON", "NPY", "PICKLE", "PARQUET", "SAV", "SHAPEFILE", "TAR_IMAGE_FOLDER", "TEXT", "VIDEO_FOLDER", "XML_FILE", "UNKNOWN"]
+      initialization:
+        type: string
+        description: "Data source initialization"
+        required: true
+        enum: ["NO_INITIALIZED", "INITIALIZING", "INITIALIZED"]
+      initialization_job_id:
+        type: string
+        description: "Data source initialization job"
+        required: false
+      provenience:
+        type: string
+        description: "Provenience information"
+        required: false
+      estimated_rows:
+        type: integer
+        description: "Estimated row count"
+        required: false
+      estimated_size_in_mega_bytes:
+        type: number
+        description: "Estimated size in MB"
+        required: false
+      expiration:
+        type: string
+        description: "Expiration date. After this date, data source may be removed"
+        required: false
+      user_id:
+        type: integer
+        description: "User id"
+        required: false
+      user_login:
+        type: string
+        description: "User login"
+        required: false
+      user_name:
+        type: string
+        description: "User name"
+        required: false
+      tags:
+        type: string
+        description: "Tags"
+        required: false
+      temporary:
+        type: boolean
+        description: "Indicates if data source is temporary"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Reference to workflow that generated data"
+        required: false
+      task_id:
+        type: string
+        description: "Reference to task that generated data"
+        required: false
+      attribute_delimiter:
+        type: string
+        description: "Attribute delimiter"
+        required: false
+      record_delimiter:
+        type: string
+        description: "Record delimiter"
+        required: false
+      text_delimiter:
+        type: string
+        description: "Text delimiter"
+        required: false
+      is_public:
+        type: boolean
+        description: "Data source can be read by any user"
+        required: true
+      treat_as_missing:
+        type: string
+        description: "Values to be considered as missing"
+        required: false
+      encoding:
+        type: string
+        description: "Text encoding"
+        required: false
+      is_first_line_header:
+        type: boolean
+        description: "First line should be considered as a header"
+        required: true
+      is_multiline:
+        type: boolean
+        description: "Data source contains records with new line inside them"
+        required: true
+      command:
+        type: string
+        description: "Command to be executed in the data source"
+        required: false
+      is_lookup:
+        type: boolean
+        description: "Data source is used for lookup (filters) in Lemonade"
+        required: true
+      use_in_workflow:
+        type: boolean
+        description: "Data source is used in workflow toolbar (shortcut)"
+        required: true
+      attributes:
+        type: array
+        items:
+          $ref: '#/definitions/AttributeItemResponseSchema'
+      permissions:
+        type: array
+        items:
+          $ref: '#/definitions/DataSourcePermissionItemResponseSchema'
+      storage:
+        type: array
+        items:
+          $ref: '#/definitions/StorageItemResponseSchema'
+  DataSourcePrivacyResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSource identifier"
+      name:
+        type: string
+        description: "Data source name"
+        required: true
+      privacy_aware:
+        type: boolean
+        description: "Indicate if data source has privacy constraints"
+        required: true
+      attributes:
+        type: array
+        items:
+          $ref: '#/definitions/AttributePrivacyResponseSchema'
+  DataSourcePermissionListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSourcePermission identifier"
+      permission:
+        type: string
+        description: "Permission"
+        required: true
+        enum: ["READ", "WRITE", "MANAGE"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+  DataSourcePermissionItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSourcePermission identifier"
+      permission:
+        type: string
+        description: "Permission"
+        required: true
+        enum: ["READ", "WRITE", "MANAGE"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+  DataSourcePermissionCreateRequestSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "DataSourcePermission identifier"
+      permission:
+        type: string
+        description: "Permission"
+        required: true
+        enum: ["READ", "WRITE", "MANAGE"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+  ModelPermissionListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "ModelPermission identifier"
+      permission:
+        type: string
+        description: "Permission"
+        required: true
+        enum: ["READ", "WRITE", "MANAGE"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+  ModelPermissionItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "ModelPermission identifier"
+      permission:
+        type: string
+        description: "Permission"
+        required: true
+        enum: ["READ", "WRITE", "MANAGE"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+  ModelListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Model identifier"
+      name:
+        type: string
+        description: "Name"
+        required: true
+      enabled:
+        type: boolean
+        description: "Indicate if model is enabled"
+        required: true
+      created:
+        type: string
+        description: "Date of creation"
+        required: true
+        format: 'date-time'
+      path:
+        type: string
+        description: "Path"
+        required: true
+      class_name:
+        type: string
+        description: "Class name"
+        required: true
+      type:
+        type: string
+        description: "Model type"
+        required: true
+        enum: ["KERAS", "PERFORMANCE_SPARK", "PERFORMANCE_KERAS", "SPARK_ML_CLASSIFICATION", "SPARK_ML_REGRESSION", "SPARK_MLLIB_CLASSIFICATION", "UNSPECIFIED"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Workflow id"
+        required: false
+      workflow_name:
+        type: string
+        description: "Workflow name"
+        required: false
+      task_id:
+        type: string
+        description: "Task that generated this model"
+        required: false
+      job_id:
+        type: integer
+        description: "Job that generated this model"
+        required: false
+      storage:
+        type: array
+        items:
+          $ref: '#/definitions/StorageListResponseSchema'
+  ModelCreateRequestSchema:
+    type: object
+    properties:
+      name:
+        type: string
+        description: "Name"
+        required: true
+      enabled:
+        type: boolean
+        description: "Indicate if model is enabled"
+        required: true
+      path:
+        type: string
+        description: "Path"
+        required: true
+      class_name:
+        type: string
+        description: "Class name"
+        required: true
+      type:
+        type: string
+        description: "Model type"
+        required: true
+        enum: ["KERAS", "PERFORMANCE_SPARK", "PERFORMANCE_KERAS", "SPARK_ML_CLASSIFICATION", "SPARK_ML_REGRESSION", "SPARK_MLLIB_CLASSIFICATION", "UNSPECIFIED"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Workflow id"
+        required: false
+      workflow_name:
+        type: string
+        description: "Workflow name"
+        required: false
+      task_id:
+        type: string
+        description: "Task that generated this model"
+        required: false
+      job_id:
+        type: integer
+        description: "Job that generated this model"
+        required: false
+      storage_id:
+        type: integer
+        required: true
+  ModelItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Model identifier"
+      name:
+        type: string
+        description: "Name"
+        required: true
+      enabled:
+        type: boolean
+        description: "Indicate if model is enabled"
+        required: true
+      created:
+        type: string
+        description: "Date of creation"
+        required: true
+        format: 'date-time'
+      path:
+        type: string
+        description: "Path"
+        required: true
+      class_name:
+        type: string
+        description: "Class name"
+        required: true
+      type:
+        type: string
+        description: "Model type"
+        required: true
+        enum: ["KERAS", "PERFORMANCE_SPARK", "PERFORMANCE_KERAS", "SPARK_ML_CLASSIFICATION", "SPARK_ML_REGRESSION", "SPARK_MLLIB_CLASSIFICATION", "UNSPECIFIED"]
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+      user_login:
+        type: string
+        description: "User login"
+        required: true
+      user_name:
+        type: string
+        description: "User name"
+        required: true
+      workflow_id:
+        type: integer
+        description: "Workflow id"
+        required: false
+      workflow_name:
+        type: string
+        description: "Workflow name"
+        required: false
+      task_id:
+        type: string
+        description: "Task that generated this model"
+        required: false
+      job_id:
+        type: integer
+        description: "Job that generated this model"
+        required: false
+      storage:
+        type: array
+        items:
+          $ref: '#/definitions/StorageItemResponseSchema'
+  AttributeListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Attribute identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      type:
+        type: string
+        description: "Attribute type."
+        required: true
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      size:
+        type: integer
+        description: "Attribute length (string) or decimal places (numeric)."
+        required: false
+      precision:
+        type: integer
+        description: "Numeric attribute precision"
+        required: false
+      scale:
+        type: integer
+        description: "Numeric attribute scale"
+        required: false
+      nullable:
+        type: boolean
+        description: "Indicates if attribute can be null"
+        required: true
+      enumeration:
+        type: boolean
+        description: "Indicates if attribute is an enumeration"
+        required: true
+      missing_representation:
+        type: string
+        description: "What value would be equivalent to missing or null"
+        required: false
+      feature:
+        type: boolean
+        description: "Indicates if attribute is a feature"
+        required: true
+      label:
+        type: boolean
+        description: "Indicates if attribute is a label"
+        required: true
+      distinct_values:
+        type: integer
+        description: "How many distinct values are stored in this field among all data set"
+        required: false
+      mean_value:
+        type: number
+        description: "Mean of all values for this field (if applicable)"
+        required: false
+      median_value:
+        type: string
+        description: "Median value for this field"
+        required: false
+      max_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      min_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      std_deviation:
+        type: number
+        description: "Standard deviation for the field (if applicable)"
+        required: false
+      missing_total:
+        type: string
+        description: "Number of records with missing value for this field"
+        required: false
+      deciles:
+        type: string
+        description: "Deciles for this field"
+        required: false
+      format:
+        type: string
+        description: "How data is formated (useful for date and decimal types)"
+        required: false
+      key:
+        type: boolean
+        description: "Indicates if the attribute is an identifier/key."
+        required: true
+      attribute_privacy:
+        type: array
+        items:
+          $ref: '#/definitions/AttributePrivacyListResponseSchema'
+  AttributeItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Attribute identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      type:
+        type: string
+        description: "Attribute type."
+        required: true
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      size:
+        type: integer
+        description: "Attribute length (string) or decimal places (numeric)."
+        required: false
+      precision:
+        type: integer
+        description: "Numeric attribute precision"
+        required: false
+      scale:
+        type: integer
+        description: "Numeric attribute scale"
+        required: false
+      nullable:
+        type: boolean
+        description: "Indicates if attribute can be null"
+        required: true
+      enumeration:
+        type: boolean
+        description: "Indicates if attribute is an enumeration"
+        required: true
+      missing_representation:
+        type: string
+        description: "What value would be equivalent to missing or null"
+        required: false
+      feature:
+        type: boolean
+        description: "Indicates if attribute is a feature"
+        required: true
+      label:
+        type: boolean
+        description: "Indicates if attribute is a label"
+        required: true
+      distinct_values:
+        type: integer
+        description: "How many distinct values are stored in this field among all data set"
+        required: false
+      mean_value:
+        type: number
+        description: "Mean of all values for this field (if applicable)"
+        required: false
+      median_value:
+        type: string
+        description: "Median value for this field"
+        required: false
+      max_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      min_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      std_deviation:
+        type: number
+        description: "Standard deviation for the field (if applicable)"
+        required: false
+      missing_total:
+        type: string
+        description: "Number of records with missing value for this field"
+        required: false
+      deciles:
+        type: string
+        description: "Deciles for this field"
+        required: false
+      format:
+        type: string
+        description: "How data is formated (useful for date and decimal types)"
+        required: false
+      key:
+        type: boolean
+        description: "Indicates if the attribute is an identifier/key."
+        required: true
+      attribute_privacy:
+        type: array
+        items:
+          $ref: '#/definitions/AttributePrivacyItemResponseSchema'
+  AttributeCreateRequestSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Attribute identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      description:
+        type: string
+        description: "Description of data source"
+        required: false
+      type:
+        type: string
+        description: "Attribute type."
+        required: true
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      size:
+        type: integer
+        description: "Attribute length (string) or decimal places (numeric)."
+        required: false
+      precision:
+        type: integer
+        description: "Numeric attribute precision"
+        required: false
+      scale:
+        type: integer
+        description: "Numeric attribute scale"
+        required: false
+      nullable:
+        type: boolean
+        description: "Indicates if attribute can be null"
+        required: true
+      enumeration:
+        type: boolean
+        description: "Indicates if attribute is an enumeration"
+        required: true
+      missing_representation:
+        type: string
+        description: "What value would be equivalent to missing or null"
+        required: false
+      feature:
+        type: boolean
+        description: "Indicates if attribute is a feature"
+        required: true
+      label:
+        type: boolean
+        description: "Indicates if attribute is a label"
+        required: true
+      distinct_values:
+        type: integer
+        description: "How many distinct values are stored in this field among all data set"
+        required: false
+      mean_value:
+        type: number
+        description: "Mean of all values for this field (if applicable)"
+        required: false
+      median_value:
+        type: string
+        description: "Median value for this field"
+        required: false
+      max_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      min_value:
+        type: string
+        description: "Max value for this field"
+        required: false
+      std_deviation:
+        type: number
+        description: "Standard deviation for the field (if applicable)"
+        required: false
+      missing_total:
+        type: string
+        description: "Number of records with missing value for this field"
+        required: false
+      deciles:
+        type: string
+        description: "Deciles for this field"
+        required: false
+      format:
+        type: string
+        description: "How data is formated (useful for date and decimal types)"
+        required: false
+      key:
+        type: boolean
+        description: "Indicates if the attribute is an identifier/key."
+        required: true
+      attribute_privacy:
+        type: array
+        items:
+          $ref: '#/definitions/AttributePrivacyCreateRequestSchema'
+  AttributePrivacyResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Attribute identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+  AttributePrivacyGroupListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacyGroup identifier"
+      name:
+        type: string
+        description: "Group name"
+        required: true
+  AttributePrivacyGroupItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacyGroup identifier"
+      name:
+        type: string
+        description: "Group name"
+        required: true
+  AttributePrivacyGroupCreateRequestSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacyGroup identifier"
+      name:
+        type: string
+        description: "Group name"
+        required: true
+      user_id:
+        type: integer
+        description: "User identifier"
+        required: true
+  AttributePrivacyListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacy identifier"
+      attribute_name:
+        type: string
+        description: "Attribute name"
+        required: true
+      data_type:
+        type: string
+        description: "Attribute data type"
+        required: false
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      privacy_type:
+        type: string
+        description: "Privacy type"
+        required: true
+        enum: ["IDENTIFIER", "QUASI_IDENTIFIER", "SENSITIVE", "NON_SENSITIVE"]
+      category_technique:
+        type: string
+        description: "Privacy technique"
+        required: false
+      anonymization_technique:
+        type: string
+        description: "Anonymization technique"
+        required: true
+        enum: ["ENCRYPTION", "GENERALIZATION", "SUPPRESSION", "MASK", "NO_TECHNIQUE"]
+      hierarchical_structure_type:
+        type: string
+        description: "Hierarchical strucuture type"
+        required: false
+      privacy_model_technique:
+        type: string
+        description: "Privacy model technique"
+        required: false
+      hierarchy:
+        type: string
+        description: "Hierarchy"
+        required: false
+      category_model:
+        type: string
+        description: "Category model"
+        required: false
+      privacy_model:
+        type: string
+        description: "Privacy model"
+        required: false
+      privacy_model_parameters:
+        type: string
+        description: "Privacy model parameters"
+        required: false
+      unlock_privacy_key:
+        type: string
+        description: "Unlock privacy key (password)"
+        required: false
+      is_global_law:
+        type: boolean
+        description: "Applies to all attributes with same characteristics"
+        required: false
+      attribute_privacy_group:
+        type: array
+        items:
+          $ref: '#/definitions/AttributePrivacyGroupListResponseSchema'
+  AttributePrivacyItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacy identifier"
+      attribute_name:
+        type: string
+        description: "Attribute name"
+        required: true
+      data_type:
+        type: string
+        description: "Attribute data type"
+        required: false
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      privacy_type:
+        type: string
+        description: "Privacy type"
+        required: true
+        enum: ["IDENTIFIER", "QUASI_IDENTIFIER", "SENSITIVE", "NON_SENSITIVE"]
+      category_technique:
+        type: string
+        description: "Privacy technique"
+        required: false
+      anonymization_technique:
+        type: string
+        description: "Anonymization technique"
+        required: true
+        enum: ["ENCRYPTION", "GENERALIZATION", "SUPPRESSION", "MASK", "NO_TECHNIQUE"]
+      hierarchical_structure_type:
+        type: string
+        description: "Hierarchical strucuture type"
+        required: false
+      privacy_model_technique:
+        type: string
+        description: "Privacy model technique"
+        required: false
+      hierarchy:
+        type: string
+        description: "Hierarchy"
+        required: false
+      category_model:
+        type: string
+        description: "Category model"
+        required: false
+      privacy_model:
+        type: string
+        description: "Privacy model"
+        required: false
+      privacy_model_parameters:
+        type: string
+        description: "Privacy model parameters"
+        required: false
+      unlock_privacy_key:
+        type: string
+        description: "Unlock privacy key (password)"
+        required: false
+      is_global_law:
+        type: boolean
+        description: "Applies to all attributes with same characteristics"
+        required: false
+      attribute_privacy_group_id:
+        type: integer
+        required: false
+  AttributePrivacyCreateRequestSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacy identifier"
+      attribute_name:
+        type: string
+        description: "Attribute name"
+        required: true
+      data_type:
+        type: string
+        description: "Attribute data type"
+        required: false
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      privacy_type:
+        type: string
+        description: "Privacy type"
+        required: true
+        enum: ["IDENTIFIER", "QUASI_IDENTIFIER", "SENSITIVE", "NON_SENSITIVE"]
+      category_technique:
+        type: string
+        description: "Privacy technique"
+        required: false
+      anonymization_technique:
+        type: string
+        description: "Anonymization technique"
+        required: true
+        enum: ["ENCRYPTION", "GENERALIZATION", "SUPPRESSION", "MASK", "NO_TECHNIQUE"]
+      hierarchical_structure_type:
+        type: string
+        description: "Hierarchical strucuture type"
+        required: false
+      privacy_model_technique:
+        type: string
+        description: "Privacy model technique"
+        required: false
+      hierarchy:
+        type: string
+        description: "Hierarchy"
+        required: false
+      category_model:
+        type: string
+        description: "Category model"
+        required: false
+      privacy_model:
+        type: string
+        description: "Privacy model"
+        required: false
+      privacy_model_parameters:
+        type: string
+        description: "Privacy model parameters"
+        required: false
+      unlock_privacy_key:
+        type: string
+        description: "Unlock privacy key (password)"
+        required: false
+      attribute_id:
+        type: integer
+        required: false
+      attribute_privacy_group_id:
+        type: integer
+        required: false
+  AttributePrivacyPrivacyResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "AttributePrivacy identifier"
+      data_type:
+        type: string
+        description: "Attribute data type"
+        required: false
+        enum: ["BINARY", "CHARACTER", "DATE", "DATETIME", "DECIMAL", "DOUBLE", "ENUM", "FILE", "FLOAT", "INTEGER", "LAT_LONG", "LONG", "TEXT", "TIME", "TIMESTAMP", "VECTOR"]
+      privacy_type:
+        type: string
+        description: "Privacy type"
+        required: true
+        enum: ["IDENTIFIER", "QUASI_IDENTIFIER", "SENSITIVE", "NON_SENSITIVE"]
+      category_technique:
+        type: string
+        description: "Privacy technique"
+        required: false
+      anonymization_technique:
+        type: string
+        description: "Anonymization technique"
+        required: true
+        enum: ["ENCRYPTION", "GENERALIZATION", "SUPPRESSION", "MASK", "NO_TECHNIQUE"]
+      hierarchical_structure_type:
+        type: string
+        description: "Hierarchical strucuture type"
+        required: false
+      privacy_model_technique:
+        type: string
+        description: "Privacy model technique"
+        required: false
+      hierarchy:
+        type: string
+        description: "Hierarchy"
+        required: false
+      category_model:
+        type: string
+        description: "Category model"
+        required: false
+      privacy_model:
+        type: string
+        description: "Privacy model"
+        required: false
+      privacy_model_parameters:
+        type: string
+        description: "Privacy model parameters"
+        required: false
+      unlock_privacy_key:
+        type: string
+        description: "Unlock privacy key (password)"
+        required: false
+      is_global_law:
+        type: boolean
+        description: "Applies to all attributes with same characteristics"
+        required: false
+  StorageListResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Storage identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      type:
+        type: string
+        description: "Data sourcetype"
+        required: true
+        enum: ["MONGODB", "ELASTIC_SEARCH", "HDFS", "HIVE", "HIVE_WAREHOUSE", "LOCAL", "JDBC", "CASSANDRA"]
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      url:
+        type: string
+        description: "Base url for storage"
+        required: true
+      client_url:
+        type: string
+        description: "Url for accessing data source from client. If ommited, uses the attribute url."
+        required: false
+      extra_params:
+        type: string
+        description: "JSON with extra parameters."
+        required: false
+  StorageItemResponseSchema:
+    type: object
+    properties:
+      id:
+        type: integer
+        description: "Storage identifier"
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      type:
+        type: string
+        description: "Data sourcetype"
+        required: true
+        enum: ["MONGODB", "ELASTIC_SEARCH", "HDFS", "HIVE", "HIVE_WAREHOUSE", "LOCAL", "JDBC", "CASSANDRA"]
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      url:
+        type: string
+        description: "Base url for storage"
+        required: true
+      client_url:
+        type: string
+        description: "Url for accessing data source from client. If ommited, uses the attribute url."
+        required: false
+      extra_params:
+        type: string
+        description: "JSON with extra parameters."
+        required: false
+  StorageCreateRequestSchema:
+    type: object
+    properties:
+      name:
+        type: string
+        description: "Attribute name"
+        required: true
+      type:
+        type: string
+        description: "Data sourcetype"
+        required: true
+        enum: ["MONGODB", "ELASTIC_SEARCH", "HDFS", "HIVE", "HIVE_WAREHOUSE", "LOCAL", "JDBC", "CASSANDRA"]
+      enabled:
+        type: boolean
+        description: "Indicate if data source is enabled"
+        required: true
+      url:
+        type: string
+        description: "Base url for storage"
+        required: true
+      client_url:
+        type: string
+        description: "Url for accessing data source from client. If ommited, uses the attribute url."
+        required: false
+      extra_params:
+        type: string
+        description: "JSON with extra parameters."
+        required: false

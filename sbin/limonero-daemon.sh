@@ -19,11 +19,15 @@ cmd_option=$1
 export LIMONERO_HOME=${LIMONERO_HOME:-$(cd $(dirname $0)/..; pwd)}
 echo ${LIMONERO_HOME}
 
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+
 # get log directory
 export LIMONERO_LOG_DIR=${LIMONERO_LOG_DIR:-${LIMONERO_HOME}/logs}
-
+export LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml
 # get pid directory
 export LIMONERO_PID_DIR=${LIMONERO_PID_DIR:-/var/run}
+export FLASK_APP=limonero.app
 mkdir -p ${LIMONERO_PID_DIR} ${LIMONERO_LOG_DIR}
 
 # log and pid files
@@ -35,12 +39,10 @@ case $cmd_option in
   (start)
     # set python path
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
-      python ${LIMONERO_HOME}/limonero/manage.py \
-      db upgrade
+      flask db upgrade
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} nohup -- \
       python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
-      -c ${LIMONERO_HOME}/conf/limonero-config.yaml \
-      >> $log 2>&1 < /dev/null &
+      -c ${LIMONERO_CONFIG} >> $log 2>&1 < /dev/null & 
     limonero_server_pid=$!
 
     # persist the pid
@@ -52,8 +54,7 @@ case $cmd_option in
     trap "$0 stop" SIGINT SIGTERM
     # set python path
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
-      python ${LIMONERO_HOME}/limonero/manage.py \
-      db upgrade
+      flask db upgrade
     if [ $? -eq 0 ]
     then
       echo "DB migration: successful"
@@ -63,7 +64,7 @@ case $cmd_option in
     fi
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
       python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
-      -c ${LIMONERO_HOME}/conf/limonero-config.yaml &
+      -c ${LIMONERO_CONFIG} &
     limonero_server_pid=$!
 
     # persist the pid

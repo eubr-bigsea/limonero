@@ -51,9 +51,11 @@ def requires_auth(f):
         if str(config.get('secret', '')) == request.headers.get(
                 'X-Auth-Token'):
             # Inter services authentication
+            from flask_babel import refresh
             setattr(flask_g, 'user', User(0, 'internal', 
-                'lemonade@lemonade.org.br', 'internal', 'en', '', '', 
-                'ADMINISTRATOR'))
+                'lemonade@lemonade.org.br', 'internal', 'admin', 'admin', 'pt',  
+                ['ADMINISTRATOR']))
+            refresh()
             return f(*_args, **kwargs)
         else:
             user_id = request.headers.get('x-user-id')

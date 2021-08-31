@@ -23,6 +23,7 @@ from flask import Flask, request, g as flask_g
 from flask_babel import get_locale, Babel
 from flask_babel import gettext
 from flask_cors import CORS
+from flask_migrate import Migrate
 from flask_restful import Api, abort
 from flask_swagger_ui import get_swaggerui_blueprint
 
@@ -43,7 +44,11 @@ from cryptography.fernet import Fernet
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 
-def create_app():
+# noinspection PyUnusedLocal
+def exit_gracefully(s, frame):
+    os.kill(os.getpid(), signal.SIGTERM)
+
+def create_app(main_module: bool = False):
     app = Flask(__name__, static_url_path='', static_folder='static')
     
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
@@ -113,9 +118,12 @@ def create_app():
     for view, g in grouped_mappings:
         api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
     
-    app.add_url_rule('/datasources/<int:data_source_id>/download',
+    app.add_url_rule('/datasources/public/<int:data_source_id>/download',
                      methods=['GET'], endpoint='DataSourceDownload',
                      view_func=DataSourceDownload.as_view('download'))
+
+    migrate = Migrate(app, db)
+    app.handle_exception
 
     @babel.localeselector
     def get_locale():
@@ -127,17 +135,10 @@ def create_app():
                 'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
     
     sqlalchemy_utils.i18n.get_locale = get_locale
-    return app    
 
-# noinspection PyUnusedLocal
-def exit_gracefully(s, frame):
-    os.kill(os.getpid(), signal.SIGTERM)
-
-
-def main(is_main_module):
     config_file = None
     signal.signal(signal.SIGINT, exit_gracefully)
-    if is_main_module:
+    if main_module:
         parser = argparse.ArgumentParser()
         parser.add_argument("-c", "--config", type=str,
                             help="Config file", required=False)
@@ -152,7 +153,6 @@ def main(is_main_module):
         with open(config_file) as f:
             config = yaml.load(f, Loader=yaml.FullLoader)['limonero']
 
-        app = create_app()
         app.config['LIMONERO_CONFIG'] = config
         app.config["RESTFUL_JSON"] = {"cls": app.json_encoder}
 
@@ -160,11 +160,12 @@ def main(is_main_module):
         app.config['SQLALCHEMY_DATABASE_URI'] = server_config.get(
             'database_url')
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-        app.config['SQLALCHEMY_POOL_SIZE'] = 10
-        app.config['SQLALCHEMY_POOL_RECYCLE'] = 240
-        app.config['SQLALCHEMY_POOL_RECYCLE'] = 240
 
-        app.config.update(config.get('config', {}))
+        is_mysql = 'mysql://' in app.config['SQLALCHEMY_DATABASE_URI']
+        if config.get('config') is not None and 'config' in config and is_mysql:
+            app.config.update(config.get('config', {}))
+            app.config['SQLALCHEMY_POOL_SIZE'] = 10
+            app.config['SQLALCHEMY_POOL_RECYCLE'] = 240
 
         db.init_app(app)
 
@@ -172,17 +173,21 @@ def main(is_main_module):
         logger.debug(
             gettext('Running in %(mode)s mode', mode=config.get('environment')))
 
-        if is_main_module:
+        init_jvm(app, logger)
+        if main_module:
             # JVM, used to interact with HDFS.
-            init_jvm(app, logger)
             if config.get('environment', 'dev') == 'dev':
                 app.run(debug=True, port=port, host='0.0.0.0')
             else:
                 eventlet.wsgi.server(eventlet.listen(('', port)), app)
+        else:
+            return app    
     else:
         logger.error(
             gettext('Please, set LIMONERO_CONFIG environment variable'))
         exit(1)
+    return app
 
 
-main(__name__ == '__main__')
+if __name__ == '__main__':
+    create_app(__name__ == '__main__')
