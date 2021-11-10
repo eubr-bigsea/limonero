@@ -123,11 +123,21 @@ class ModelListApi(Resource):
         result, result_code = dict(
             status="ERROR", message="Missing json in the request body"), 400
         if request.json is not None:
+            overwrite = request.json.pop('overwrite', False)
             request_schema = ModelCreateRequestSchema()
             response_schema = ModelItemResponseSchema()
             try:
                 model = request_schema.load(request.json)
-                db.session.add(model)
+                if overwrite:
+                    original = Model.query.filter(
+                        Model.task_id==request.json['task_id']).first()
+                    if original:
+                        model.id = original.id
+                        db.session.merge(model)
+                    else:
+                        db.session.add(model)
+                else:
+                    db.session.add(model)
                 db.session.commit()
                 result, result_code = response_schema.dump(model), 200
             except ValidationError as e:
