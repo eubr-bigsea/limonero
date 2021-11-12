@@ -49,7 +49,7 @@ def exit_gracefully(s, frame):
     os.kill(os.getpid(), signal.SIGTERM)
 
 def create_app(main_module: bool = False):
-    app = Flask(__name__, static_url_path='', static_folder='static')
+    app = Flask(__name__, static_url_path='/static', static_folder='static')
     
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
         'limonero/i18n/locales')
