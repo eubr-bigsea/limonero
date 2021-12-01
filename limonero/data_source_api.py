@@ -1648,7 +1648,6 @@ class DataSourceSampleApi(Resource):
                         converters = []
                         if data_source.attributes:
                             csv_params = {
-                                'fileobj': csvfile,
                                 'delimiter': data_source.attribute_delimiter or ','}
                             if data_source.text_delimiter:
                                 csv_params['quoting'] = csv.QUOTE_MINIMAL
@@ -1666,12 +1665,12 @@ class DataSourceSampleApi(Resource):
                                     converters.append(int)
                                 else:
                                     converters.append(str.strip)
-                            reader = csv.reader(**csv_params)
+                            reader = csv.reader(csvfile, **csv_params)
                         else:
                             header.append(_('row'))
                             converters.append(str.strip)
                             reader = csv.reader(
-                                fileobj=csvfile,
+                                csvfile,
                                 delimiter=';')
 
                         if data_source.is_first_line_header:
@@ -1775,7 +1774,7 @@ class DataSourceSampleApi(Resource):
                             header.append(_('row'))
                             converters.append(str.strip)
                             reader = csv.reader(
-                                fileobj=csv_buf,
+                                csv_buf,
                                 delimiter=';')
                         data = []
                         i = 0
