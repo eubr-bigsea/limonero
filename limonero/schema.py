@@ -869,6 +869,8 @@ class ModelListResponseSchema(BaseSchema):
     class_name = fields.String(required=True)
     type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
                          validate=[OneOf(list(ModelType.__dict__.keys()))])
+    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -879,6 +881,8 @@ class ModelListResponseSchema(BaseSchema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
+    download_token = fields.Function(
+        lambda d: generate_download_token(d.id, 600))
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -903,6 +907,8 @@ class ModelCreateRequestSchema(BaseSchema):
     class_name = fields.String(required=True)
     type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
                          validate=[OneOf(list(ModelType.__dict__.keys()))])
+    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -937,6 +943,8 @@ class ModelItemResponseSchema(BaseSchema):
     class_name = fields.String(required=True)
     type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
                          validate=[OneOf(list(ModelType.__dict__.keys()))])
+    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
