@@ -33,7 +33,7 @@ from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
     DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi, \
     DataSourceInitializationApi
-from limonero.model_api import ModelDetailApi, ModelListApi
+from limonero.model_api import ModelDetailApi, ModelListApi, ModelDownloadApi
 from limonero.models import db, DataSource, Storage
 from limonero.privacy_api import GlobalPrivacyListApi, \
     AttributePrivacyGroupListApi
@@ -122,6 +122,9 @@ def create_app(main_module: bool = False):
                      methods=['GET'], endpoint='DataSourceDownload',
                      view_func=DataSourceDownload.as_view('download'))
 
+    app.add_url_rule('/models/<int:model_id>/download',
+                     methods=['GET'], endpoint='ModelDownloadApi',
+                     view_func=ModelDownloadApi.as_view('download_model'))
     migrate = Migrate(app, db)
     app.handle_exception
 
