@@ -641,8 +641,8 @@ class DataSourceUploadApi(Resource):
 
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                extra_params = parse_hdfs_extra_params(storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
                 log.info('================== %s', uri)
@@ -840,9 +840,9 @@ class DataSourceDownload(MethodView):
             try:
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(
+                extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
@@ -1027,8 +1027,8 @@ class DataSourceInferSchemaApi(Resource):
             parquet_pkg = jvm.org.apache.parquet
             uri = jvm.java.net.URI(str_uri)
 
-            extra_params = _parse_hdfs_extra_params(ds.storage.extra_params)
-            conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+            extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+            conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
             path = hadoop_pkg.fs.Path(ds.url)
             no_filter = \
@@ -1085,8 +1085,8 @@ class DataSourceInferSchemaApi(Resource):
                 hadoop_pkg = jvm.org.apache.hadoop
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(ds.storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
                 path = hadoop_pkg.fs.Path(ds.url)
@@ -1688,9 +1688,9 @@ class DataSourceSampleApi(Resource):
                 try:
                     uri = jvm.java.net.URI(str_uri)
 
-                    extra_params = _parse_hdfs_extra_params(
+                    extra_params = parse_hdfs_extra_params(
                             data_source.storage.extra_params)
-                    conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                    conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                     hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
