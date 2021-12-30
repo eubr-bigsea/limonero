@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-}
 import logging
 import math
+import os
+import json
 
-from flask import g as flask_g
-from flask import g
-from flask import request, current_app
+from urllib.parse import urlparse
+from flask import g as flask_g, abort
+from flask import (request, current_app, Response,
+    stream_with_context)
 from flask_babel import gettext
 from flask_restful import Resource
 from py4j.protocol import Py4JJavaError
 from sqlalchemy import or_, and_
+from flask.views import MethodView
 from marshmallow.exceptions import ValidationError
 
-from limonero.util import upload
+from limonero.py4j_init import create_gateway
+from limonero.util import (upload, parse_hdfs_extra_params, 
+    get_hdfs_conf)
 from .app_auth import requires_auth
 from .schema import *
 
@@ -30,12 +36,12 @@ def apply_filter(query, args, name, transform=None, transform_name=None):
 
 
 def _filter_by_permissions(models, permissions):
-    if g.user.id != 0:  # It is not a inter service call
+    if flask_g.user.id != 0:  # It is not a inter service call
         conditions = or_(
-            Model.user_id == g.user.id,
-            g.user.id == 1,
+            Model.user_id == flask_g.user.id,
+            flask_g.user.id == 1,
             and_(
-                ModelPermission.user_id == g.user.id,
+                ModelPermission.user_id == flask_g.user.id,
                 ModelPermission.permission.in_(permissions)
             )
         )
@@ -81,7 +87,7 @@ class ModelListApi(Resource):
                 ))
             t = request.args.get('type')
             if t:
-                models = models.filter(Model.type == t)
+                models = models.filter(Model.type.in_(t.split(',')))
             sort = request.args.get('sort', 'name')
             if sort not in ['name', 'id', 'user_id', 'user_name', 'type']:
                 sort = 'id'
@@ -466,3 +472,115 @@ class ModelUploadApi(Resource):
         db.session.commit()
         response_schema = ModelItemResponseSchema()
         return model, response_schema
+
+class ModelDownloadApi(MethodView):
+    """ Entry point for downloading a Model """
+
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    @requires_auth
+    def get(model_id):
+        if 'ADMINISTRATOR' in flask_g.user.permissions:
+            model = Model.query.filter(Model.id==model_id).first()
+        else:
+            model = Model.query.filter(Model.id==model_id, 
+                Model.user_id==flask_g.user.id).first()
+
+        if not model:
+            abort(404)
+        url = model.storage.url
+        if url[-1] == '/':
+            url = url[:-1]
+        parsed = urlparse(f'{url}{model.path}')
+
+        gateway = create_gateway(log, current_app.gateway_port or 18001)
+        jvm = gateway.jvm
+        content_type = ('application/zip' if model.type == ModelType.MLEAP
+            else 'application/x-binary')
+
+        if parsed.scheme == 'file':
+            def do_download():
+                total = 0
+                done = False
+                with open(parsed.path, 'rb') as f:
+                    while not done:
+                        read_data = f.read(4096)
+                        total += len(read_data)
+                        if len(read_data) != 4096:
+                            done = True
+                        yield read_data
+
+            name = parsed.path.split('/')[-1]
+            result = Response(stream_with_context(
+                do_download()), mimetype=content_type)
+
+            result.headers[
+                'Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            result.headers['Pragma'] = 'no-cache'
+            result.headers["Content-Disposition"] = \
+                "attachment; filename={}".format(name)
+            result_code = 200
+        else:
+            if parsed.port:
+                str_uri = '{proto}://{host}:{port}'.format(
+                    proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+            else:
+                str_uri = '{proto}://{host}'.format(
+                    proto=parsed.scheme, host=parsed.hostname)
+            try:
+                uri = jvm.java.net.URI(str_uri)
+
+                extra_params = parse_hdfs_extra_params(
+                        model.storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
+
+                hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+
+                chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
+                if not hdfs.exists(chunk_path):
+                    result, result_code = gettext("%(type)s not found.",
+                                                  type=gettext(
+                                                      'Data source')), 404
+                else:
+                    buf = jvm.java.nio.ByteBuffer.allocate(4096)
+                    input_in = hdfs.open(chunk_path)
+
+                    def do_download():
+                        total = 0
+                        done = False
+                        while not done:
+                            lido = input_in.read(buf)
+                            total += lido
+                            buf.position(0)
+                            if lido != 4096:
+                                done = True
+                                yield bytes(buf.array())[:lido]
+                            else:
+                                yield bytes(buf.array())
+
+                    name = parsed.path.split('/')[-1]
+
+                    result = Response(stream_with_context(
+                        do_download()), mimetype=content_type)
+
+                    result.headers[
+                        'Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                    result.headers['Pragma'] = 'no-cache'
+                    result.headers["Content-Disposition"] = \
+                        "attachment; filename={}".format(name)
+                    result_code = 200
+            except Py4JJavaError as java_ex:
+                if 'Could not obtain block' in \
+                        java_ex.java_exception.getMessage():
+                    return {'status': 'ERROR',
+                            'message': WRONG_HDFS_CONFIG}, 400
+                log.exception('Java error')
+            except Exception as e:
+                result = json.dumps(
+                    {'status': 'ERROR', 'message': gettext('Internal error')})
+                result_code = 500
+                log.exception(str(e))
+
+        return result, result_code
+
+

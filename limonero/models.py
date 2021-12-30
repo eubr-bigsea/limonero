@@ -61,6 +61,7 @@ class DataSourceInitialization:
 # noinspection PyClassHasNoInit
 class ModelType:
     KERAS = 'KERAS'
+    MLEAP = 'MLEAP'
     PERFORMANCE_SPARK = 'PERFORMANCE_SPARK'
     PERFORMANCE_KERAS = 'PERFORMANCE_KERAS'
     SPARK_ML_CLASSIFICATION = 'SPARK_ML_CLASSIFICATION'
@@ -71,6 +72,24 @@ class ModelType:
     @staticmethod
     def values():
         return [n for n in list(ModelType.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class DeploymentStatus:
+    NOT_DEPLOYED = 'NOT_DEPLOYED'
+    ERROR = 'ERROR'
+    EDITING = 'EDITING'
+    SAVED = 'SAVED'
+    RUNNING = 'RUNNING'
+    STOPPED = 'STOPPED'
+    SUSPENDED = 'SUSPENDED'
+    PENDING = 'PENDING'
+    DEPLOYED = 'DEPLOYED'
+
+    @staticmethod
+    def values():
+        return [n for n in list(DeploymentStatus.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
 
@@ -216,10 +235,12 @@ class Attribute(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id",
-                                       name="fk_attribute_data_source_id"), nullable=False,
+                                       name="fk_attribute_data_source_id"),
+                            nullable=False,
                             index=True)
     data_source = relationship(
         "DataSource",
+        overlaps='attributes',
         foreign_keys=[data_source_id],
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
@@ -247,28 +268,34 @@ class AttributeForeignKey(db.Model):
     # Associations
     foreign_key_id = Column(Integer,
                             ForeignKey("data_source_foreign_key.id",
-                                       name="fk_attribute_foreign_key_foreign_key_id"), nullable=False,
+                                       name="fk_attribute_foreign_key_foreign_key_id"),
+                            nullable=False,
                             index=True)
     foreign_key = relationship(
         "DataSourceForeignKey",
+        overlaps='attributes',
         foreign_keys=[foreign_key_id],
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
     from_attribute_id = Column(Integer,
                                ForeignKey("attribute.id",
-                                          name="fk_attribute_foreign_key_from_attribute_id"), nullable=False,
+                                          name="fk_attribute_foreign_key_from_attribute_id"),
+                               nullable=False,
                                index=True)
     from_attribute = relationship(
         "Attribute",
+        overlaps='foreign_keys',
         foreign_keys=[from_attribute_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
     to_attribute_id = Column(Integer,
                              ForeignKey("attribute.id",
-                                        name="fk_attribute_foreign_key_to_attribute_id"), nullable=False,
+                                        name="fk_attribute_foreign_key_to_attribute_id"),
+                             nullable=False,
                              index=True)
     to_attribute = relationship(
         "Attribute",
+        overlaps='references',
         foreign_keys=[to_attribute_id],
         backref=backref("references",
                         cascade="all, delete-orphan"))
@@ -311,6 +338,7 @@ class AttributePrivacy(db.Model):
                           index=True)
     attribute = relationship(
         "Attribute",
+        overlaps='attribute_privacy',
         foreign_keys=[attribute_id],
         back_populates="attribute_privacy")
     attribute_privacy_group_id = Column(Integer,
@@ -319,6 +347,7 @@ class AttributePrivacy(db.Model):
                                         index=True)
     attribute_privacy_group = relationship(
         "AttributePrivacyGroup",
+        overlaps='attribute_privacy',
         foreign_keys=[attribute_privacy_group_id],
         backref=backref("attribute_privacy",
                         cascade="all, delete-orphan"))
@@ -407,10 +436,12 @@ class DataSource(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id",
-                                   name="fk_data_source_storage_id"), nullable=False,
+                                   name="fk_data_source_storage_id"),
+                        nullable=False,
                         index=True)
     storage = relationship(
         "Storage",
+        overlaps='storage',
         foreign_keys=[storage_id])
 
     def __str__(self):
@@ -430,19 +461,23 @@ class DataSourceForeignKey(db.Model):
     # Associations
     from_source_id = Column(Integer,
                             ForeignKey("data_source.id",
-                                       name="fk_data_source_foreign_key_from_source_id"), nullable=False,
+                                       name="fk_data_source_foreign_key_from_source_id"),
+                            nullable=False,
                             index=True)
     from_source = relationship(
         "DataSource",
+        overlaps='foreign_keys',
         foreign_keys=[from_source_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
     to_source_id = Column(Integer,
                           ForeignKey("data_source.id",
-                                     name="fk_data_source_foreign_key_to_source_id"), nullable=False,
+                                     name="fk_data_source_foreign_key_to_source_id"),
+                          nullable=False,
                           index=True)
     to_source = relationship(
         "DataSource",
+        overlaps='references',
         foreign_keys=[to_source_id],
         backref=backref("references",
                         cascade="all, delete-orphan"))
@@ -469,10 +504,12 @@ class DataSourcePermission(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id",
-                                       name="fk_data_source_permission_data_source_id"), nullable=False,
+                                       name="fk_data_source_permission_data_source_id"),
+                            nullable=False,
                             index=True)
     data_source = relationship(
         "DataSource",
+        overlaps='permissions',
         foreign_keys=[data_source_id],
         backref=backref("permissions",
                         cascade="all, delete-orphan"))
@@ -500,6 +537,9 @@ class Model(db.Model):
     type = Column(Enum(*list(ModelType.values()),
                        name='ModelTypeEnumType'),
                   default=ModelType.UNSPECIFIED, nullable=False)
+    deployment_status = Column(Enum(*list(DeploymentStatus.values()),
+                                    name='DeploymentStatusEnumType'),
+                               default=DeploymentStatus.NOT_DEPLOYED, nullable=False)
     user_id = Column(Integer, nullable=False)
     user_login = Column(String(50), nullable=False)
     user_name = Column(String(200), nullable=False)
@@ -511,10 +551,12 @@ class Model(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id",
-                                   name="fk_model_storage_id"), nullable=False,
+                                   name="fk_model_storage_id"),
+                        nullable=False,
                         index=True)
     storage = relationship(
         "Storage",
+        overlaps='storage',
         foreign_keys=[storage_id])
 
     def __str__(self):
@@ -539,10 +581,12 @@ class ModelPermission(db.Model):
     # Associations
     model_id = Column(Integer,
                       ForeignKey("model.id",
-                                 name="fk_model_permission_model_id"), nullable=False,
+                                 name="fk_model_permission_model_id"),
+                      nullable=False,
                       index=True)
     model = relationship(
         "Model",
+        overlaps='permissions',
         foreign_keys=[model_id],
         backref=backref("permissions",
                         cascade="all, delete-orphan"))
@@ -570,10 +614,12 @@ class PrivacyRisk(db.Model):
     # Associations
     data_source_id = Column(Integer,
                             ForeignKey("data_source.id",
-                                       name="fk_privacy_risk_data_source_id"), nullable=False,
+                                       name="fk_privacy_risk_data_source_id"),
+                            nullable=False,
                             index=True)
     data_source = relationship(
         "DataSource",
+        overlaps='risks',
         foreign_keys=[data_source_id],
         backref=backref("risks",
                         cascade="all, delete-orphan"))
@@ -620,10 +666,12 @@ class StoragePermission(db.Model):
     # Associations
     storage_id = Column(Integer,
                         ForeignKey("storage.id",
-                                   name="fk_storage_permission_storage_id"), nullable=False,
+                                   name="fk_storage_permission_storage_id"),
+                        nullable=False,
                         index=True)
     storage = relationship(
         "Storage",
+        overlaps='permissions',
         foreign_keys=[storage_id],
         backref=backref("permissions",
                         cascade="all, delete-orphan"))

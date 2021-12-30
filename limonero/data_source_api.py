@@ -32,6 +32,8 @@ from sqlalchemy.sql.elements import or_
 from urllib.parse import urlparse
 from werkzeug.exceptions import NotFound
 
+from limonero.util import (parse_hdfs_extra_params, 
+    get_hdfs_conf)
 from limonero.py4j_init import create_gateway
 from limonero.util import strip_accents
 from limonero.util.jdbc import get_mysql_data_type, \
@@ -65,37 +67,6 @@ TIME_FORMATS = {
     ' %H:%M:%S': 'hh:mm:ss',
 }
 
-HdfsExtraParameters = collections.namedtuple('HdfsExtraParameters', 
-    ['user', 'use_hostname', 'resources'])
-# Python 3.6
-HdfsExtraParameters.__new__.__defaults__ = (None, None)
-
-def _parse_hdfs_extra_params(data):
-    if data is not None:
-        return json.loads(data, 
-            object_hook=lambda d: HdfsExtraParameters(**d))
-    return None
-
-def _get_hdfs_conf(jvm, extra_params, config):
-    conf = jvm.org.apache.hadoop.conf.Configuration()
-    use_hostname = ((extra_params is not None and 
-        extra_params.use_hostname) or 
-        config.get('dfs.client.use.datanode.hostname', True))
-
-    if extra_params is not None:
-        if extra_params.user:
-            # This is the only way to set HDFS user name
-            os.environ["HADOOP_USER_NAME"] = extra_params.user
-            jvm.java.lang.System.setProperty("HADOOP_USER_NAME", extra_params.user)
-
-        Path = jvm.org.apache.hadoop.fs.Path
-        if extra_params.resources:
-            for resource in extra_params.resources:
-                conf.addResource(Path(resource))
-
-    conf.set('dfs.client.use.datanode.hostname',
-                         "true" if use_hostname else "false")
-    return conf
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
     result = query
@@ -600,8 +571,8 @@ class DataSourceUploadApi(Resource):
 
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                extra_params = parse_hdfs_extra_params(storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
@@ -670,8 +641,8 @@ class DataSourceUploadApi(Resource):
 
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                extra_params = parse_hdfs_extra_params(storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
                 log.info('================== %s', uri)
@@ -869,9 +840,9 @@ class DataSourceDownload(MethodView):
             try:
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(
+                extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
@@ -1056,8 +1027,8 @@ class DataSourceInferSchemaApi(Resource):
             parquet_pkg = jvm.org.apache.parquet
             uri = jvm.java.net.URI(str_uri)
 
-            extra_params = _parse_hdfs_extra_params(ds.storage.extra_params)
-            conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+            extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+            conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
             path = hadoop_pkg.fs.Path(ds.url)
             no_filter = \
@@ -1114,8 +1085,8 @@ class DataSourceInferSchemaApi(Resource):
                 hadoop_pkg = jvm.org.apache.hadoop
                 uri = jvm.java.net.URI(str_uri)
 
-                extra_params = _parse_hdfs_extra_params(ds.storage.extra_params)
-                conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+                conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                 hdfs = hadoop_pkg.fs.FileSystem.get(uri, conf)
                 path = hadoop_pkg.fs.Path(ds.url)
@@ -1717,9 +1688,9 @@ class DataSourceSampleApi(Resource):
                 try:
                     uri = jvm.java.net.URI(str_uri)
 
-                    extra_params = _parse_hdfs_extra_params(
+                    extra_params = parse_hdfs_extra_params(
                             data_source.storage.extra_params)
-                    conf = _get_hdfs_conf(jvm, extra_params, current_app.config)
+                    conf = get_hdfs_conf(jvm, extra_params, current_app.config)
 
                     hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
 
