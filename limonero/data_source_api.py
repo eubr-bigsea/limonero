@@ -67,6 +67,10 @@ TIME_FORMATS = {
     ' %H:%M:%S': 'hh:mm:ss',
 }
 
+SPECIAL_DELIMITERS = {'{tab}': '\t',
+                      '{new_line \\n}': '\n',
+                      '{new_line \\r\\n}': '\r\n'
+                     }
 
 def apply_filter(query, args, name, transform=None, transform_name=None):
     result = query
@@ -1106,11 +1110,7 @@ class DataSourceInferSchemaApi(Resource):
                     if ds.attribute_delimiter:
                         delimiter = ds.attribute_delimiter
 
-                    special_delimiters = {'{tab}': '\t',
-                                          '{new_line \\n}': '\n',
-                                          '{new_line \\r\\n}': '\r\n'
-                                          }
-                    delimiter = special_delimiters.get(delimiter, delimiter)
+                    delimiter = SPECIAL_DELIMITERS.get(delimiter, delimiter)
 
                     if ds.treat_as_missing:
                         missing_values = ds.treat_as_missing.split(',')
@@ -1739,7 +1739,7 @@ class DataSourceSampleApi(Resource):
                                 else:
                                     converters.append(str.strip)
                             d = data_source.attribute_delimiter or str(',')
-                            csv_params = {'delimiter': d}
+                            csv_params = {'delimiter': SPECIAL_DELIMITERS.get(d, d)}
                             reader = csv.reader(csv_buf, **csv_params)
                         else:
                             header.append(_('row'))
