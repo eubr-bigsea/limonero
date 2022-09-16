@@ -1612,7 +1612,9 @@ class DataSourceSampleApi(Resource):
                 # Support JSON and CSV
                 if data_source.format == DataSourceFormat.CSV:
                     encoding = data_source.encoding or 'utf8'
-                    with codecs.open(parsed.path, 'rb',
+                    ffd = gzip.open(parsed.path) if parsed.path.endswith('.gz') else parsed.path
+
+                    with codecs.open(ffd, 'rb',
                                      encoding=encoding) as csvfile:
 
                         header = []
