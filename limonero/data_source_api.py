@@ -4,6 +4,8 @@ import decimal
 import logging
 import json
 import math
+import gzip
+import io
 import operator
 import os
 import re
@@ -1120,8 +1122,9 @@ class DataSourceInferSchemaApi(Resource):
                     encoding = 'utf8'
                     if parsed.scheme == 'file':
                         encoding = ds.encoding or 'utf8'
-                        buffered_reader = codecs.open(parsed.path, 'rb',
-                                                      encoding=encoding)
+                        buffered_reader= gzip.open(parsed.path, mode='rt') \
+                            if parsed.path.endswith('.gz') else \
+                                codecs.open(parsed.path, 'rb', encoding=encoding)
                     elif parsed.scheme == 'hdfs':
                         buffered_reader, encoding = \
                             DataSourceInferSchemaApi._get_reader(
@@ -1612,58 +1615,58 @@ class DataSourceSampleApi(Resource):
                 # Support JSON and CSV
                 if data_source.format == DataSourceFormat.CSV:
                     encoding = data_source.encoding or 'utf8'
-                    ffd = gzip.open(parsed.path) if parsed.path.endswith('.gz') else parsed.path
+                    csvfile = gzip.open(parsed.path, mode='rt') \
+                        if parsed.path.endswith('.gz') else \
+                            codecs.open(parsed.path, 'rb', encoding=encoding)
 
-                    with codecs.open(ffd, 'rb',
-                                     encoding=encoding) as csvfile:
+                    header = []
+                    converters = []
+                    if data_source.attributes:
+                        csv_params = {
+                            'delimiter': data_source.attribute_delimiter or ','}
+                        if data_source.text_delimiter:
+                            csv_params['quoting'] = csv.QUOTE_MINIMAL
+                            csv_params[
+                                'quotechar'] = data_source.text_delimiter
+                        for attr in data_source.attributes:
+                            header.append(attr.name)
+                            if attr.type in [DataType.DECIMAL]:
+                                converters.append(decimal.Decimal)
+                            elif attr.type in [DataType.DOUBLE,
+                                               DataType.FLOAT]:
+                                converters.append(float)
+                            elif attr.type in [DataType.INTEGER,
+                                               DataType.LONG]:
+                                converters.append(int)
+                            else:
+                                converters.append(str.strip)
+                        reader = csv.reader(csvfile, **csv_params)
+                    else:
+                        header.append(_('row'))
+                        converters.append(str.strip)
+                        reader = csv.reader(
+                            csvfile,
+                            delimiter=';')
 
-                        header = []
-                        converters = []
-                        if data_source.attributes:
-                            csv_params = {
-                                'delimiter': data_source.attribute_delimiter or ','}
-                            if data_source.text_delimiter:
-                                csv_params['quoting'] = csv.QUOTE_MINIMAL
-                                csv_params[
-                                    'quotechar'] = data_source.text_delimiter
-                            for attr in data_source.attributes:
-                                header.append(attr.name)
-                                if attr.type in [DataType.DECIMAL]:
-                                    converters.append(decimal.Decimal)
-                                elif attr.type in [DataType.DOUBLE,
-                                                   DataType.FLOAT]:
-                                    converters.append(float)
-                                elif attr.type in [DataType.INTEGER,
-                                                   DataType.LONG]:
-                                    converters.append(int)
-                                else:
-                                    converters.append(str.strip)
-                            reader = csv.reader(csvfile, **csv_params)
-                        else:
-                            header.append(_('row'))
-                            converters.append(str.strip)
-                            reader = csv.reader(
-                                csvfile,
-                                delimiter=';')
-
-                        if data_source.is_first_line_header:
-                            next(reader)
-                        data = []
-                        for i, line in enumerate(reader):
-                            if i >= limit:
-                                break
-                            row = {}
-                            for h, v, conv in zip(header, line, converters):
-                                try:
-                                    row[h] = conv(v) if v != '' else ''
-                                except decimal.InvalidOperation:
-                                    row[h] = gettext(
-                                        "<Invalid data>: `{}`".format(v))
-                                    warnings.append(h)
-                            data.append(row)
-                            result, status_code = dict(
-                                status='OK', warnings=list(set(warnings)),
-                                data=data), 200
+                    if data_source.is_first_line_header:
+                        next(reader)
+                    data = []
+                    for i, line in enumerate(reader):
+                        if i >= limit:
+                            break
+                        row = {}
+                        for h, v, conv in zip(header, line, converters):
+                            try:
+                                row[h] = conv(v) if v != '' else ''
+                            except decimal.InvalidOperation:
+                                row[h] = gettext(
+                                    "<Invalid data>: `{}`".format(v))
+                                warnings.append(h)
+                        data.append(row)
+                        result, status_code = dict(
+                            status='OK', warnings=list(set(warnings)),
+                            data=data), 200
+                    csvfile.close()
                 elif data_source.format == DataSourceFormat.JSON:
                     data = []
                     with open(parsed.path) as f:
