@@ -933,7 +933,8 @@ class DataSourceInferSchemaApi(Resource):
                             port=parsed.port or '3306',
                             user=qs.get('user'),
                             passwd=qs.get('password'),
-                            db=parsed.path[1:]) as cursor:
+                            db=parsed.path[1:]) as cn:
+                        cursor = cn.cursor()
                         cursor.execute('{} LIMIT 0'.format(cmd))
 
                         DataSourceInferSchemaApi._delete_old_attributes(ds)
@@ -1557,7 +1558,8 @@ class DataSourceSampleApi(Resource):
                         passwd=parsed.password or qs.get('password'),
                         db=parsed.path[1:],
                         charset='UTF8',
-                        cursorclass=pymysql.cursors.DictCursor) as cursor:
+                        cursorclass=pymysql.cursors.DictCursor) as cn:
+                    cursor = cn.cursor()
                     cursor.execute('{} LIMIT {}'.format(cmd, limit))
                     result, status_code = dict(status='OK',
                                            data=cursor.fetchall()), 200
