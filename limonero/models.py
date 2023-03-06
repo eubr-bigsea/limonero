@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
     Enum, DateTime, Numeric, Text, Unicode, UnicodeText
 from sqlalchemy import event
-from sqlalchemy.dialects.mysql import LONGTEXT
+from sqlalchemy.dialects.mysql import LONGTEXT, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
@@ -546,7 +546,10 @@ class Model(db.Model):
     workflow_id = Column(Integer)
     workflow_name = Column(String(200))
     task_id = Column(String(200))
+    description = Column(String(500))
+    metrics = Column(JSON)
     job_id = Column(Integer)
+    data_source_id = Column(Integer)
 
     # Associations
     storage_id = Column(Integer,
@@ -558,6 +561,16 @@ class Model(db.Model):
         "Storage",
         overlaps='storage',
         foreign_keys=[storage_id])
+
+    # data_source_id = Column(Integer,
+    #                         ForeignKey("data_source.id",
+    #                                    name="fk_model_data_source_id"),
+    #                         nullable=True,
+    #                         index=True)
+    # data_source = relationship(
+    #     "DataSource",
+    #     overlaps='datasource',
+    #     foreign_keys=[data_source_id])
 
     def __str__(self):
         return self.name

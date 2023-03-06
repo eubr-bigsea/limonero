@@ -44,3 +44,4 @@ RUN pip3 install -r requirements.txt
 COPY . $LIMONERO_HOME
 RUN pybabel compile -d $LIMONERO_HOME/limonero/i18n/locales
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
+

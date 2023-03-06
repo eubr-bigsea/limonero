@@ -877,6 +877,7 @@ class ModelListResponseSchema(BaseSchema):
     workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
     job_id = fields.Integer(required=False, allow_none=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
@@ -915,6 +916,9 @@ class ModelCreateRequestSchema(BaseSchema):
     workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
+    data_source_id = fields.Integer(required=False, allow_none=True)
+    metrics = fields.Dict(required=False, allow_none=True)
     job_id = fields.Integer(required=False, allow_none=True)
     storage_id = fields.Integer(required=True)
 
@@ -949,9 +953,12 @@ class ModelItemResponseSchema(BaseSchema):
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
     workflow_id = fields.Integer(required=False, allow_none=True)
+    data_source_id = fields.Integer(required=False, allow_none=True)
     workflow_name = fields.String(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
     job_id = fields.Integer(required=False, allow_none=True)
+    metrics = fields.Dict(required=False, allow_none=True)
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
