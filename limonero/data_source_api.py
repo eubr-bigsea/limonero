@@ -42,6 +42,7 @@ from limonero.util.jdbc import get_mysql_data_type, \
      get_hive_data_type
 from .app_auth import requires_auth, User
 from .schema import *
+import limonero.hdfs_util as hu
 
 _ = gettext
 log = logging.getLogger(__name__)
@@ -1683,6 +1684,19 @@ class DataSourceSampleApi(Resource):
                         status='ERROR',
                         message='Format {} is not supported'.format(
                             data_source.format)), 400
+            elif parsed.scheme == 'hdfs' and data_source.format == 'PARQUET':
+                from pyarrow import fs
+                str_uri = f'{parsed.scheme}://{parsed.hostname}'
+                local = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                
+                if not hu.exists(local, parsed.path):
+                    result = ({ 'status': 'ERROR',
+                                  'message': 'Not found'}, 404)
+                else:
+                    limit = 40
+                    data = hu.sample_parquet(local, parsed.path, limit)
+                    result, status_code = dict(status='OK',
+                                               data=data), 200
             elif parsed.scheme == 'hdfs':
                 gateway = create_gateway(log, current_app.gateway_port)
                 jvm = gateway.jvm
@@ -1809,6 +1823,232 @@ class DataSourceSampleApi(Resource):
         else:
             return dict(status="ERROR", message="Not found"), 404
         return result, status_code
+
+class DataSourceConvertApi(Resource):
+    @staticmethod
+    @requires_auth
+    def post(data_source_id: int, target_type: str):
+
+        data_sources = DataSource.query
+        data_source = _filter_by_permissions(data_sources,
+                                             list(PermissionType.values()))
+
+        data_source = data_source.filter(
+            DataSource.id == data_source_id).first()
+
+        result, status_code = dict(status='ERROR', message='Not found'), 404
+
+        warnings = []
+        if data_source is not None:
+            treat_as_missing = (data_source.treat_as_missing or '').split(',')
+            parsed = urlparse(
+                next((a for a in [data_source.url, data_source.storage.client_url, 
+                    data_source.storage.url] 
+                    if a), None))
+
+            if parsed.scheme in( 'mysql', 'hive'):
+                result = dict(status='Error', 
+                    message='Invalid source type. Only file-based '
+                        'types can be converted.') 
+                status_code = 400
+            elif (data_source.format != DataSourceFormat.CSV and 
+                    data_source.format != DataSourceFormat.JSON):
+                result= dict(
+                    status='ERROR',
+                    message=f'Format {data_source.format} is not supported')
+                status_code = 400
+                
+            elif parsed.scheme == 'file':
+                # Support JSON and CSV
+                if data_source.format == DataSourceFormat.CSV:
+                    encoding = data_source.encoding or 'utf8'
+                    csvfile = gzip.open(parsed.path, mode='rt') \
+                        if parsed.path.endswith('.gz') else \
+                            codecs.open(parsed.path, 'rb', encoding=encoding)
+
+                    header = []
+                    converters = []
+                    if data_source.attributes:
+                        csv_params = {
+                            'delimiter': data_source.attribute_delimiter or ','}
+                        if data_source.text_delimiter:
+                            csv_params['quoting'] = csv.QUOTE_MINIMAL
+                            csv_params[
+                                'quotechar'] = data_source.text_delimiter
+                        for attr in data_source.attributes:
+                            header.append(attr.name)
+                            if attr.type in [DataType.DECIMAL]:
+                                converters.append(decimal.Decimal)
+                            elif attr.type in [DataType.DOUBLE,
+                                               DataType.FLOAT]:
+                                converters.append(float)
+                            elif attr.type in [DataType.INTEGER,
+                                               DataType.LONG]:
+                                converters.append(int)
+                            else:
+                                converters.append(str.strip)
+                        reader = csv.reader(csvfile, **csv_params)
+                    else:
+                        header.append(_('row'))
+                        converters.append(str.strip)
+                        reader = csv.reader(
+                            csvfile,
+                            delimiter=';')
+
+                    if data_source.is_first_line_header:
+                        next(reader)
+                    data = []
+                    for i, line in enumerate(reader):
+                        if i >= limit:
+                            break
+                        row = {}
+                        for h, v, conv in zip(header, line, converters):
+                            try:
+                                row[h] = conv(v) if v != '' else ''
+                            except decimal.InvalidOperation:
+                                row[h] = gettext(
+                                    "<Invalid data>: `{}`".format(v))
+                                warnings.append(h)
+                        data.append(row)
+                        result, status_code = dict(
+                            status='OK', warnings=list(set(warnings)),
+                            data=data), 200
+                    csvfile.close()
+                elif data_source.format == DataSourceFormat.JSON:
+                    data = []
+                    with open(parsed.path) as f:
+                        for i, line in enumerate(f):
+                            if i >= limit:
+                                break
+                            data.append(json.loads(line))
+                    result, status_code = dict(status='OK',
+                                               data=data), 200
+            elif parsed.scheme == 'hdfs':
+                gateway = create_gateway(log, current_app.gateway_port)
+                jvm = gateway.jvm
+                if parsed.port:
+                    str_uri = '{proto}://{host}:{port}'.format(
+                        proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
+                else:
+                    str_uri = '{proto}://{host}'.format(
+                        proto=parsed.scheme, host=parsed.hostname)
+                try:
+                    uri = jvm.java.net.URI(str_uri)
+
+                    extra_params = parse_hdfs_extra_params(
+                            data_source.storage.extra_params)
+                    conf = get_hdfs_conf(jvm, extra_params, current_app.config)
+
+                    hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
+
+                    chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
+                    if not hdfs.exists(chunk_path):
+                        result = ({
+                                      'status': 'ERROR',
+                                      'message': 'Not found'}, 404)
+                    else:
+                        input_in = hdfs.open(chunk_path)
+
+                        bom_input_stream = \
+                            jvm.org.apache.commons.io.input.BOMInputStream(
+                                input_in)
+
+                        if bom_input_stream.getBOM() is not None:
+                            encoding = \
+                                bom_input_stream.getBOM().getCharsetName()
+                        else:
+                            encoding = data_source.encoding or 'UTF-8'
+                        if parsed.path.endswith('.gz'):
+                            buffered_reader = jvm.java.io.BufferedReader(
+                                jvm.java.io.InputStreamReader(
+                                    jvm.java.util.zip.GZIPInputStream(
+                                        bom_input_stream), encoding))
+                        else:
+                            buffered_reader = jvm.java.io.BufferedReader(
+                                jvm.java.io.InputStreamReader(
+                                    bom_input_stream, encoding))
+
+                        header = []
+                        converters = []
+                        csv_buf = StringIO()
+
+                        if data_source.attributes:
+                            for attr in data_source.attributes:
+                                header.append(attr.name)
+                                if attr.type in [DataType.DECIMAL]:
+                                    converters.append(decimal.Decimal)
+                                elif attr.type in [DataType.DOUBLE,
+                                                   DataType.FLOAT]:
+                                    converters.append(float)
+                                elif attr.type in [DataType.INTEGER,
+                                                   DataType.LONG]:
+                                    converters.append(int)
+                                else:
+                                    converters.append(str.strip)
+                            d = data_source.attribute_delimiter or str(',')
+                            csv_params = {'delimiter': SPECIAL_DELIMITERS.get(d, d)}
+                            reader = csv.reader(csv_buf, **csv_params)
+                        else:
+                            header.append(_('row'))
+                            converters.append(str.strip)
+                            reader = csv.reader(
+                                csv_buf,
+                                delimiter=';')
+                        data = []
+                        i = 0
+                        if data_source.is_first_line_header:
+                            buffered_reader.readLine()
+
+                        limit = 40
+                        while i < limit:
+                            tmp_line = buffered_reader.readLine()
+                            if tmp_line:
+                                csv_buf.write(tmp_line)
+                                csv_buf.write('\n')
+                            i += 1
+
+                        csv_buf.seek(0)
+                        from collections import OrderedDict
+                        for line in reader:
+                            row = OrderedDict()
+                            for h, v, conv in zip(header, line, converters):
+                                # noinspection PyBroadException
+                                try:
+                                    if v not in treat_as_missing:
+                                        row[h] = conv(v)
+                                    else:
+                                        row[h] = None
+                                except:
+                                    status_code = 422
+                                    return dict(
+                                        status='ERROR',
+                                        message=INVALID_FORMAT_ERROR.format(
+                                            type=str(conv), attr=h,
+                                            v=str(v)
+                                        )), status_code
+                            data.append(row)
+
+                        result, status_code = dict(status='OK',
+                                                   data=data), 200
+                except Py4JJavaError as java_ex:
+                    if 'Could not obtain block' in \
+                            java_ex.java_exception.getMessage():
+                        return {'status': 'ERROR',
+                                'message': WRONG_HDFS_CONFIG}, 400
+                    log.exception('Java error')
+                except Exception as e:
+                    result = {'status': 'ERROR',
+                              'message': 'Internal error:',
+                              'details': str(e)}
+                    status_code = 500
+                    log.exception(str(e))
+            else:
+                return dict(status="ERROR",
+                            message=f"Unsupported protocol {parsed.scheme}"), 400
+        else:
+            return dict(status="ERROR", message="Not found"), 404
+        return result, status_code
+
 
 
 # Events

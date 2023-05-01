@@ -1,7 +1,11 @@
 FROM ubuntu:18.04
 ENV LIMONERO_HOME=/usr/local/limonero
 ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
-    PYTHONPATH=${PYTHONPATH}:${JUICER_HOME}
+    PYTHONPATH=${PYTHONPATH}:${LIMONERO_HOME}
+
+ENV HADOOP_VERSION_BASE=2.7.7
+ENV HADOOP_HOME /opt/hadoop_$HADOOP_VERSION_BASE
+ENV LD_LIBRARY_PATH="$HADOOP_HOME/lib/native/"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libsasl2-dev \
@@ -16,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       wget \
       python3-dev \
       python-wheel \
+      curl \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3.6 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
@@ -25,17 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && echo "LC_ALL=en_US.UTF-8" >> /etc/default/locale \
   && rm -rf /var/lib/apt/lists/*
 
+RUN curl -sL https://archive.apache.org/dist/hadoop/core/hadoop-${HADOOP_VERSION_BASE}/hadoop-${HADOOP_VERSION_BASE}.tar.gz | tar -xz -C /opt/ 
+ENV PATH="$HADOOP_HOME/bin/:$PATH"
+RUN echo 'export CLASSPATH=$(hadoop classpath --glob):$CLASSPATH' >> /etc/profile.d/hadoop-env.sh &&\
+	chmod a+x /etc/profile.d/hadoop-env.sh
+
 WORKDIR $LIMONERO_HOME
 
 # Java dependencies.
-ARG IVY_VERSION=2.5.0
-ARG IVY_PKG=ivy-${IVY_VERSION}.jar
-ARG IVY_URL=https://repo1.maven.org/maven2/org/apache/ivy/ivy/${IVY_VERSION}/${IVY_PKG}
-
-COPY ivy.xml ./
-RUN wget --quiet --directory-prefix /tmp $IVY_URL \
-  && java -jar /tmp/${IVY_PKG} -retrieve "${LIMONERO_HOME}/jars/[artifact]-[revision](-[classifier]).[ext]" \
-  && rm /tmp/${IVY_PKG}
 
 COPY requirements.txt ./
 RUN pip3 install -U pip wheel

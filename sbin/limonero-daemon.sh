@@ -15,6 +15,9 @@ fi
 # parameter option
 cmd_option=$1
 
+
+export CLASSPATH=$(hadoop classpath --glob):$CLASSPATH
+
 # if unset set limonero_home project root without ./sbin
 export LIMONERO_HOME=${LIMONERO_HOME:-$(cd $(dirname $0)/..; pwd)}
 echo ${LIMONERO_HOME}
