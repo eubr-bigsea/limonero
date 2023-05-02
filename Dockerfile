@@ -4,7 +4,8 @@ ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
     PYTHONPATH=${PYTHONPATH}:${LIMONERO_HOME}
 
 ENV HADOOP_VERSION_BASE=2.7.7
-ENV HADOOP_HOME /opt/hadoop_$HADOOP_VERSION_BASE
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+ENV HADOOP_HOME /opt/hadoop-$HADOOP_VERSION_BASE
 ENV LD_LIBRARY_PATH="$HADOOP_HOME/lib/native/"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -44,5 +45,6 @@ RUN pip3 install -U pip wheel
 RUN pip3 install -r requirements.txt
 
 COPY . $LIMONERO_HOME
+COPY ./conf/hdfs-site.xml $HADOOP_HOME/etc/hadoop/
 RUN pybabel compile -d $LIMONERO_HOME/limonero/i18n/locales
 CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
