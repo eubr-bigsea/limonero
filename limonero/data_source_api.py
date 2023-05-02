@@ -19,6 +19,7 @@ from io import StringIO
 import pymysql
 import collections
 import csv
+from pyarrow import fs
 from flask import g as flask_g
 from flask import request, Response, current_app
 from flask import stream_with_context
@@ -34,7 +35,7 @@ from sqlalchemy.sql.elements import or_
 from urllib.parse import urlparse
 from werkzeug.exceptions import NotFound
 
-from limonero.util import (parse_hdfs_extra_params, 
+from limonero.util import (parse_hdfs_extra_params,
     get_hdfs_conf)
 from limonero.py4j_init import create_gateway
 from limonero.util import strip_accents
@@ -138,11 +139,11 @@ class DataSourceListApi(Resource):
             if ds_id:
                 data_sources = data_sources.filter(
                         DataSource.id == int(request.args.get('id')))
- 
+
             lookup = request.args.get('lookup')
             if lookup and lookup in ['1', 'true', True, 1]:
                 data_sources = data_sources.filter(DataSource.is_lookup)
- 
+
             use_in_workflow = request.args.get('uiw')
             if use_in_workflow and use_in_workflow in ['1', 'true', True, 1]:
                 data_sources = data_sources.filter(DataSource.use_in_workflow)
@@ -303,7 +304,7 @@ class DataSourceDetailApi(Resource):
                 return attributes
             else:
                 if not is_logged_user_owner_or_admin(data_source):
-                    exclude = ['storage.url', 'storage.client_url', 
+                    exclude = ['storage.url', 'storage.client_url',
                             'storage.extra_params', 'url' ]
                 else:
                     exclude = []
@@ -408,7 +409,7 @@ class DataSourceDetailApi(Resource):
                 else:
                     result = {
                         'status': 'ERROR',
-                        'message': gettext("%(type)s not found.", 
+                        'message': gettext("%(type)s not found.",
                                            type=gettext('Data source'))}
             except ValidationError as e:
                 result = dict(status="ERROR", message=gettext('Invalid data'),
@@ -532,8 +533,220 @@ class DataSourcePermissionApi(Resource):
                     db.session.rollback()
         return result, result_code
 
-
 class DataSourceUploadApi(Resource):
+    """ REST API for upload a DataSource """
+
+    @staticmethod
+    def _get_tmp_path(hdfs, parsed, filename):
+        final_path = parsed.path.replace('//', '/')
+        tmp_dir = f'{final_path}/tmp/upload/{filename}'
+
+        str_uri = f'{parsed.scheme}://{parsed.hostname}'
+        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+
+        if not hu.exists(hdfs, tmp_dir):
+            hu.mkdirs(hdfs, tmp_dir)
+        return tmp_dir
+
+    @staticmethod
+    def _get_ids(request):
+        identifier = request.args.get('resumableIdentifier', type=str)
+        filename = request.args.get('resumableFilename', type=str)
+        chunk_number = request.args.get('resumableChunkNumber', type=int)
+        return identifier, filename, chunk_number
+
+    @staticmethod
+    @requires_auth
+    def get():
+        # noinspection PyBroadException
+        try:
+            result, result_code = 'OK', 200
+            identifier, filename, chunk_number = (
+                DataSourceUploadApi._get_ids(request))
+
+            storage_id = request.args.get('storage_id', type=int)
+            if not all([storage_id, identifier, filename, chunk_number]):
+                # Parameters are missing or invalid
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
+            else:
+                storage = Storage.query.get(storage_id)
+                if storage.type != 'HDFS':
+                    raise ValueError(
+                        'Usupported storage type: {}'.format(storage.type))
+                parsed = urlparse(storage.url)
+
+                if parsed.scheme == 'file':
+                    pass # FIXME!
+                elif parsed.scheme == 'hdfs':
+                    str_uri = f'{parsed.scheme}://{parsed.hostname}'
+                    extra_params = parse_hdfs_extra_params(storage.extra_params)
+                    
+                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    tmp_path = DataSourceUploadApi._get_tmp_path(
+                        hdfs, parsed, filename)
+
+                    chunk_filename = f'{tmp_path}/{filename}.part{chunk_number:09d}'
+                    current_app.logger.debug('Creating chunk: %s', chunk_filename)
+
+                    # time.sleep(1)
+                    if not hu.exists(hdfs, chunk_filename):
+                        # Let resumable.js know this chunk does not exists
+                        #  and needs to be uploaded
+                        result, result_code = {'status': 'OK',
+                                           'message': gettext('Not found')}, 404
+
+            return result, result_code
+        except Exception as e:
+            log.exception(e)
+            return {'status': 'ERROR',
+                        'message': gettext('Internal error')}, 400
+
+    @staticmethod
+    @requires_auth
+    def post():
+        try:
+            identifier, filename, chunk_number = (
+                DataSourceUploadApi._get_ids(request))
+
+            total_chunks = request.args.get('resumableTotalChunks', type=int)
+            total_size = request.args.get('resumableTotalSize', type=int)
+            storage_id = request.args.get('storage_id', type=int)
+
+            result, result_code = 'OK', 200
+            if not all([identifier, filename, chunk_number]):
+                # Parameters are missing or invalid
+                result, result_code = {'status': 'ERROR', 'message': gettext(
+                    'Missing required parameters')}, 400
+            else:
+                storage = Storage.query.get(storage_id)
+                storage_url = storage.url if storage.url[-1] != '/' \
+                    else storage.url[:-1]
+                parsed = urlparse(storage_url)
+
+                if parsed.scheme == 'file':
+                    str_uri = '{proto}://{path}'.format(
+                        proto=parsed.scheme, path=parsed.path)
+                else:
+                    str_uri = f'{parsed.scheme}://{parsed.hostname}'
+
+                extra_params = parse_hdfs_extra_params(storage.extra_params)
+                # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
+
+                hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                tmp_path = DataSourceUploadApi._get_tmp_path(
+                        hdfs, parsed, filename)
+
+                chunk_filename = f'{tmp_path}/{filename}.part{chunk_number:09d}'
+                current_app.logger.debug('Writing chunk: %s', chunk_filename)
+
+                file_data = request.get_data()
+                hu.write(hdfs, chunk_filename, file_data)
+
+                # Checks if all file's parts are present
+                if chunk_number == total_chunks:
+                    final_filename = f'{uuid.uuid4().hex}_{filename}'
+
+                    # time to merge all files
+                    parsed_path = parsed.path or ''
+                    if parsed_path.endswith('/'):
+                        parsed_path = parsed_path[:-1]
+                    if parsed_path:
+                        target_path = (
+                            f'/{parsed_path.strip("/")}/limonero/data/{final_filename}')
+                    else:
+                        target_path = (f'/limonero/data/{final_filename}')
+
+                    if hu.exists(hdfs, target_path):
+                        result = {'status': 'error',
+                                  'message': gettext(
+                                  'A file with same name already exists. Try to upload the file again.')}
+                        result_code = 500
+                    import pdb; pdb.set_trace()
+                    hu.copy_merge(hdfs, tmp_path, target_path, filename, total_chunks)
+
+                    # noinspection PyBroadException
+                    try:
+                        user = getattr(flask_g, 'user')
+                    except:
+                        user = User(id=1, login='admin',
+                                    email='admin@lemonade',
+                                    first_name='admin',
+                                    last_name='admin',
+                                    locale='en')
+
+                    extension = filename[-3:].lower()
+                    if extension == 'csv':
+                        ds_format = DataSourceFormat.CSV
+                    elif extension == 'json':
+                        ds_format = DataSourceFormat.JSON
+                    elif extension == 'xml':
+                        ds_format = DataSourceFormat.XML_FILE
+                    elif extension == 'txt':
+                        ds_format = DataSourceFormat.TEXT
+                    else:
+                        ds_format = DataSourceFormat.UNKNOWN
+
+                    ds = DataSource(
+                        format=ds_format,
+                        name=filename,
+                        storage_id=storage.id,
+                        description=_('Imported in Limonero'),
+                        enabled=True,
+                        url=target_path.toString(),
+                        estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
+                        user_id=user.id,
+                        user_login=user.login,
+                        user_name='{} {}'.format(
+                            user.first_name,
+                            user.last_name).strip())
+
+                    # db.session.add(ds)
+
+                    # if filename[-4:] in ['.csv', '.CSV', '.tsv', '.TSV']:
+                    #     # noinspection PyBroadException
+                    #     try:
+                    #         # try to infer the field delimiter
+                    #         count_delimiters = defaultdict(int)
+                    #         for ch in file_data:
+                    #             if ch in [',', ';', '\t']:
+                    #                 count_delimiters[ch] += 1
+                    #         sorted_delim = sorted(
+                    #             list(count_delimiters.items()),
+                    #             key=operator.itemgetter(1),
+                    #             reverse=True)
+                    #         delim = sorted_delim[0][0] if sorted_delim else ','
+                    #         ds.is_first_line_header = True
+                    #         ds.attribute_delimiter = delim
+                    #         ds.format = DataSourceFormat.CSV
+                    #         DataSourceUploadApi._try_infer_schema(ds, delim)
+                    #     except:
+                    #         # in case of error, save the upload information
+                    #         db.session.commit()
+                    # else:
+                    #     db.session.commit()
+                    response_schema = DataSourceItemResponseSchema()
+                    result = {'status': 'OK',
+                              'data': response_schema.dump(ds)}
+
+            return result, result_code, {
+                'Content-Type': 'application/json; charset=utf-8'}
+        except Exception as e:
+            log.exception(e)
+            result = {'status': 'ERROR',
+                     'data': str(e)}
+            result_code = 500
+            
+
+    @staticmethod
+    def _try_infer_schema(ds, delim):
+        options = {
+            'use_header': True,
+            'delimiter': delim
+        }
+        DataSourceInferSchemaApi.infer_schema(ds, options)
+
+class DataSourceUploadApi2(Resource):
     """ REST API for upload a DataSource """
 
     @staticmethod
@@ -686,7 +899,7 @@ class DataSourceUploadApi(Resource):
                     if parsed_path.endswith('/'):
                         parsed_path = parsed_path[:-1]
                     target_path = jvm.org.apache.hadoop.fs.Path(
-                        '{}/{}{}/{}'.format(str_uri, 
+                        '{}/{}{}/{}'.format(str_uri,
                                              parsed_path,
                                              '/limonero/data',
                                              final_filename))
@@ -789,7 +1002,7 @@ class DataSourceDownload(MethodView):
     # noinspection PyUnresolvedReferences
     @staticmethod
     def get(data_source_id):
-        
+
         # Uses a token to download
         download_token = {}
         try:
@@ -909,7 +1122,7 @@ class DataSourceInferSchemaApi(Resource):
     @staticmethod
     def infer_schema(ds, options):
         parsed = urlparse(
-            next((a for a in [ds.url, ds.storage.client_url, ds.storage.url] 
+            next((a for a in [ds.url, ds.storage.client_url, ds.storage.url]
                 if a), None))
 
         if ds.format in (DataSourceFormat.JDBC,):
@@ -968,17 +1181,17 @@ class DataSourceInferSchemaApi(Resource):
             else:
                 extra = {}
             cursor = hive.connect(
-                   host=parsed.hostname, 
-                   port=int(parsed.port or 10000), 
+                   host=parsed.hostname,
+                   port=int(parsed.port or 10000),
                    username=parsed.username,
                    password=parsed.password,
-                   database=(parsed.path or 'default').replace('/', ''), 
-                   auth=extra.get('auth', 'CUSTOM') if parsed.password else None, 
+                   database=(parsed.path or 'default').replace('/', ''),
+                   auth=extra.get('auth', 'CUSTOM') if parsed.password else None,
                    configuration={
-                       'hive.cli.print.header': 'true'}, 
-                   kerberos_service_name=extra.get('kerberos_service_name'), 
+                       'hive.cli.print.header': 'true'},
+                   kerberos_service_name=extra.get('kerberos_service_name'),
                    thrift_transport=None).cursor()
- 
+
             if ds.command is None or ds.command.strip() == '':
                 raise ValueError(gettext(
                     'Data source does not have a command specified'))
@@ -986,10 +1199,10 @@ class DataSourceInferSchemaApi(Resource):
             cmd = fix_limit.sub('', ds.command)
             cursor.execute('{} LIMIT 0'.format(cmd), async_=True)
             status = cursor.poll().operationState
-            while status in (TOperationState.INITIALIZED_STATE, 
+            while status in (TOperationState.INITIALIZED_STATE,
                     TOperationState.RUNNING_STATE):
                 status = cursor.poll().operationState
-        
+
             tables = set()
             attrs = []
             attrs_name = []
@@ -1005,7 +1218,7 @@ class DataSourceInferSchemaApi(Resource):
                 final_names = attrs_name
             else:
                 final_names = attrs
-            
+
             DataSourceInferSchemaApi._delete_old_attributes(ds)
             for (name, d) in zip(final_names, types):
                 final_type = get_hive_data_type(d)
@@ -1017,7 +1230,7 @@ class DataSourceInferSchemaApi(Resource):
                 attr.label = False
                 db.session.add(attr)
             db.session.commit()
- 
+
 
         elif ds.format in (DataSourceFormat.PARQUET,):
             if parsed.port:
@@ -1539,8 +1752,8 @@ class DataSourceSampleApi(Resource):
         elif data_source is not None:
             treat_as_missing = (data_source.treat_as_missing or '').split(',')
             parsed = urlparse(
-                next((a for a in [data_source.url, data_source.storage.client_url, 
-                    data_source.storage.url] 
+                next((a for a in [data_source.url, data_source.storage.client_url,
+                    data_source.storage.url]
                     if a), None))
 
             if parsed.scheme == 'mysql':
@@ -1567,7 +1780,7 @@ class DataSourceSampleApi(Resource):
             elif parsed.scheme == 'hive':
                 from pyhive import hive
                 from TCLIService.ttypes import TOperationState
-                
+
                 if data_source.command is None or \
                         data_source.command.strip() == '':
                     raise ValueError(gettext(
@@ -1578,35 +1791,35 @@ class DataSourceSampleApi(Resource):
                     extra = {}
                 if parsed.password is not None:
                     cursor = hive.connect(
-                          host=parsed.hostname, 
-                          port=int(parsed.port or 10000), 
+                          host=parsed.hostname,
+                          port=int(parsed.port or 10000),
                           username=parsed.username,
                           password=parsed.password,
-                          database=(parsed.path or 'default').replace('/', ''), 
-                          auth=extra.get('auth', 'CUSTOM'), 
+                          database=(parsed.path or 'default').replace('/', ''),
+                          auth=extra.get('auth', 'CUSTOM'),
                           configuration={
-                              'hive.cli.print.header': 'true'}, 
-                          kerberos_service_name=extra.get('kerberos_service_name'), 
+                              'hive.cli.print.header': 'true'},
+                          kerberos_service_name=extra.get('kerberos_service_name'),
                           thrift_transport=None).cursor()
                 else:
                     cursor = hive.connect(
-                          host=parsed.hostname, 
-                          port=int(parsed.port or 10000), 
-                          database=(parsed.path or 'default').replace('/', ''), 
+                          host=parsed.hostname,
+                          port=int(parsed.port or 10000),
+                          database=(parsed.path or 'default').replace('/', ''),
                           configuration={
-                              'hive.cli.print.header': 'true'}, 
-                          kerberos_service_name=extra.get('kerberos_service_name'), 
+                              'hive.cli.print.header': 'true'},
+                          kerberos_service_name=extra.get('kerberos_service_name'),
                           thrift_transport=None).cursor()
 
-                
+
                 fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
                 cmd = fix_limit.sub('', data_source.command)
                 cursor.execute('{} LIMIT {}'.format(cmd, limit))
                 status = cursor.poll().operationState
-                while status in (TOperationState.INITIALIZED_STATE, 
+                while status in (TOperationState.INITIALIZED_STATE,
                         TOperationState.RUNNING_STATE):
                     status = cursor.poll().operationState
-       
+
                 #col_names = [desc[0] for desc in cursor.description]
                 col_names = [attr.name for attr in data_source.attributes]
                 result = []
@@ -1684,138 +1897,21 @@ class DataSourceSampleApi(Resource):
                         status='ERROR',
                         message='Format {} is not supported'.format(
                             data_source.format)), 400
-            elif parsed.scheme == 'hdfs' and data_source.format == 'PARQUET':
+            elif parsed.scheme == 'hdfs' and data_source.format in('CSV', 'PARQUET'):
                 from pyarrow import fs
                 str_uri = f'{parsed.scheme}://{parsed.hostname}'
-                local = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
-                
-                if not hu.exists(local, parsed.path):
+                hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+
+                if not hu.exists(hdfs, parsed.path):
                     result = ({ 'status': 'ERROR',
                                   'message': 'Not found'}, 404)
                 else:
-                    limit = 40
-                    data = hu.sample_parquet(local, parsed.path, limit)
+                    if data_source.format == 'CSV':
+                        data = hu.sample_csv(hdfs, parsed.path, limit, data_source)
+                    else:
+                        data = hu.sample_parquet(hdfs, parsed.path, limit)
                     result, status_code = dict(status='OK',
                                                data=data), 200
-            elif parsed.scheme == 'hdfs':
-                gateway = create_gateway(log, current_app.gateway_port)
-                jvm = gateway.jvm
-                if parsed.port:
-                    str_uri = '{proto}://{host}:{port}'.format(
-                        proto=parsed.scheme, host=parsed.hostname, port=parsed.port)
-                else:
-                    str_uri = '{proto}://{host}'.format(
-                        proto=parsed.scheme, host=parsed.hostname)
-                try:
-                    uri = jvm.java.net.URI(str_uri)
-
-                    extra_params = parse_hdfs_extra_params(
-                            data_source.storage.extra_params)
-                    conf = get_hdfs_conf(jvm, extra_params, current_app.config)
-
-                    hdfs = jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
-
-                    chunk_path = jvm.org.apache.hadoop.fs.Path(parsed.path)
-                    if not hdfs.exists(chunk_path):
-                        result = ({
-                                      'status': 'ERROR',
-                                      'message': 'Not found'}, 404)
-                    else:
-                        input_in = hdfs.open(chunk_path)
-
-                        bom_input_stream = \
-                            jvm.org.apache.commons.io.input.BOMInputStream(
-                                input_in)
-
-                        if bom_input_stream.getBOM() is not None:
-                            encoding = \
-                                bom_input_stream.getBOM().getCharsetName()
-                        else:
-                            encoding = data_source.encoding or 'UTF-8'
-                        if parsed.path.endswith('.gz'):
-                            buffered_reader = jvm.java.io.BufferedReader(
-                                jvm.java.io.InputStreamReader(
-                                    jvm.java.util.zip.GZIPInputStream(
-                                        bom_input_stream), encoding))
-                        else:
-                            buffered_reader = jvm.java.io.BufferedReader(
-                                jvm.java.io.InputStreamReader(
-                                    bom_input_stream, encoding))
-
-                        header = []
-                        converters = []
-                        csv_buf = StringIO()
-
-                        if data_source.attributes:
-                            for attr in data_source.attributes:
-                                header.append(attr.name)
-                                if attr.type in [DataType.DECIMAL]:
-                                    converters.append(decimal.Decimal)
-                                elif attr.type in [DataType.DOUBLE,
-                                                   DataType.FLOAT]:
-                                    converters.append(float)
-                                elif attr.type in [DataType.INTEGER,
-                                                   DataType.LONG]:
-                                    converters.append(int)
-                                else:
-                                    converters.append(str.strip)
-                            d = data_source.attribute_delimiter or str(',')
-                            csv_params = {'delimiter': SPECIAL_DELIMITERS.get(d, d)}
-                            reader = csv.reader(csv_buf, **csv_params)
-                        else:
-                            header.append(_('row'))
-                            converters.append(str.strip)
-                            reader = csv.reader(
-                                csv_buf,
-                                delimiter=';')
-                        data = []
-                        i = 0
-                        if data_source.is_first_line_header:
-                            buffered_reader.readLine()
-
-                        limit = 40
-                        while i < limit:
-                            tmp_line = buffered_reader.readLine()
-                            if tmp_line:
-                                csv_buf.write(tmp_line)
-                                csv_buf.write('\n')
-                            i += 1
-
-                        csv_buf.seek(0)
-                        from collections import OrderedDict
-                        for line in reader:
-                            row = OrderedDict()
-                            for h, v, conv in zip(header, line, converters):
-                                # noinspection PyBroadException
-                                try:
-                                    if v not in treat_as_missing:
-                                        row[h] = conv(v)
-                                    else:
-                                        row[h] = None
-                                except:
-                                    status_code = 422
-                                    return dict(
-                                        status='ERROR',
-                                        message=INVALID_FORMAT_ERROR.format(
-                                            type=str(conv), attr=h,
-                                            v=str(v)
-                                        )), status_code
-                            data.append(row)
-
-                        result, status_code = dict(status='OK',
-                                                   data=data), 200
-                except Py4JJavaError as java_ex:
-                    if 'Could not obtain block' in \
-                            java_ex.java_exception.getMessage():
-                        return {'status': 'ERROR',
-                                'message': WRONG_HDFS_CONFIG}, 400
-                    log.exception('Java error')
-                except Exception as e:
-                    result = {'status': 'ERROR',
-                              'message': 'Internal error:',
-                              'details': str(e)}
-                    status_code = 500
-                    log.exception(str(e))
             else:
                 return dict(status="ERROR",
                             message="Unsupported protocol {}".format(
@@ -1842,22 +1938,22 @@ class DataSourceConvertApi(Resource):
         if data_source is not None:
             treat_as_missing = (data_source.treat_as_missing or '').split(',')
             parsed = urlparse(
-                next((a for a in [data_source.url, data_source.storage.client_url, 
-                    data_source.storage.url] 
+                next((a for a in [data_source.url, data_source.storage.client_url,
+                    data_source.storage.url]
                     if a), None))
 
             if parsed.scheme in( 'mysql', 'hive'):
-                result = dict(status='Error', 
+                result = dict(status='Error',
                     message='Invalid source type. Only file-based '
-                        'types can be converted.') 
+                        'types can be converted.')
                 status_code = 400
-            elif (data_source.format != DataSourceFormat.CSV and 
+            elif (data_source.format != DataSourceFormat.CSV and
                     data_source.format != DataSourceFormat.JSON):
                 result= dict(
                     status='ERROR',
                     message=f'Format {data_source.format} is not supported')
                 status_code = 400
-                
+
             elif parsed.scheme == 'file':
                 # Support JSON and CSV
                 if data_source.format == DataSourceFormat.CSV:

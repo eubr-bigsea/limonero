@@ -1,4 +1,5 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+ARG DEBIAN_FRONTEND=noninteractive
 ENV LIMONERO_HOME=/usr/local/limonero
 ENV LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml \
     PYTHONPATH=${PYTHONPATH}:${LIMONERO_HOME}
@@ -20,9 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git \
       wget \
       python3-dev \
-      python-wheel \
       curl \
-  && update-alternatives --install /usr/bin/python python /usr/bin/python3.6 10 \
+  && update-alternatives --install /usr/bin/python python /usr/bin/python3.8 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
   && update-locale LANG=en_US.UTF-8 \
