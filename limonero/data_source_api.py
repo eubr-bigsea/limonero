@@ -1643,6 +1643,7 @@ class DataSourceSampleApi(Resource):
                         status='ERROR',
                         message=gettext('Data type are not correctly defined. Please, revise them.')), 400
                 except Exception as e:
+                    log.exception(gettext('Internal error'))
                     result, status_code = dict(
                         status='ERROR',
                         message=gettext('Internal error')), 400
