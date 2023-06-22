@@ -79,7 +79,7 @@ def get_parquet_schema(ds):
             new_attrs.append((attr.name, pa.string()))
     return pa.schema(new_attrs)
 
-def infer_parquet(local: fs.HadoopFileSystem, path: str):
+def infer_parquet(local: fs.FileSystem, path: str):
     """ Return a sample of size rows from Parquet file """
     ds = pq.ParquetDataset(path, filesystem=local)
     schema = ds.read().schema

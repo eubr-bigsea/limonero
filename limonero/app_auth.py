@@ -48,7 +48,7 @@ def requires_auth(f):
     @wraps(f)
     def decorated(*_args, **kwargs):
         config = current_app.config[CONFIG_KEY]
-        if True or str(config.get('secret', '')) == request.headers.get(
+        if str(config.get('secret', '')) == request.headers.get(
                 'X-Auth-Token'):
             # Inter services authentication
             from flask_babel import refresh
