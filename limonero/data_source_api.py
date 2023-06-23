@@ -686,7 +686,8 @@ class DataSourceUploadApi(Resource):
                         storage_id=storage.id,
                         description=gettext('Imported in Limonero'),
                         enabled=True,
-                        url=target_path,
+                        url=target_path if parsed.scheme == 'file' 
+                            else f'{storage_url.strip("/")}{target_path}',
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
@@ -1018,7 +1019,6 @@ class DataSourceInferSchemaApi(Resource):
                 str_uri = f'{parsed.scheme}://{parsed.path}'
                 use_fs = fs.LocalFileSystem()
             else:
-                import pdb; pdb.set_trace()
                 raise ValueError(gettext('Usupported filesystem: ') +  
                     parsed.scheme)
             if ds.format == DataSourceFormat.CSV:
