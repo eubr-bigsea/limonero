@@ -11,8 +11,8 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy_i18n import make_translatable, translation_base, Translatable
 
 make_translatable(options={'locales': ['pt', 'en'],
-                           'auto_create_locales': True,
-                           'fallback_locale': 'en'})
+                           'auto_create_locales': False,
+                           'fallback_locale': 'pt'})
 
 db = SQLAlchemy()
 
@@ -414,8 +414,9 @@ class DataSource(db.Model):
     tags = Column(String(100))
     temporary = Column(Boolean,
                        default=False, nullable=False)
-    workflow_id = Column(Integer)
-    task_id = Column(String(200))
+    workflow_id = Column(Integer, index=True)
+    workflow_version = Column(Integer)
+    task_id = Column(String(200), index=True)
     attribute_delimiter = Column(String(20))
     record_delimiter = Column(String(20))
     text_delimiter = Column(String(20))

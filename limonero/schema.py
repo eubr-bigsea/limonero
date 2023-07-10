@@ -522,6 +522,7 @@ class DataSourceListResponseSchema(BaseSchema):
         missing=False,
         default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
+    workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
@@ -615,6 +616,7 @@ class DataSourceCreateRequestSchema(BaseSchema):
         missing=False,
         default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
+    workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
@@ -718,6 +720,7 @@ class DataSourceItemResponseSchema(BaseSchema):
         missing=False,
         default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
+    workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
     attribute_delimiter = fields.String(required=False, allow_none=True)
     record_delimiter = fields.String(required=False, allow_none=True)
