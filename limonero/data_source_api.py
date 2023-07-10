@@ -122,7 +122,8 @@ class DataSourceListApi(Resource):
                 only = tuple(
                     [x.strip() for x in request.args.get('fields').split(',')])
 
-            possible_filters = {'enabled': bool, 'format': None, 'user_id': int}
+            possible_filters = {'enabled': bool, 'format': None, 
+                                'user_id': int, 'workflow_id': int}
             data_sources = DataSource.query
             for f, transform in list(possible_filters.items()):
                 data_sources = apply_filter(data_sources, request.args, f,
