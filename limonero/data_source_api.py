@@ -536,7 +536,10 @@ class DataSourceUploadApi(Resource):
         tmp_dir = f'{final_path}/tmp/upload/{filename}'
 
         str_uri = f'{parsed.scheme}://{parsed.hostname}'
-        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+        if parsed.port:
+            hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+        else:
+            hdfs = fs.HadoopFileSystem(str_uri)
 
         if not hu.exists(hdfs, tmp_dir):
             hu.mkdirs(hdfs, tmp_dir)
@@ -575,8 +578,10 @@ class DataSourceUploadApi(Resource):
                 elif parsed.scheme == 'hdfs':
                     str_uri = hu.get_parsed_uri(parsed, False)
                     extra_params = parse_hdfs_extra_params(storage.extra_params)
-                    
-                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    if parsed.port:                
+                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    else:
+                        hdfs = fs.HadoopFileSystem(str_uri)
                     tmp_path = DataSourceUploadApi._get_tmp_path(
                         hdfs, parsed, filename)
 
@@ -626,8 +631,10 @@ class DataSourceUploadApi(Resource):
 
                 extra_params = parse_hdfs_extra_params(storage.extra_params)
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
-
-                hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                if parsed.port:
+                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                else:
+                    hdfs = fs.HadoopFileSystem(str_uri)
                 tmp_path = DataSourceUploadApi._get_tmp_path(
                         hdfs, parsed, filename)
 
@@ -819,7 +826,10 @@ class DataSourceDownload(MethodView):
                 extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params)
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
-                hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                if parsed.port:
+                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                else:
+                    hdfs = fs.HadoopFileSystem(str_uri)
 
                 if not hu.exists(hdfs, parsed.path):
                     message = gettext("%(type)s not found.",
@@ -988,7 +998,10 @@ class DataSourceInferSchemaApi(Resource):
             path = parsed.path
             if parsed.scheme == 'hdfs':
                 str_uri = hu.get_parsed_uri(parsed, False)
-                use_fs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                if parsed.port:
+                    use_fs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                else:
+                    use_fs = fs.HadoopFileSystem(str_uri)
                 schema = hu.infer_parquet(use_fs, path)
             elif parsed.schema == 'file':
                 str_uri = hu.get_parsed_uri(parsed, False)
@@ -1015,7 +1028,10 @@ class DataSourceInferSchemaApi(Resource):
             #conf, hadoop_pkg, hdfs, jvm, path, buffered_reader = [None] * 6
             if parsed.scheme == 'hdfs':
                 # noinspection PyUnresolvedReferences
-                use_fs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                if parsed.port:
+                    use_fs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                else:
+                    use_fs = fs.HadoopFileSystem(str_uri)
             elif parsed.scheme == 'file':
                 str_uri = f'{parsed.scheme}://{parsed.path}'
                 use_fs = fs.LocalFileSystem()
@@ -1617,7 +1633,10 @@ class DataSourceSampleApi(Resource):
                 from pyarrow import fs
                 try:
                     str_uri = f'{parsed.scheme}://{parsed.hostname}'
-                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    if parsed.port:
+                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    else:
+                        hdfs = fs.HadoopFileSystem(str_uri)
 
                     if not hu.exists(hdfs, parsed.path):
                         result = ({ 'status': 'ERROR',
