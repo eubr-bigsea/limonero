@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       wget \
       python3-dev \
       curl \
+      dumb-init \ 		
   && update-alternatives --install /usr/bin/python python /usr/bin/python3.8 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
@@ -47,4 +48,9 @@ RUN pip3 install -r requirements.txt
 COPY . $LIMONERO_HOME
 COPY ./conf/hdfs-site.xml $HADOOP_HOME/etc/hadoop/
 RUN pybabel compile -d $LIMONERO_HOME/limonero/i18n/locales
-CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]
+
+COPY bin/entrypoint /usr/local/bin/
+
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint"]
+CMD ["server"]
+# CMD ["/usr/local/limonero/sbin/limonero-daemon.sh", "docker"]

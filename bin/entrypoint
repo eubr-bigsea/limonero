@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+
+function start_server
+{
+	python -m gunicorn 'limonero.app:create_app()' -b 0.0.0.0:$LIMONERO_PORT
+}
+
+function db_migrate
+{
+  flask db upgrade
+
+  if [ $? -eq 0 ]
+  then
+    echo "DB migration: successful"
+  else
+    echo "Error on DB migration"
+    exit 1
+  fi
+}
+
+# if unset set limonero_home to limonero root dir, without ./sbin
+export LIMONERO_HOME=${LIMONERO_HOME:-$(cd $(dirname $0)/..; pwd)}
+export LIMONERO_CONFIG=${LIMONERO_CONFIG:-${LIMONERO_HOME}/conf/limonero.yaml}
+export LIMONERO_PORT=$(grep port $LIMONERO_CONFIG |sed 's/\s*port:\s*//g')
+
+export PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH}
+export FLASK_APP=limonero.app
+
+CMD=$1
+case $CMD in
+
+  (server)
+    db_migrate
+    start_server
+    ;;
+
+  (worker)
+    python -m flask rq worker \
+      --logging_level DEBUG 
+    ;;
+
+  (*)
+    echo "Usage: $0 (server|worker)"
+    exit 1
+    ;;
+esac

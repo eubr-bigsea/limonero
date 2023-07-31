@@ -31,6 +31,7 @@ export LIMONERO_CONFIG=${LIMONERO_HOME}/conf/limonero-config.yaml
 # get pid directory
 export LIMONERO_PID_DIR=${LIMONERO_PID_DIR:-/var/run}
 export FLASK_APP=limonero.app
+export LIMONERO_PORT=$(grep port $LIMONERO_CONFIG |sed 's/\s*port:\s*//g')
 mkdir -p ${LIMONERO_PID_DIR} ${LIMONERO_LOG_DIR}
 
 # log and pid files
@@ -43,9 +44,11 @@ case $cmd_option in
     # set python path
     PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} \
       flask db upgrade
-    PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} nohup -- \
-      python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
-      -c ${LIMONERO_CONFIG} >> $log 2>&1 < /dev/null & 
+    PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} LIMONERO_CONFIG=${LIMONERO_CONFIG} nohup -- \
+      python -m gunicorn 'thorn.app:create_app()' -b 0.0.0.0:${LIMONERO_PORT} >> $log 2>&1 < /dev/null & 
+    #PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH} nohup -- \
+      #python ${LIMONERO_HOME}/limonero/runner/limonero_server.py \
+      #-c ${LIMONERO_CONFIG} >> $log 2>&1 < /dev/null & 
     limonero_server_pid=$!
 
     # persist the pid
