@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 function start_server
 {
@@ -25,6 +25,7 @@ export LIMONERO_PORT=$(grep port $LIMONERO_CONFIG |sed 's/\s*port:\s*//g')
 
 export PYTHONPATH=${LIMONERO_HOME}:${PYTHONPATH}
 export FLASK_APP=limonero.app
+export CLASSPATH="$(hadoop classpath --glob)"
 
 CMD=$1
 case $CMD in

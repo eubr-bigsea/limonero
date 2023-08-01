@@ -1,13 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# noinspection PyBroadException
-try:
-    import eventlet
-
-    eventlet.monkey_patch(all=True, thread=False)
-except:
-    pass
 
 import argparse
 import itertools
@@ -16,7 +7,6 @@ import logging.config
 import os
 import signal
 
-import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request, g as flask_g
@@ -181,8 +171,6 @@ def create_app(main_module: bool = False):
             # JVM, used to interact with HDFS.
             if config.get('environment', 'dev') == 'dev':
                 app.run(debug=True, port=port, host='0.0.0.0')
-            else:
-                eventlet.wsgi.server(eventlet.listen(('', port)), app)
         else:
             return app    
     else:
