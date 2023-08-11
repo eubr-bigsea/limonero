@@ -9,11 +9,14 @@ import json
 import logging
 import math
 import operator
+import os
 import re
 import uuid
 import zipfile
 from io import BytesIO, StringIO
 from urllib.parse import urlparse
+from pathlib import Path
+
 
 import pymysql
 from flask import Response, current_app
@@ -536,10 +539,10 @@ class DataSourceUploadApi(Resource):
         tmp_dir = f'{final_path}/tmp/upload/{filename}'
 
         str_uri = f'{parsed.scheme}://{parsed.hostname}'
-        if parsed.port:
-            hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
-        else:
-            hdfs = fs.HadoopFileSystem(str_uri)
+        # if parsed.port:
+        #    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+        #else:
+        #    hdfs = fs.HadoopFileSystem(str_uri)
 
         if not hu.exists(hdfs, tmp_dir):
             hu.mkdirs(hdfs, tmp_dir)
@@ -574,14 +577,19 @@ class DataSourceUploadApi(Resource):
                 parsed = urlparse(storage.url)
 
                 if parsed.scheme == 'file':
-                    pass # FIXME!
+                    chunk_filename = f'/tmp/{filename}.part{chunk_number:09d}'
+                    chunk_path = Path(chunk_filename)
+                    if not chunk_path.exists():
+                        result, result_code = {'status': 'OK',
+                                           'message': gettext('Not found')}, 404
                 elif parsed.scheme == 'hdfs':
                     str_uri = hu.get_parsed_uri(parsed, False)
                     extra_params = parse_hdfs_extra_params(storage.extra_params)
                     if parsed.port:                
-                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                        hdfs = fs.HadoopFileSystem(str_uri, user=extra_params.user or 'hadoop', 
+                            port=int(parsed.port))
                     else:
-                        hdfs = fs.HadoopFileSystem(str_uri)
+                        hdfs = fs.HadoopFileSystem(str_uri, user=extra_params.user or 'hadoop',)
                     tmp_path = DataSourceUploadApi._get_tmp_path(
                         hdfs, parsed, filename)
 
@@ -631,10 +639,13 @@ class DataSourceUploadApi(Resource):
 
                 extra_params = parse_hdfs_extra_params(storage.extra_params)
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
-                if parsed.port:
-                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                hadoop_user = extra_params.user or 'hadoop'
+                if parsed.port:                
+                    hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user, 
+                        port=int(parsed.port))
                 else:
-                    hdfs = fs.HadoopFileSystem(str_uri)
+                    hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user,)
+
                 tmp_path = DataSourceUploadApi._get_tmp_path(
                         hdfs, parsed, filename)
 
@@ -657,6 +668,7 @@ class DataSourceUploadApi(Resource):
                             f'/{parsed_path.strip("/")}/limonero/data/{final_filename}')
                     else:
                         target_path = (f'/limonero/data/{final_filename}')
+                    # target_path = (f'/limonero/data/{final_filename}')
 
                     if hu.exists(hdfs, target_path):
                         result = {'status': 'error',
@@ -695,7 +707,7 @@ class DataSourceUploadApi(Resource):
                         description=gettext('Imported in Limonero'),
                         enabled=True,
                         url=target_path if parsed.scheme == 'file' 
-                            else f'{storage_url.strip("/")}{target_path}',
+                            else f'{storage_url.strip("/")}/limonero/data/{final_filename}',
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
                         user_login=user.login,
@@ -825,11 +837,13 @@ class DataSourceDownload(MethodView):
             try:
                 extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params)
+                hadoop_user = extra_params.user or 'hadoop'
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
                 if parsed.port:
-                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port), 
+                        user=hadoop_user)
                 else:
-                    hdfs = fs.HadoopFileSystem(str_uri)
+                    hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
 
                 if not hu.exists(hdfs, parsed.path):
                     message = gettext("%(type)s not found.",
@@ -933,12 +947,16 @@ class DataSourceInferSchemaApi(Resource):
                             what=parsed.scheme))
 
         elif ds.format in (DataSourceFormat.HIVE):
+            parsed = urlparse(ds.storage.client_url)
             from pyhive import hive
             from TCLIService.ttypes import TOperationState
             if ds.storage.extra_params:
                 extra = json.loads(ds.storage.extra_params)
             else:
                 extra = {}
+            print('=' * 20)
+            print(parsed)
+            print('=' * 20)
             cursor = hive.connect(
                    host=parsed.hostname,
                    port=int(parsed.port or 10000),
@@ -1028,10 +1046,13 @@ class DataSourceInferSchemaApi(Resource):
             #conf, hadoop_pkg, hdfs, jvm, path, buffered_reader = [None] * 6
             if parsed.scheme == 'hdfs':
                 # noinspection PyUnresolvedReferences
+                extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+                hadoop_user = extra_params.user or 'hadoop'
                 if parsed.port:
-                    use_fs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                    use_fs = fs.HadoopFileSystem(str_uri, user=hadoop_user,
+                        port=int(parsed.port))
                 else:
-                    use_fs = fs.HadoopFileSystem(str_uri)
+                    use_fs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
             elif parsed.scheme == 'file':
                 str_uri = f'{parsed.scheme}://{parsed.path}'
                 use_fs = fs.LocalFileSystem()
@@ -1067,7 +1088,7 @@ class DataSourceInferSchemaApi(Resource):
                         buffered_reader = io.BufferedReader(
                             use_fs.open_input_stream(parsed.path))
 
-                    if is_gzip:
+                    if is_gzip and parsed.scheme != 'hdfs':
                         reader = gzip.open(buffered_reader, mode='rt')
                     else:
                         reader = buffered_reader
@@ -1508,9 +1529,10 @@ class DataSourceSampleApi(Resource):
                     cursor.execute('{} LIMIT {}'.format(cmd, limit))
                     result, status_code = dict(status='OK',
                                            data=cursor.fetchall()), 200
-            elif parsed.scheme == 'hive':
+            elif data_source.format == 'HIVE':
                 from pyhive import hive
                 from TCLIService.ttypes import TOperationState
+                parsed = urlparse(data_source.storage.client_url)
 
                 if data_source.command is None or \
                         data_source.command.strip() == '':
@@ -1633,10 +1655,13 @@ class DataSourceSampleApi(Resource):
                 from pyarrow import fs
                 try:
                     str_uri = f'{parsed.scheme}://{parsed.hostname}'
+                    extra_params = parse_hdfs_extra_params(data_source.storage.extra_params)
+                    hadoop_user = extra_params.user or 'hadoop'
                     if parsed.port:
-                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port))
+                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port), 
+                            user=hadoop_user)
                     else:
-                        hdfs = fs.HadoopFileSystem(str_uri)
+                        hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
 
                     if not hu.exists(hdfs, parsed.path):
                         result = ({ 'status': 'ERROR',
@@ -1652,6 +1677,7 @@ class DataSourceSampleApi(Resource):
                         result, status_code = dict(status='OK',
                                                data=data), 200
                 except pyarrow.lib.ArrowInvalid:
+                    log.exception(gettext('Internal error'))
                     result, status_code = dict(
                         status='ERROR',
                         message=gettext('Data type are not correctly defined. Please, revise them.')), 400

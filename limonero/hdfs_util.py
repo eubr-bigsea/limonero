@@ -2,17 +2,18 @@ from pyarrow import fs, csv, types as pa_types
 import pyarrow as pa
 import pyarrow.parquet as pq
 import io
+import gzip
 from gettext import gettext
 
 def copy_merge(local: fs.HadoopFileSystem, source_dir: str, 
         target: str, filename: str, n_chunks: int):
     """ """
-    with local.open_output_stream(target) as stream:
+    with local.open_output_stream(target, compression=None) as stream:
         for i in range(n_chunks):
             number = str(i + 1).rjust(9, '0')
             name = f'{source_dir.rstrip("/")}/{filename}.part{number}'
             with local.open_input_file(name) as in_file:
-                stream.write(in_file.read())
+                stream.write(in_file.readall())
         
     for i in range(n_chunks):
         number = str(i + 1).rjust(9, '0')
@@ -133,9 +134,14 @@ def sample_csv(local: fs.HadoopFileSystem, path: str, size: int, ds):
     """ Return a sample of size rows from CSV file """
     lines = []
     convert_options, parse_options, read_options = _csv_options(ds)
+    is_gzip = path.endswith('.gz')
 
     with local.open_input_file(path) as f:
-        with csv.open_csv(f, convert_options=convert_options,
+        if is_gzip:
+            reader = gzip.open(io.BufferedReader(f), mode='rb')
+        else:
+            reader = f
+        with csv.open_csv(reader, convert_options=convert_options,
                 read_options=read_options,
                 parse_options=parse_options) as reader:
             for next_chunk in reader:

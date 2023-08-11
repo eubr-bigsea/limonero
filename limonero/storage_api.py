@@ -250,7 +250,7 @@ class StorageMetadataApi(Resource):
         result = {}
         try:
             if storage is not None:
-                if storage.type == 'HIVE':
+                if storage.type in ('HIVE', 'HIVE_WAREHOUSE'):
                     from pyhive import hive
                     from TCLIService.ttypes import TOperationState
                     extra = {}

@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       wget \
       python3-dev \
       curl \
-      dumb-init \ 		
+      dumb-init \ 
+      sasl2-bin libsasl2-2 libsasl2-dev libsasl2-modules \
   && update-alternatives --install /usr/bin/python python /usr/bin/python3.8 10 \
   && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen \
