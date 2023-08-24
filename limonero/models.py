@@ -778,7 +778,7 @@ class DataSourceValidationItem(db.Model):
 
 class DataSourceValidationExecution(db.Model):
     """ Execution from the data source validation """
-    __tablename__ = 'data_source_validation'
+    __tablename__ = 'data_source_validation_execution'
 
     # Fields
     id = Column(Integer, primary_key=True)
