@@ -195,6 +195,31 @@ class PrivacyType:
         return [n for n in list(PrivacyType.__dict__.keys())
                 if n[0] != '_' and n != 'values']
 
+
+# noinspection PyClassHasNoInit
+class DataSourceValidationType:
+    GREAT_EXPECTATIONS  = 'GREAT_EXPECTATIONS'
+    SCRIPT = 'SCRIPT'
+
+    @staticmethod
+    def values():
+        return [n for n in list(DataSourceValidationType.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class DataSourceValidationExecutionStatus:
+    SUCCESS  = 'SUCCESS'
+    ERROR = 'ERROR'
+    RUNNING = 'RUNNING'
+    PENDING = 'PENDING'
+
+    @staticmethod
+    def values():
+        return [n for n in list(DataSourceValidationExecutionStatus.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
 # Association tables definition
 
 
@@ -683,3 +708,106 @@ class StoragePermission(db.Model):
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
 
+
+class DataSourceValidation(db.Model):
+    """ Validations associated with the data sources """
+    __tablename__ = 'data_source_validation'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    description = Column(String(200))
+    type = Column(Enum(*list(DataSourceValidationType.values()),
+                       name='DataSourceValidationTypeEnumType'), nullable=False)
+    enabled = Column(Boolean,
+                     default=True, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    user_name = Column(String(200), nullable=False)
+    user_login = Column(String(50), nullable=False)
+
+    # Associations
+    data_source_id = Column(Integer,
+                            ForeignKey("data_source.id",
+                                       name="fk_data_source_validation_data_source_id"),
+                            nullable=False,
+                            index=True)
+    data_source = relationship(
+        "DataSource",
+        overlaps='validations',
+        foreign_keys=[data_source_id],
+        backref=backref("validations",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class DataSourceValidationItem(db.Model):
+    """ Item from the data source validation """
+    __tablename__ = 'data_source_validation_item'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    description = Column(String(200))
+    type = Column(String(200), nullable=False)
+    enabled = Column(Boolean,
+                     default=True, nullable=False)
+    parameters = Column(LONGTEXT)
+
+    # Associations
+    data_source_validation_id = Column(Integer,
+                            ForeignKey("data_source_validation.id",
+                                       name="fk_data_source_validation_item_data_source_validation_id"),
+                            nullable=False,
+                            index=True)
+    data_source_validation = relationship(
+        "DataSourceValidation",
+        overlaps='items',
+        foreign_keys=[data_source_validation_id],
+        backref=backref("items",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class DataSourceValidationExecution(db.Model):
+    """ Execution from the data source validation """
+    __tablename__ = 'data_source_validation'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    created = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    finished = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
+                         name='DataSourceValidationExecutionStatusEnumType'))
+    user_id = Column(Integer, nullable=False)
+    user_name = Column(String(200), nullable=False)
+    user_login = Column(String(50), nullable=False)
+    result = Column(LONGTEXT)
+
+    # Associations
+    data_source_validation_id = Column(Integer,
+                            ForeignKey("data_source_validation.id",
+                                       name="fk_data_source_validation_item_data_source_validation_id"),
+                            nullable=False,
+                            index=True)
+    data_source_validation = relationship(
+        "DataSourceValidation",
+        overlaps='executions',
+        foreign_keys=[data_source_validation_id],
+        backref=backref("executions",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
