@@ -1166,31 +1166,16 @@ class DataSourceValidationCreateRequestSchema(BaseSchema):
 
 
 class DataSourceValidationExecutionItemResponseSchema(BaseSchema):
-    # """ JSON serialization schema """
-    id = Column(Integer, primary_key=True)
-    created = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    finished = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
-                         name='DataSourceValidationExecutionStatusEnumType'))
-    user_id = Column(Integer, nullable=False)
-    user_name = Column(String(200), nullable=False)
-    user_login = Column(String(50), nullable=False)
-    result = Column(LONGTEXT)
-
-    # id = fields.Integer(required=True)
-    # description = fields.String(required=False, allow_none=True)
-    # type = fields.String(required=True,
-    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
-    # enabled = fields.Boolean(
-    #     required=False,
-    #     allow_none=True,
-    #     missing=True,
-    #     default=True)
-    # user_id = fields.Integer(required=True)
-    # user_login = fields.String(required=True)
-    # user_name = fields.String(required=True)
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    created = fields.DateTime(required=False, allow_none=True)
+    finished = fields.DateTime(required=False, allow_none=True)
+    status = fields.String(required=True,
+                           validate=[OneOf(list(DataSourceValidationExecutionStatus.__dict__.keys()))])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    result = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1204,31 +1189,16 @@ class DataSourceValidationExecutionItemResponseSchema(BaseSchema):
 
 
 class DataSourceValidationExecutionListResponseSchema(BaseSchema):
-    # """ JSON serialization schema """
-    id = Column(Integer, primary_key=True)
-    created = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    finished = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
-                         name='DataSourceValidationExecutionStatusEnumType'))
-    user_id = Column(Integer, nullable=False)
-    user_name = Column(String(200), nullable=False)
-    user_login = Column(String(50), nullable=False)
-    result = Column(LONGTEXT)
-    
-    # id = fields.Integer(required=True)
-    # description = fields.String(required=False, allow_none=True)
-    # type = fields.String(required=True,
-    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
-    # enabled = fields.Boolean(
-    #     required=False,
-    #     allow_none=True,
-    #     missing=True,
-    #     default=True)
-    # user_id = fields.Integer(required=True)
-    # user_login = fields.String(required=True)
-    # user_name = fields.String(required=True)
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    created = fields.DateTime(required=False, allow_none=True)
+    finished = fields.DateTime(required=False, allow_none=True)
+    status = fields.String(required=True,
+                           validate=[OneOf(list(DataSourceValidationExecutionStatus.__dict__.keys()))])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    result = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1242,31 +1212,16 @@ class DataSourceValidationExecutionListResponseSchema(BaseSchema):
 
 
 class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
-    # """ JSON serialization schema """
-    id = Column(Integer, primary_key=True)
-    created = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    finished = Column(DateTime,
-                     default=datetime.datetime.utcnow, nullable=False)
-    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
-                         name='DataSourceValidationExecutionStatusEnumType'))
-    user_id = Column(Integer, nullable=False)
-    user_name = Column(String(200), nullable=False)
-    user_login = Column(String(50), nullable=False)
-    result = Column(LONGTEXT)
-    
-    # id = fields.Integer(required=True)
-    # description = fields.String(required=False, allow_none=True)
-    # type = fields.String(required=True,
-    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
-    # enabled = fields.Boolean(
-    #     required=False,
-    #     allow_none=True,
-    #     missing=True,
-    #     default=True)
-    # user_id = fields.Integer(required=True)
-    # user_login = fields.String(required=True)
-    # user_name = fields.String(required=True)
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    created = fields.DateTime(required=False, allow_none=True)
+    finished = fields.DateTime(required=False, allow_none=True)
+    status = fields.String(required=True,
+                           validate=[OneOf(list(DataSourceValidationExecutionStatus.__dict__.keys()))])
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+    result = fields.String(required=False, allow_none=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1280,4 +1235,4 @@ class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
 
 
 #############################################
-# Falta colocar os filhos em alguns dos schemas acima
+# Falta colocar os filhos em alguns dos schemas acima??
