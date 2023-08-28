@@ -1086,3 +1086,198 @@ class StorageCreateRequestSchema(BaseSchema):
         ordered = True
         unknown = EXCLUDE
 
+
+class DataSourceValidationItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True,
+                         validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidation"""
+        return DataSourceValidation(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True,
+                         validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidation"""
+        return DataSourceValidation(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True,
+                         validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    user_id = fields.Integer(required=True)
+    user_login = fields.String(required=True)
+    user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidation"""
+        return DataSourceValidation(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationExecutionItemResponseSchema(BaseSchema):
+    # """ JSON serialization schema """
+    id = Column(Integer, primary_key=True)
+    created = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    finished = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
+                         name='DataSourceValidationExecutionStatusEnumType'))
+    user_id = Column(Integer, nullable=False)
+    user_name = Column(String(200), nullable=False)
+    user_login = Column(String(50), nullable=False)
+    result = Column(LONGTEXT)
+
+    # id = fields.Integer(required=True)
+    # description = fields.String(required=False, allow_none=True)
+    # type = fields.String(required=True,
+    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    # enabled = fields.Boolean(
+    #     required=False,
+    #     allow_none=True,
+    #     missing=True,
+    #     default=True)
+    # user_id = fields.Integer(required=True)
+    # user_login = fields.String(required=True)
+    # user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationExecution"""
+        return DataSourceValidationExecution(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationExecutionListResponseSchema(BaseSchema):
+    # """ JSON serialization schema """
+    id = Column(Integer, primary_key=True)
+    created = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    finished = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
+                         name='DataSourceValidationExecutionStatusEnumType'))
+    user_id = Column(Integer, nullable=False)
+    user_name = Column(String(200), nullable=False)
+    user_login = Column(String(50), nullable=False)
+    result = Column(LONGTEXT)
+    
+    # id = fields.Integer(required=True)
+    # description = fields.String(required=False, allow_none=True)
+    # type = fields.String(required=True,
+    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    # enabled = fields.Boolean(
+    #     required=False,
+    #     allow_none=True,
+    #     missing=True,
+    #     default=True)
+    # user_id = fields.Integer(required=True)
+    # user_login = fields.String(required=True)
+    # user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationExecution"""
+        return DataSourceValidationExecution(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
+    # """ JSON serialization schema """
+    id = Column(Integer, primary_key=True)
+    created = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    finished = Column(DateTime,
+                     default=datetime.datetime.utcnow, nullable=False)
+    status = Column(Enum(*list(DataSourceValidationExecutionStatus.values()),
+                         name='DataSourceValidationExecutionStatusEnumType'))
+    user_id = Column(Integer, nullable=False)
+    user_name = Column(String(200), nullable=False)
+    user_login = Column(String(50), nullable=False)
+    result = Column(LONGTEXT)
+    
+    # id = fields.Integer(required=True)
+    # description = fields.String(required=False, allow_none=True)
+    # type = fields.String(required=True,
+    #                      validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
+    # enabled = fields.Boolean(
+    #     required=False,
+    #     allow_none=True,
+    #     missing=True,
+    #     default=True)
+    # user_id = fields.Integer(required=True)
+    # user_login = fields.String(required=True)
+    # user_name = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationExecution"""
+        return DataSourceValidationExecution(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+#############################################
+# Falta colocar os filhos em alguns dos schemas acima
