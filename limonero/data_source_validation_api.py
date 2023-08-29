@@ -289,7 +289,7 @@ class DataSourceValidationExecutionListApi(Resource):
         all_data_source_validation_executions = request.args.get('all') in ["true", 1, "1"]
         only = None
         
-        data_source_validation_id_filter = request.args.get('validation_id')
+        data_source_validation_id_filter = request.args.get('data_source_validation_id')
         if data_source_validation_id_filter:
             data_source_validation_executions = DataSourceValidationExecution.query.filter(
                 DataSourceValidationExecution.data_source_validation_id == data_source_validation_id_filter)

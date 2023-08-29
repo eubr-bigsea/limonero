@@ -30,6 +30,9 @@ from limonero.privacy_api import GlobalPrivacyListApi, \
 from limonero.py4j_init import init_jvm
 from limonero.storage_api import StorageDetailApi, StorageListApi, \
     StorageMetadataApi
+from limonero.data_source_validation_api import DataSourceValidationDetailApi, \
+    DataSourceValidationListApi, DataSourceValidationExecutionDetailApi, \
+    DataSourceValidationExecutionListApi
 from cryptography.fernet import Fernet
 
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
@@ -94,6 +97,10 @@ def create_app(main_module: bool = False):
         '/datasources/<int:data_source_id>/permission/<int:user_id>':
             DataSourcePermissionApi,
         '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
+        '/datasources/<int:data_source_id>/validations': DataSourceValidationListApi,
+        '/datasources/validations/<int:data_source_validation_id>': DataSourceValidationDetailApi,
+        '/datasources/validations/<int:data_source_validation_id>/executions': DataSourceValidationExecutionListApi,
+        '/datasources/validations/executions/<int:data_source_validation_execution_id>': DataSourceValidationExecutionDetailApi,
         '/privacy': GlobalPrivacyListApi,
         '/privacy/attribute-groups': AttributePrivacyGroupListApi,
         '/models': ModelListApi,
