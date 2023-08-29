@@ -11,7 +11,6 @@ from marshmallow.exceptions import ValidationError
 from limonero.app_auth import requires_auth, requires_permission
 from limonero.schema import *
 from limonero.models import *
-from limonero.util import translate_validation
 
 log = logging.getLogger(__name__)
 
@@ -119,7 +118,7 @@ class DataSourceValidationDetailApi(Resource):
                    'message': gettext('Invalid data for %(name)s (id=%(id)s)',
                                       name=self.human_name,
                                       id=data_source_validation_id),
-                   'errors': translate_validation(e.messages)
+                   'errors': e.messages
                 }
             except Exception as e:
                 result = {'status': 'ERROR',
@@ -195,7 +194,7 @@ class DataSourceValidationListApi(Resource):
                    'status': 'ERROR', 
                    'message': gettext('Invalid data for %(name)s.)',
                                       name=self.human_name),
-                   'errors': translate_validation(e.messages)
+                   'errors': e.messages
                 }
             except Exception as e:
                 result = {'status': 'ERROR',
@@ -341,7 +340,7 @@ class DataSourceValidationExecutionListApi(Resource):
                    'status': 'ERROR', 
                    'message': gettext('Invalid data for %(name)s.)',
                                       name=self.human_name),
-                   'errors': translate_validation(e.messages)
+                   'errors': e.messages
                 }
             except Exception as e:
                 result = {'status': 'ERROR',
