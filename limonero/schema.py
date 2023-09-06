@@ -1232,7 +1232,3 @@ class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
     class Meta:
         ordered = True
         unknown = EXCLUDE
-
-
-#############################################
-# Falta colocar os filhos em alguns dos schemas acima??

@@ -796,7 +796,7 @@ class DataSourceValidationExecution(db.Model):
     # Associations
     data_source_validation_id = Column(Integer,
                             ForeignKey("data_source_validation.id",
-                                       name="fk_data_source_validation_item_data_source_validation_id"),
+                                       name="fk_data_source_validation_execution_data_source_validation_id"),
                             nullable=False,
                             index=True)
     data_source_validation = relationship(

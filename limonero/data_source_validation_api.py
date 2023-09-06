@@ -137,7 +137,7 @@ class DataSourceValidationListApi(Resource):
         self.human_name = gettext('DataSourceValidation')
 
     @requires_auth
-    def get(self):
+    def get(self, data_source_id):
         all_data_source_validations = request.args.get('all') in ["true", 1, "1"]
         only = None
 
@@ -171,7 +171,7 @@ class DataSourceValidationListApi(Resource):
 
     @requires_auth
     @requires_permission('ADMINISTRATOR',)
-    def post(self):
+    def post(self, data_source_id):
         result = {'status': 'ERROR',
                   'message': gettext("Missing json in the request body")}
         return_code = HTTPStatus.BAD_REQUEST
@@ -284,7 +284,7 @@ class DataSourceValidationExecutionListApi(Resource):
         self.human_name = gettext('DataSourceValidationExecution')
 
     @requires_auth
-    def get(self):
+    def get(self, data_source_validation_id):
         all_data_source_validation_executions = request.args.get('all') in ["true", 1, "1"]
         only = None
         
@@ -318,7 +318,7 @@ class DataSourceValidationExecutionListApi(Resource):
 
     @requires_auth
     @requires_permission('ADMINISTRATOR',)
-    def post(self):
+    def post(self, data_source_validation_id):
         result = {'status': 'ERROR',
                   'message': gettext("Missing json in the request body")}
         return_code = HTTPStatus.BAD_REQUEST
