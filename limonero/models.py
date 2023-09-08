@@ -764,9 +764,9 @@ class DataSourceValidationItem(db.Model):
                             index=True)
     data_source_validation = relationship(
         "DataSourceValidation",
-        overlaps='items',
+        overlaps='validation_items',
         foreign_keys=[data_source_validation_id],
-        backref=backref("items",
+        backref=backref("validation_items",
                         cascade="all, delete-orphan"))
 
     def __str__(self):
@@ -801,9 +801,9 @@ class DataSourceValidationExecution(db.Model):
                             index=True)
     data_source_validation = relationship(
         "DataSourceValidation",
-        overlaps='executions',
+        overlaps='validation_executions',
         foreign_keys=[data_source_validation_id],
-        backref=backref("executions",
+        backref=backref("validation_executions",
                         cascade="all, delete-orphan"))
 
     def __str__(self):

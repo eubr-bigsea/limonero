@@ -560,6 +560,10 @@ class DataSourceListResponseSchema(BaseSchema):
         'limonero.schema.DataSourcePermissionListResponseSchema',
         allow_none=True,
         many=True)
+    validations = fields.Nested(
+        'limonero.schema.DataSourceValidationListResponseSchema',
+        allow_none=True,
+        many=True)
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
@@ -652,6 +656,10 @@ class DataSourceCreateRequestSchema(BaseSchema):
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    validations = fields.Nested(
+        'limonero.schema.DataSourceValidationListResponseSchema',
         allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
@@ -756,6 +764,10 @@ class DataSourceItemResponseSchema(BaseSchema):
         many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionItemResponseSchema',
+        allow_none=True,
+        many=True)
+    validations = fields.Nested(
+        'limonero.schema.DataSourceValidationListResponseSchema',
         allow_none=True,
         many=True)
     storage = fields.Nested(
@@ -1101,6 +1113,14 @@ class DataSourceValidationItemResponseSchema(BaseSchema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    validation_items = fields.Nested(
+        'limonero.schema.DataSourceValidationItemListResponseSchema',
+        allow_none=True,
+        many=True)
+    validation_executions = fields.Nested(
+        'limonero.schema.DataSourceValidationExecutionListResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1127,6 +1147,14 @@ class DataSourceValidationListResponseSchema(BaseSchema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    validation_items = fields.Nested(
+        'limonero.schema.DataSourceValidationItemListResponseSchema',
+        allow_none=True,
+        many=True)
+    validation_executions = fields.Nested(
+        'limonero.schema.DataSourceValidationExecutionListResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1141,7 +1169,7 @@ class DataSourceValidationListResponseSchema(BaseSchema):
 
 class DataSourceValidationCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
-    id = fields.Integer(required=True)
+    id = fields.Integer(required=False)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
                          validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
@@ -1153,6 +1181,14 @@ class DataSourceValidationCreateRequestSchema(BaseSchema):
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
+    validation_items = fields.Nested(
+        'limonero.schema.DataSourceValidationItemListResponseSchema',
+        allow_none=True,
+        many=True)
+    validation_executions = fields.Nested(
+        'limonero.schema.DataSourceValidationExecutionListResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1213,7 +1249,6 @@ class DataSourceValidationExecutionListResponseSchema(BaseSchema):
 
 class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
-    id = fields.Integer(required=True)
     created = fields.DateTime(required=False, allow_none=True)
     finished = fields.DateTime(required=False, allow_none=True)
     status = fields.String(required=True,
@@ -1228,6 +1263,74 @@ class DataSourceValidationExecutionCreateRequestSchema(BaseSchema):
     def make_object(self, data, **kwargs):
         """ Deserialize data into an instance of DataSourceValidationExecution"""
         return DataSourceValidationExecution(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationItemListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True)
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    parameters = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationItem"""
+        return DataSourceValidationItem(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationItemItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True)
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    parameters = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationItem"""
+        return DataSourceValidationItem(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceValidationItemCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    description = fields.String(required=False, allow_none=True)
+    type = fields.String(required=True)
+    enabled = fields.Boolean(
+        required=False,
+        allow_none=True,
+        missing=True,
+        default=True)
+    parameters = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceValidationItem"""
+        return DataSourceValidationItem(**data)
 
     class Meta:
         ordered = True
