@@ -91,18 +91,22 @@ class DataSourceValidationDetailApi(Resource):
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext('Updating %s (id=%s)'), self.human_name,
                       data_source_validation_id)
-        
+
         if request.json:
             request_schema = partial_schema_factory(
                 DataSourceValidationCreateRequestSchema)
             # Ignore missing fields to allow partial updates
-            data_source_validation = request_schema.load(request.json, partial=True)
             response_schema = DataSourceValidationItemResponseSchema()
+            
             try:
+                data_source_validation = request_schema.load(request.json, partial=True)
+                data_source_id = request.json['data_source_id']
+                data_source_validation.data_source_id = data_source_id
                 data_source_validation.id = data_source_validation_id
+
                 data_source_validation = db.session.merge(data_source_validation)
                 db.session.commit()
-
+                
                 if data_source_validation is not None:
                     return_code = HTTPStatus.OK
                     result = {
@@ -112,6 +116,7 @@ class DataSourceValidationDetailApi(Resource):
                                             id=data_source_validation_id),
                         'data': [response_schema.dump(data_source_validation)]
                     }
+                    
             except ValidationError as e:
                 result= {
                    'status': 'ERROR', 

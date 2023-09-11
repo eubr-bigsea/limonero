@@ -659,7 +659,7 @@ class DataSourceCreateRequestSchema(BaseSchema):
         allow_none=True,
         many=True)
     validations = fields.Nested(
-        'limonero.schema.DataSourceValidationListResponseSchema',
+        'limonero.schema.DataSourceValidationCreateRequestSchema',
         allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
@@ -767,7 +767,7 @@ class DataSourceItemResponseSchema(BaseSchema):
         allow_none=True,
         many=True)
     validations = fields.Nested(
-        'limonero.schema.DataSourceValidationListResponseSchema',
+        'limonero.schema.DataSourceValidationItemResponseSchema',
         allow_none=True,
         many=True)
     storage = fields.Nested(
@@ -1114,11 +1114,11 @@ class DataSourceValidationItemResponseSchema(BaseSchema):
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
     validation_items = fields.Nested(
-        'limonero.schema.DataSourceValidationItemListResponseSchema',
+        'limonero.schema.DataSourceValidationItemItemResponseSchema',
         allow_none=True,
         many=True)
     validation_executions = fields.Nested(
-        'limonero.schema.DataSourceValidationExecutionListResponseSchema',
+        'limonero.schema.DataSourceValidationExecutionItemResponseSchema',
         allow_none=True,
         many=True)
 
@@ -1169,7 +1169,6 @@ class DataSourceValidationListResponseSchema(BaseSchema):
 
 class DataSourceValidationCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
-    id = fields.Integer(required=False)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
                          validate=[OneOf(list(DataSourceValidationType.__dict__.keys()))])
@@ -1182,11 +1181,11 @@ class DataSourceValidationCreateRequestSchema(BaseSchema):
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
     validation_items = fields.Nested(
-        'limonero.schema.DataSourceValidationItemListResponseSchema',
+        'limonero.schema.DataSourceValidationItemCreateRequestSchema',
         allow_none=True,
         many=True)
     validation_executions = fields.Nested(
-        'limonero.schema.DataSourceValidationExecutionListResponseSchema',
+        'limonero.schema.DataSourceValidationExecutionCreateRequestSchema',
         allow_none=True,
         many=True)
 
