@@ -97,9 +97,9 @@ def create_app(main_module: bool = False):
         '/datasources/<int:data_source_id>/permission/<int:user_id>':
             DataSourcePermissionApi,
         '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
-        '/datasources/<int:data_source_id>/validations': DataSourceValidationListApi,
+        '/datasources/validations': DataSourceValidationListApi,
         '/datasources/validations/<int:data_source_validation_id>': DataSourceValidationDetailApi,
-        '/datasources/validations/<int:data_source_validation_id>/executions': DataSourceValidationExecutionListApi,
+        '/datasources/validations/executions': DataSourceValidationExecutionListApi,
         '/datasources/validations/executions/<int:data_source_validation_execution_id>': DataSourceValidationExecutionDetailApi,
         '/privacy': GlobalPrivacyListApi,
         '/privacy/attribute-groups': AttributePrivacyGroupListApi,

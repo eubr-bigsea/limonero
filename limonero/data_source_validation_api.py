@@ -142,16 +142,14 @@ class DataSourceValidationListApi(Resource):
         self.human_name = gettext('DataSourceValidation')
 
     @requires_auth
-    def get(self, data_source_id):
-        all_data_source_validations = request.args.get('all') in ["true", 1, "1"]
-        only = None
-
-        data_source_id_filter = request.args.get('data_source_id')
-        if data_source_id_filter:
-            data_source_validations = DataSourceValidation.query.filter(
-                DataSourceValidation.data_source_id == data_source_id_filter)
-        else:
-            data_source_validations = DataSourceValidation.query
+    def get(self):
+        # data_source_id_filter = request.json['data_source_id']
+        # if data_source_id_filter:
+        #     data_source_validations = DataSourceValidation.query.filter(
+        #         DataSourceValidation.data_source_id == data_source_id_filter)
+        # else:
+        #     data_source_validations = DataSourceValidation.query
+        data_source_validations = DataSourceValidation.query
 
         page = request.args.get('page') or '1' 
         if page is not None and page.isdigit():
@@ -160,7 +158,7 @@ class DataSourceValidationListApi(Resource):
             pagination = data_source_validations.paginate(page, page_size, True)
             result = {
                 'data': DataSourceValidationListResponseSchema(
-                    many=True, only=only).dump(pagination.items),
+                    many=True, only=None).dump(pagination.items),
                 'pagination': {
                     'page': page, 'size': page_size,
                     'total': pagination.total,
@@ -169,14 +167,14 @@ class DataSourceValidationListApi(Resource):
         else:
             result = {
                 'data': DataSourceValidationListResponseSchema(
-                    many=True, only=only).dump(
+                    many=True, only=None).dump(
                     data_source_validations)}
 
         return result
 
     @requires_auth
     @requires_permission('ADMINISTRATOR',)
-    def post(self, data_source_id):
+    def post(self):
         result = {'status': 'ERROR',
                   'message': gettext("Missing json in the request body")}
         return_code = HTTPStatus.BAD_REQUEST
@@ -184,12 +182,15 @@ class DataSourceValidationListApi(Resource):
         if request.json is not None:
             request_schema = DataSourceValidationCreateRequestSchema()
             response_schema = DataSourceValidationItemResponseSchema()
-            data_source_validation = request_schema.load(request.json)
+            
             try:
+                data_source_validation = request_schema.load(request.json)
+                data_source_id = request.json['data_source_id']
+                data_source_validation.data_source_id = data_source_id
+                
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(gettext('Adding %s'), self.human_name)
-                    
-                data_source_validation = data_source_validation
+                
                 db.session.add(data_source_validation)
                 db.session.commit()
                 result = response_schema.dump(data_source_validation)
@@ -289,16 +290,14 @@ class DataSourceValidationExecutionListApi(Resource):
         self.human_name = gettext('DataSourceValidationExecution')
 
     @requires_auth
-    def get(self, data_source_validation_id):
-        all_data_source_validation_executions = request.args.get('all') in ["true", 1, "1"]
-        only = None
-        
-        data_source_validation_id_filter = request.args.get('data_source_validation_id')
-        if data_source_validation_id_filter:
-            data_source_validation_executions = DataSourceValidationExecution.query.filter(
-                DataSourceValidationExecution.data_source_validation_id == data_source_validation_id_filter)
-        else:
-            data_source_validation_executions = DataSourceValidationExecution.query
+    def get(self):
+        # data_source_validation_id_filter = request.json['data_source_validation_id']
+        # if data_source_validation_id_filter:
+        #     data_source_validation_executions = DataSourceValidationExecution.query.filter(
+        #         DataSourceValidationExecution.data_source_validation_id == data_source_validation_id_filter)
+        # else:
+        #     data_source_validation_executions = DataSourceValidationExecution.query
+        data_source_validation_executions = DataSourceValidationExecution.query
 
         page = request.args.get('page') or '1' 
         if page is not None and page.isdigit():
@@ -307,7 +306,7 @@ class DataSourceValidationExecutionListApi(Resource):
             pagination = data_source_validation_executions.paginate(page, page_size, True)
             result = {
                 'data': DataSourceValidationExecutionListResponseSchema(
-                    many=True, only=only).dump(pagination.items),
+                    many=True, only=None).dump(pagination.items),
                 'pagination': {
                     'page': page, 'size': page_size,
                     'total': pagination.total,
@@ -316,14 +315,14 @@ class DataSourceValidationExecutionListApi(Resource):
         else:
             result = {
                 'data': DataSourceValidationExecutionListResponseSchema(
-                    many=True, only=only).dump(
+                    many=True, only=None).dump(
                     data_source_validation_executions)}
 
         return result
 
     @requires_auth
     @requires_permission('ADMINISTRATOR',)
-    def post(self, data_source_validation_id):
+    def post(self):
         result = {'status': 'ERROR',
                   'message': gettext("Missing json in the request body")}
         return_code = HTTPStatus.BAD_REQUEST
@@ -331,11 +330,15 @@ class DataSourceValidationExecutionListApi(Resource):
         if request.json is not None:
             request_schema = DataSourceValidationExecutionCreateRequestSchema()
             response_schema = DataSourceValidationExecutionItemResponseSchema()
-            data_source_validation_execution = request_schema.load(request.json)
+            
             try:
+                data_source_validation_execution = request_schema.load(request.json)
+                data_source_validation_id = request.json['data_source_validation_id']
+                data_source_validation_execution.data_source_validation_id = data_source_validation_id
+                
                 if log.isEnabledFor(logging.DEBUG):
                     log.debug(gettext('Adding %s'), self.human_name)
-                data_source_validation_execution = data_source_validation_execution
+                
                 db.session.add(data_source_validation_execution)
                 db.session.commit()
                 result = response_schema.dump(data_source_validation_execution)
