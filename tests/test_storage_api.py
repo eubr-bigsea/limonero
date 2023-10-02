@@ -25,10 +25,10 @@ def test_storage_list_success(client):
     rv = client.get('/storages', headers=headers)
     assert 200 == rv.status_code, 'Incorrect status code'
     resp = rv.json
-    assert resp['pagination']['total'] == 5, 'Wrong quantity'
+    assert resp['pagination']['total'] == 6, 'Wrong quantity'
 
     with current_app.app_context():
-        default_storage = Storage.query.order_by(Storage.name).first()
+        default_storage = Storage.query.order_by(Storage.id).first()
 
     assert resp['data'][0]['id'] == default_storage.id
     assert resp['data'][0]['type'] == default_storage.type
@@ -40,12 +40,23 @@ def test_storage_list_success(client):
 def test_storage_list_with_parameters_success(client):
     headers = {'X-Auth-Token': str(client.secret)}
     params = {'enabled': 'true', 'fields': 'id,name',
-              'asc': 'false', 'query': 'storage', 'sort': 'created'}
+            'asc': 'false', 'query': 'storage', 'sort': 'created', 'page': '1'}
 
     rv = client.get('/storages', headers=headers, query_string=params)
     assert 200 == rv.status_code, 'Incorrect status code'
     resp = rv.json
     assert resp['pagination']['total'] == 3, 'Wrong quantity'
+
+def test_storage_list_with_parameters_enabled_filter_success(client):
+    headers = {'X-Auth-Token': str(client.secret)}
+    params = {'enabled': 'false', 'fields': 'id,name,enabled',
+            'asc': 'false', 'query': 'storage', 'sort': 'created', 'page': '1'}
+
+    rv = client.get('/storages', headers=headers, query_string=params)
+    assert 200 == rv.status_code, 'Incorrect status code'
+    resp = rv.json
+    assert all([not s['enabled'] for s in resp.get('data')])
+
 
 
 def test_storage_list_no_page_success(client):
@@ -53,9 +64,9 @@ def test_storage_list_no_page_success(client):
     params = {'page': 'false'}
 
     rv = client.get('/storages', headers=headers, query_string=params)
-    assert 200 == rv.status_code, 'Incorrect status code'
     resp = rv.json
-    assert len(resp['data']) == 5, 'Wrong quantity'
+    assert len(resp['data']) == 6, 'Wrong quantity'
+    assert 200 == rv.status_code, 'Incorrect status code'
 
 
 def test_storage_post_missing_data(client):
@@ -140,3 +151,18 @@ def test_storage_patch_success(client, app):
         storage = Storage.query.get(storage_id)
         assert storage.name == update['name']
         assert storage.url == update['url']
+
+def test_storage_patch_not_found_error(client, app):
+    headers = {'X-Auth-Token': str(client.secret)}
+    storage_id = 19999
+
+    with app.app_context():
+        storage = Storage(
+            id=storage_id, url='file:///tmp', type='HDFS', name='Updated')
+        db.session.add(storage)
+        db.session.commit()
+
+    update = {'url': 'hdfs://teste.com', 'name': 'Fixed'}
+    rv = client.patch(f'/storages/{storage_id + 1000}', json=update, headers=headers)
+
+    assert rv.status_code == 404

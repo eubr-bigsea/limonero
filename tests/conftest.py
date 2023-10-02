@@ -38,6 +38,8 @@ def _get_storages():
                 enabled=True, url='hdfs:///demo/'),
         Storage(name='MySQL Storage', type=StorageType.JDBC,
                 enabled=True, url='mysql://server:3306/db/tb'),
+        Storage(name='MySQL Storage Disabled', type=StorageType.JDBC,
+                enabled=False, url='mysql://server:3306/db2/tb'),
     ]
 
 
@@ -126,11 +128,12 @@ def app():
 def client(app):
     path = os.path.dirname(os.path.abspath(__name__))
     # import pdb; pdb.set_trace()
+    test_db_file = 'test.db'
     with app.test_client() as client:
         with app.app_context():
             # flask_migrate.downgrade(revision="base")
-            if os.path.exists(os.path.join(path, 'test.db')):
-                os.remove(os.path.join(path, 'test.db'))
+            if os.path.exists(os.path.join(path, test_db_file)):
+                os.remove(os.path.join(path, test_db_file))
             flask_migrate.upgrade(revision='head')
             for storage in _get_storages():
                 db.session.add(storage)
@@ -139,6 +142,7 @@ def client(app):
             db.session.commit()
         client.secret = app.config['LIMONERO_CONFIG']['secret']
         yield client
+        os.unlink(test_db_file)
 
 
 # @pytest.yield_fixture(scope='function')
@@ -147,12 +151,12 @@ def client(app):
 
 
 # noinspection PyShadowingNames
-@pytest.yield_fixture(scope='session')
-def jvm(app):
-    logger = logging.getLogger()
-    init_jvm(app, logger)
-    gateway = create_gateway(logger, app.config['GATEWAY_PORT'])
-    yield gateway.jvm
+# @pytest.yield_fixture(scope='session')
+# def jvm(app):
+#     logger = logging.getLogger()
+#     init_jvm(app, logger)
+#     gateway = create_gateway(logger, app.config['GATEWAY_PORT'])
+#     yield gateway.jvm
 
 
 # # noinspection PyShadowingNames

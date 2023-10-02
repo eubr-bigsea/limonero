@@ -32,11 +32,24 @@ from limonero.storage_api import StorageDetailApi, StorageListApi, \
     StorageMetadataApi
 from cryptography.fernet import Fernet
 
+from marshmallow.exceptions import ValidationError
+from werkzeug.exceptions import HTTPException
+
+from dotenv import load_dotenv
+
+load_dotenv()
+log = logging.getLogger(__name__)
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 
 # noinspection PyUnusedLocal
 def exit_gracefully(s, frame):
     os.kill(os.getpid(), signal.SIGTERM)
+
+def translate_validation(validation_errors):
+    for field, errors in list(validation_errors.items()):
+        validation_errors[field] = [gettext(error) for error in errors]
+    return validation_errors
+
 
 def create_app(main_module: bool = False):
     app = Flask(__name__, static_url_path='/static', static_folder='static')
@@ -44,6 +57,32 @@ def create_app(main_module: bool = False):
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
         'limonero/i18n/locales')
     app.json_encoder = LimoneroJSONEncoder
+
+    # Error handlers
+    @app.errorhandler(ValidationError)
+    def register_validation_error(e):
+        result = {'status': 'ERROR',
+                  'message': gettext("Validation error"),
+                  'errors': translate_validation(e.messages)}
+        db.session.rollback()
+        return result, 400
+    
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # pass through HTTP errors
+        if isinstance(e, HTTPException):
+            return e
+        result = {'status': 'ERROR',
+                  'message': gettext("Internal error")}
+        if app.debug:
+            result['debug_detail'] = str(e)
+
+        log.exception(e)
+        db.session.rollback()
+        return result, 500
+
+
+
     
     babel = Babel(app)
     

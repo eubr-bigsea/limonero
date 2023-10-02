@@ -239,7 +239,7 @@ def test_update_data_source_not_found_fail(client):
         "%(type)s not found.", type=gettext('Data source'))
 
 
-def suspended_test_data_source_infer_simple_schema_success(client, jvm, app,
+def test_data_source_infer_simple_schema_success(client, app,
                                                            infer_ds):
     """ Uses JVM !"""
 
@@ -257,8 +257,7 @@ def suspended_test_data_source_infer_simple_schema_success(client, jvm, app,
                     i].type, '{} x {}'.format(name, read_ds.attributes[i].name)
 
 
-def suspended_test_data_source_check_chunk_dont_exist_success(client, jvm,
-                                                              file_storage):
+def test_data_source_check_chunk_dont_exist_success(client, file_storage):
     url = url_for('DataSourceUploadApi')
     params = {
         'resumableIdentifier': 'eda-cc0-ffa',
@@ -273,7 +272,7 @@ def suspended_test_data_source_check_chunk_dont_exist_success(client, jvm,
         rv.data)
 
 
-def suspended_test_data_source_upload_chunk_success(client, jvm, app,
+def test_data_source_upload_chunk_success(client, app,
                                                     file_storage):
     url = url_for('DataSourceUploadApi')
     params = {
@@ -299,7 +298,7 @@ def suspended_test_data_source_upload_chunk_success(client, jvm, app,
         os.unlink(ds.url[5:])
 
 
-def suspended_test_data_source_upload_chunk_hdfs_success(client, jvm, app,
+def test_data_source_upload_chunk_hdfs_success(client, app,
                                                          default_storage, hdfs, db):
     cluster, uri, fs = hdfs
     with app.app_context():
@@ -325,7 +324,7 @@ def suspended_test_data_source_upload_chunk_hdfs_success(client, jvm, app,
         rv.data)
 
 
-def suspended_test_data_source_download_success(client, jvm, app, file_ds):
+def test_data_source_download_success(client, app, file_ds):
     url = url_for('DataSourceDownload', data_source_id=file_ds.id)
 
     rv = client.get(url, headers={'X-Auth-Token': str(client.secret)})
