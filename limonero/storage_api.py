@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-}
 from limonero.app_auth import requires_auth, requires_permission
 from flask import request, current_app, g as flask_globals
 from flask_restful import Resource
