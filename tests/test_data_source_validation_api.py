@@ -5,9 +5,15 @@ from flask import current_app
 def test_validation_fail_not_authorized(client):
     tests = [
         lambda: client.get('/datasources/validations'),
-        lambda: client.post('/datasources/validations/executions'),
+        lambda: client.post('/datasources/validations'),
         lambda: client.get('/datasources/validations/1'),
-        lambda: client.patch('/datasources/validations/executions/1'),
+        lambda: client.patch('/datasources/validations/1'),
+        lambda: client.delete('/datasources/validations/1'),
+
+        lambda: client.get('/datasources/validations/executions'),
+        lambda: client.post('/datasources/validations/executions'),
+        lambda: client.get('/datasources/validations/executions/1'),
+        lambda: client.delete('/datasources/validations/executions/1'),
     ]
     for i, test in enumerate(tests):
         rv = test()
@@ -27,7 +33,7 @@ def test_validation_list(client):
     with current_app.app_context():
         default_validation = DataSourceValidation.query.order_by(
             DataSourceValidation.description).first()
-    breakpoint()
+    
     assert resp['data'][0]['id'] == default_validation.id
     assert resp['data'][0]['description'] == default_validation.description
     assert resp['data'][0]['type'] == default_validation.type

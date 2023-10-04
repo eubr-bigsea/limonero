@@ -16,7 +16,7 @@ import flask_migrate
 from limonero.app import create_app, db
 from limonero.data_source_api import DataSourceDownload
 from limonero.models import Storage, StorageType, DataSource, DataSourceFormat, \
-    DataType
+    DataType, DataSourceValidation, DataSourceValidationItem, DataSourceValidationExecution
 from limonero.py4j_init import init_jvm, create_gateway
 from limonero.util import CustomJSONEncoder
 
@@ -41,7 +41,7 @@ def _get_storages():
     ]
 
 
-def _get_visualizations():
+def _get_data_sources():
     return [
         DataSource(name='Default',
                    description='Default data source',
@@ -106,9 +106,57 @@ def _get_visualizations():
                    storage_id=1
                    )
     ]
+
+
+def _get_validations():
+    return [
+        DataSourceValidation(
+            description="validation 1",
+            type="SCRIPT",
+            enabled=True,
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            data_source_id=1
+        ),
+        DataSourceValidation(
+            description="validation 2",
+            type="GREAT_EXPECTATIONS",
+            enabled=False,
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            data_source_id=1
+        )
+    ]
+
+
+def _get_validations_executions():
+    return [
+        DataSourceValidationExecution(
+            created=datetime.datetime.utcnow(),
+            finished=datetime.datetime.utcnow(),
+            status='SUCCESS',
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            result='SUCCESS',
+            data_source_validation_id=1
+        ),
+        DataSourceValidationExecution(
+            created=datetime.datetime.utcnow(),
+            finished=datetime.datetime.utcnow(),
+            status='ERROR',
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            result='SUCCESS',
+            data_source_validation_id=1
+        )
+    ]
+
+
 # noinspection PyShadowingNames
-
-
 @pytest.fixture(scope='session')
 def app():
     path = os.path.dirname(os.path.abspath(__name__))
@@ -120,8 +168,6 @@ def app():
     return app
 
 # noinspection PyShadowingNames
-
-
 @pytest.fixture(scope='session')
 def client(app):
     path = os.path.dirname(os.path.abspath(__name__))
@@ -134,8 +180,12 @@ def client(app):
             flask_migrate.upgrade(revision='head')
             for storage in _get_storages():
                 db.session.add(storage)
-            for visualization in _get_visualizations():
-                db.session.add(visualization)
+            for data_source in _get_data_sources():
+                db.session.add(data_source)
+            for validation in _get_validations():
+                db.session.add(validation)
+            for validation_execution in _get_validations_executions():
+                db.session.add(validation_execution)
             db.session.commit()
         client.secret = app.config['LIMONERO_CONFIG']['secret']
         yield client
