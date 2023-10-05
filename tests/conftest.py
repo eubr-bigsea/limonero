@@ -127,6 +127,24 @@ def _get_validations():
             user_name='Lemonade project',
             user_login='lemonade',
             data_source_id=1
+        ),
+        DataSourceValidation(
+            description="validation 3",
+            type="SCRIPT",
+            enabled=False,
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            data_source_id=1
+        ),
+        DataSourceValidation(
+            description="validation 4",
+            type="GREAT_EXPECTATIONS",
+            enabled=True,
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            data_source_id=1
         )
     ]
 
@@ -137,6 +155,26 @@ def _get_validations_executions():
             created=datetime.datetime.utcnow(),
             finished=datetime.datetime.utcnow(),
             status='SUCCESS',
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            result='SUCCESS',
+            data_source_validation_id=1
+        ),
+        DataSourceValidationExecution(
+            created=datetime.datetime.utcnow(),
+            finished=datetime.datetime.utcnow(),
+            status='ERROR',
+            user_id=1,
+            user_name='Lemonade project',
+            user_login='lemonade',
+            result='SUCCESS',
+            data_source_validation_id=1
+        ),
+        DataSourceValidationExecution(
+            created=datetime.datetime.utcnow(),
+            finished=datetime.datetime.utcnow(),
+            status='RUNNING',
             user_id=1,
             user_name='Lemonade project',
             user_login='lemonade',
