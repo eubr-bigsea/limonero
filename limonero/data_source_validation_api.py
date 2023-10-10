@@ -100,8 +100,6 @@ class DataSourceValidationDetailApi(Resource):
             
             try:
                 data_source_validation = request_schema.load(request.json, partial=True)
-                data_source_id = request.json['data_source_id']
-                data_source_validation.data_source_id = data_source_id
                 data_source_validation.id = data_source_validation_id
 
                 data_source_validation = db.session.merge(data_source_validation)
@@ -126,6 +124,7 @@ class DataSourceValidationDetailApi(Resource):
                    'errors': e.messages
                 }
             except Exception as e:
+                breakpoint()
                 result = {'status': 'ERROR',
                           'message': gettext("Internal error")}
                 return_code = 500
