@@ -118,26 +118,25 @@ def test_validation_delete_success(client):
     assert 200 == rv.status_code, f'Incorrect status code: {rv.status_code}'
 
 
-# This one is not passing (500 Internal Server Error), dont know why
-# def test_validation_patch_success(client, app):
-#     headers = {'X-Auth-Token': str(client.secret)}
-#     validation_id = 8888
+def test_validation_patch_success(client, app):
+    headers = {'X-Auth-Token': str(client.secret)}
+    validation_id = 8888
 
-#     with app.app_context():
-#         validation = DataSourceValidation(
-#             id=validation_id, description='Updated', type='SCRIPT', enabled=True, 
-#             user_id=1, user_name='Lemonade project', user_login='lemonade', data_source_id=1)
-#         db.session.add(validation)
-#         db.session.commit()
+    with app.app_context():
+        validation = DataSourceValidation(
+            id=validation_id, description='Updated', type='SCRIPT', enabled=True, 
+            user_id=1, user_name='Lemonade project', user_login='lemonade', data_source_id=1)
+        db.session.add(validation)
+        db.session.commit()
 
-#     update = {'type': 'GREAT_EXPECTATIONS', 'description': 'Fixed'}
-#     rv = client.patch(f'/datasources/validations/{validation_id}', json=update, headers=headers)
-#     assert rv.status_code == 200
+    update = {'type': 'GREAT_EXPECTATIONS', 'description': 'Fixed'}
+    rv = client.patch(f'/datasources/validations/{validation_id}', json=update, headers=headers)
+    assert rv.status_code == 200, rv.text
 
-#     with app.app_context():
-#         validation = DataSourceValidation.query.get(validation_id)
-#         assert validation.description == update['description']
-#         assert validation.type == update['type']
+    with app.app_context():
+        validation = DataSourceValidation.query.get(validation_id)
+        assert validation.description == update['description']
+        assert validation.type == update['type']
 
 
 
@@ -154,9 +153,6 @@ def test_validation_execution_list_success(client):
             DataSourceValidationExecution.id).first()
 
     assert resp['data'][0]['id'] == default_validation_execution.id
-    # im not managing to compare these datetimes too
-    # assert resp['data'][0]['created'] == default_validation_execution.created
-    # assert resp['data'][0]['finished'] == default_validation_execution.finished
     assert resp['data'][0]['status'] == default_validation_execution.status
     assert resp['data'][0]['user_id'] == default_validation_execution.user_id
     assert resp['data'][0]['user_login'] == default_validation_execution.user_login
@@ -204,9 +200,6 @@ def test_validation_execution_get_success(client):
         default_validation_execution = DataSourceValidationExecution.query.get(1)
     resp = rv.json
     assert resp['data'][0]['id'] == default_validation_execution.id
-    # im not managing to compare these datetimes too
-    # assert resp['data'][0]['created'] == default_validation_execution.created
-    # assert resp['data'][0]['finished'] == default_validation_execution.finished
     assert resp['data'][0]['status'] == default_validation_execution.status
     assert resp['data'][0]['user_id'] == default_validation_execution.user_id
     assert resp['data'][0]['user_login'] == default_validation_execution.user_login
