@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from limonero.models import *
 from flask import current_app
+
+from limonero.models import Storage, db
 
 
 def test_storage_fail_not_authorized(client):
@@ -86,8 +87,8 @@ def test_storage_post_success(client):
 
     rv = client.post('/storages', headers=headers, json=params)
     assert 200 == rv.status_code, 'Incorrect status code'
-    resp = rv.json
-    # assert resp['status'] == 'OK', 'Wrong status'
+    #resp = rv.json
+    #assert resp['status'] == 'OK', 'Wrong status'
 
 
 def test_storage_get_success(client):

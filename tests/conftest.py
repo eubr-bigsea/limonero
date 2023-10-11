@@ -1,19 +1,13 @@
 # from project.database import db as _db
 import datetime
-import itertools
-import logging
 import os
-import shutil
 import sys
-import tempfile
 
-import pytest
-from flask import Flask
-from flask_babel import Babel
-from flask_restful import Api
 import flask_migrate
+import pytest
 
 from limonero.app import create_app, db
+<<<<<<< Updated upstream
 from limonero.data_source_api import DataSourceDownload
 from limonero.models import (
     Storage,
@@ -27,6 +21,7 @@ from limonero.models import (
 )
 from limonero.py4j_init import init_jvm, create_gateway
 from limonero.util import CustomJSONEncoder
+from limonero.models import DataSource, DataSourceFormat, Storage, StorageType
 
 sys.path.append(os.path.dirname(os.path.curdir))
 
@@ -34,7 +29,6 @@ TESTDB = "test_project.db"
 TESTDB_PATH = "{}/{}".format(os.path.dirname(__file__), TESTDB)
 TEST_DATABASE_URI = "sqlite:///" + TESTDB_PATH
 TEST_TOKEN = "T0K3N_T35T"
-
 
 def _get_models():
     return [
@@ -76,7 +70,6 @@ def _get_models():
         ),
     ]
 
-
 def _get_storages():
     return [
         Storage(
@@ -109,6 +102,7 @@ def _get_storages():
 def _get_visualizations():
     return [
         DataSource(
+            id=7001,
             name="Default",
             description="Default data source",
             enabled=True,
@@ -141,6 +135,7 @@ def _get_visualizations():
             storage_id=1,
         ),
         DataSource(
+            id=7003,
             name="Optional",
             description="Optional data source",
             enabled=False,
@@ -184,6 +179,7 @@ def app():
     app = create_app()
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{path}/test.db"
     app.config["TESTING"] = True
+    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     app.config["GATEWAY_PORT"] = 18001
     app.debug = False
     return app
@@ -198,17 +194,17 @@ def client(app):
     # import pdb; pdb.set_trace()
     test_db_file = "test.db"
     with app.test_client() as client:
-        with app.app_context():
+        with app.test_request_context():
             # flask_migrate.downgrade(revision="base")
             if os.path.exists(os.path.join(path, test_db_file)):
                 os.remove(os.path.join(path, test_db_file))
             flask_migrate.upgrade(revision="head")
             for storage in _get_storages():
                 db.session.add(storage)
-            for visualization in _get_visualizations():
-                db.session.add(visualization)
             for model in _get_models():
                 db.session.add(model)
+            for ds in _get_visualizations():
+                db.session.add(ds)
             db.session.commit()
         client.secret = app.config["LIMONERO_CONFIG"]["secret"]
         yield client
@@ -267,7 +263,7 @@ def client(app):
 #             ]
 #         )
 #     ]
-#     with app.app_context():
+#     with app.test_request_context():
 #         for c, meta in content:
 #             fd, path = tempfile.mkstemp()
 #             os.write(fd, c)
@@ -307,52 +303,68 @@ def client(app):
 #             os.unlink(ds.name)
 
 
-# # noinspection PyShadowingNames
-# @pytest.fixture(scope='function')
-# def datasources(app, db, default_storage):
-#     names = ['Storage HDFS', 'Storage File', 'Storage MySQL']
-#     types = ['HDFS', 'HDFS', 'JDBC']
-#     statuses = [True, True, False]
-#     urls = ['hdfs://ok', 'file:///var/tmp/ok', 'mysql://server:3306/db/tb']
+@pytest.fixture(scope="function")
+def default_storage(app):
+    with app.test_request_context():
+        storage = Storage(id=8888, name="Test",
+                        type=StorageType.HDFS, url="file:///tmp/")
+        db.session.add(storage)
+        yield storage
+        db.session.commit()
 
-#     data_sources = []
-#     with app.app_context():
-#         for name, ttype, enabled, url in zip(names, types, statuses, urls):
-#             data_source = DataSource(name='Default',
-#                                      description='Default data source',
-#                                      enabled=True,
-#                                      statistics_process_counter=0,
-#                                      read_only=False,
-#                                      privacy_aware=False,
-#                                      url='hdfs://test:9000/db/test',
-#                                      created=datetime.datetime.utcnow(),
-#                                      updated=datetime.datetime.utcnow(),
-#                                      format=DataSourceFormat.CSV,
-#                                      provenience=None,
-#                                      estimated_rows=0,
-#                                      estimated_size_in_mega_bytes=0,
-#                                      expiration=None,
-#                                      user_id=1,
-#                                      user_login='lemonade',
-#                                      user_name='Lemonade project',
-#                                      tags=None,
-#                                      temporary=False,
-#                                      workflow_id=None,
-#                                      task_id=None,
-#                                      attribute_delimiter=',',
-#                                      text_delimiter='"',
-#                                      is_public=True,
-#                                      treat_as_missing='NA',
-#                                      encoding='UTF8',
-#                                      is_first_line_header=True,
-#                                      command='',
-#                                      is_multiline=False,
-#                                      storage=default_storage
-#                                      )
-#             db.session.add(data_source)
-#             data_sources.append(data_source)
-#         db.session.commit()
-#         yield data_sources
+
+
+# noinspection PyShadowingNames
+@pytest.fixture(scope="function")
+def datasources(app, default_storage):
+    names = ["Storage HDFS", "iris", "Storage MySQL"]
+    formats = [DataSourceFormat.CSV, DataSourceFormat.PARQUET, 
+               DataSourceFormat.CSV]
+    statuses = [True, True, False]
+    iris =  os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+                         'data', 'iris.parquet')
+    urls = ["hdfs://ok", f"file://{iris}", "mysql://server:3306/db/tb"]
+
+    data_sources = []
+    with app.test_request_context():
+        i = 1
+        for name, format, enabled, url in zip(names, formats, statuses, urls):
+            data_source = DataSource(
+                name=name,
+                description="Default data source",
+                enabled=enabled,
+                statistics_process_counter=0,
+                read_only=False,
+                privacy_aware=False,
+                url=url,
+                created=datetime.datetime.utcnow(),
+                updated=datetime.datetime.utcnow(),
+                format=format,
+                provenience=None,
+                estimated_rows=0,
+                estimated_size_in_mega_bytes=0,
+                expiration=None,
+                user_id=1,
+                user_login="lemonade",
+                user_name="Lemonade project",
+                tags=None,
+                temporary=False,
+                workflow_id=None,
+                task_id=None,
+                attribute_delimiter=",",
+                text_delimiter='"',
+                is_public=True,
+                treat_as_missing="NA",
+                encoding="UTF8",
+                is_first_line_header=True,
+                command="",
+                is_multiline=False,
+                storage=default_storage,
+            )
+            db.session.add(data_source)
+            data_sources.append(data_source)
+        db.session.commit()
+        yield data_sources
 
 
 # # noinspection PyShadowingNames
@@ -371,3 +383,9 @@ def client(app):
 #     yield (cluster, uri, fs)
 #     cluster.shutdown()
 #     shutil.rmtree(base_dir)
+# @pytest.fixture(scope='function')
+
+
+@pytest.fixture(scope="function")
+def file_ds(datasources):
+    return next(d for d in datasources if d.url.startswith('file://'))

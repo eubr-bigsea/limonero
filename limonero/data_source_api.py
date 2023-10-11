@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+from sqlalchemy.event import listens_for
 import codecs
 import collections
 import csv
+import datetime
 import decimal
 import gzip
 import io
@@ -9,7 +11,7 @@ import json
 import logging
 import math
 import operator
-import os
+import pyarrow.parquet as pq
 import re
 import uuid
 import zipfile
@@ -38,7 +40,11 @@ from limonero.util import get_hdfs_conf, parse_hdfs_extra_params, strip_accents
 from limonero.util.jdbc import get_hive_data_type, get_mysql_data_type
 
 from .app_auth import User, requires_auth
-from .schema import *
+from .schema import (DataSourceListResponseSchema, DataSourceItemResponseSchema, 
+                     DataSourceCreateRequestSchema, DataSourcePrivacyResponseSchema, partial_schema_factory)
+from .models import (Attribute, AttributePrivacy, DataType, db, DataSource, DataSourcePermission, DataSourceFormat, 
+                     DataSourceInitialization, 
+                     PermissionType, Storage)
 
 _ = gettext
 log = logging.getLogger(__name__)
@@ -766,7 +772,7 @@ class DataSourceDownload(MethodView):
     # noinspection PyUnresolvedReferences
     @staticmethod
     def get(data_source_id):
-
+        
         # Uses a token to download
         download_token = {}
         try:
@@ -778,11 +784,13 @@ class DataSourceDownload(MethodView):
             download_token = json.loads(fernet_key.decrypt(token))
         except Exception:
             return json.dumps(
-                {'status': 'ERROR', 'message': gettext(
-                            'Invalid or expired token. Refresh the listing page.')}), 500
+                {'status': 'ERROR', 'message': 
+                 gettext('Invalid or expired token. Refresh the listing page.'
+                         )}), 500
         if download_token['id'] != data_source_id:
             return json.dumps(
-                {'status': 'ERROR', 'message': gettext('Invalid data source.')}), 401
+                {'status': 'ERROR', 'message': 
+                 gettext('Invalid data source.')}), 401
 
         data_source = DataSource.query.get_or_404(ident=data_source_id)
 
@@ -814,6 +822,7 @@ class DataSourceDownload(MethodView):
                     do_download(parsed.path)))
             else:
                 def do_download(path: str):
+
                    total = 0
                    done = False
                    with open(path, 'rb') as f:
@@ -826,7 +835,6 @@ class DataSourceDownload(MethodView):
 
                 result = Response(stream_with_context(
                     do_download(parsed.path)))
-
             result.headers[
                 'Cache-Control'] = 'no-cache, no-store, must-revalidate'
             result.headers['Pragma'] = 'no-cache'
@@ -1919,14 +1927,14 @@ class DataSourceSampleApi(Resource):
 
 # Events
 # noinspection PyUnusedLocal
-@event.listens_for(inspect(DataSource).relationships['attributes'], 'append')
-@event.listens_for(inspect(DataSource).relationships['attributes'], 'remove')
+@listens_for(inspect(DataSource).relationships['attributes'], 'append')
+@listens_for(inspect(DataSource).relationships['attributes'], 'remove')
 def receive_append_or_remove(target, value, initiator):
     target.updated = datetime.datetime.utcnow()
 
 
 # noinspection PyUnusedLocal
-@event.listens_for(Attribute, 'after_update')
+@listens_for(Attribute, 'after_update')
 def receive_attribute_change(mapper, connection, target):
     if target.data_source:
         target.data_source.updated = datetime.datetime.utcnow()

@@ -1,15 +1,19 @@
-from limonero.app_auth import requires_auth, requires_permission
-from flask import request, current_app, g as flask_globals
+import json
+import logging
+import math
+from urllib.parse import urlparse
+
+from flask import g as flask_g
+from flask import request
+from flask_babel import gettext
 from flask_restful import Resource
 from sqlalchemy import or_
-from flask import g as flask_g
-from marshmallow.exceptions import ValidationError
 
-import math
-import logging
-from urllib.parse import urlparse
-from limonero.schema import *
-from flask_babel import gettext, get_locale
+from limonero.app_auth import requires_auth, requires_permission
+from limonero.models import Storage, db
+from limonero.schema import (StorageCreateRequestSchema,
+                             StorageItemResponseSchema,
+                             StorageListResponseSchema, partial_schema_factory)
 
 log = logging.getLogger(__name__)
 
@@ -188,8 +192,8 @@ class StorageMetadataApi(Resource):
     @staticmethod
     @requires_auth
     def get(storage_id):
-        user = getattr(flask_g, 'user')
-        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
+        # user = getattr(flask_g, 'user')
+        # exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
         storage = Storage.query.filter(Storage.enabled,
                                        Storage.id == storage_id).first()
@@ -235,10 +239,10 @@ class StorageMetadataApi(Resource):
                     cursor.close()
                 elif storage.type == 'JDBC':
                     pass  # FIXME: Implement
-                return result
+                return result, status_code
             else:
                 return dict(status="ERROR",
-                            message=_("%(type)s not found.",
-                                      type=_('Storage'))), 404
+                            message=gettext("%(type)s not found.",
+                                      type=gettext('Storage'))), 404
         except Exception as ex:
             return dict(status="ERROR", message=str(ex)), 500
