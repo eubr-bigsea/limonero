@@ -25,8 +25,6 @@ from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourceInitializationApi
 from limonero.model_api import ModelDetailApi, ModelListApi, ModelDownloadApi
 from limonero.models import db, DataSource, Storage
-from limonero.privacy_api import GlobalPrivacyListApi, \
-    AttributePrivacyGroupListApi
 from limonero.py4j_init import init_jvm
 from limonero.storage_api import StorageDetailApi, StorageListApi, \
     StorageMetadataApi
@@ -132,9 +130,6 @@ def create_app(main_module: bool = False):
         '/datasources/<int:data_source_id>': DataSourceDetailApi,
         '/datasources/<int:data_source_id>/permission/<int:user_id>':
             DataSourcePermissionApi,
-        '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
-        '/privacy': GlobalPrivacyListApi,
-        '/privacy/attribute-groups': AttributePrivacyGroupListApi,
         '/models': ModelListApi,
         '/models/<int:model_id>': ModelDetailApi,
     

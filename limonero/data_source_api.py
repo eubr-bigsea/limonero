@@ -772,7 +772,6 @@ class DataSourceDownload(MethodView):
     # noinspection PyUnresolvedReferences
     @staticmethod
     def get(data_source_id):
-        
         # Uses a token to download
         download_token = {}
         try:
@@ -845,7 +844,9 @@ class DataSourceDownload(MethodView):
             try:
                 extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params)
-                hadoop_user = extra_params.user or 'hadoop'
+                hadoop_user = 'hadoop'
+                if extra_params and extra_params.user:
+                    hadoop_user = extra_params.user
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
                 if parsed.port:
                     hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port), 

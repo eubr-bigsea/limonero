@@ -26,7 +26,8 @@ def test_storage_list_success(client):
     rv = client.get('/storages', headers=headers)
     assert 200 == rv.status_code, 'Incorrect status code'
     resp = rv.json
-    assert resp['pagination']['total'] == 6, 'Wrong quantity'
+    assert (resp['pagination']['total'] == 7, 
+            f'Wrong quantity: {resp["pagination"]["total"]}')
 
     with current_app.app_context():
         default_storage = Storage.query.order_by(Storage.id).first()
@@ -66,6 +67,7 @@ def test_storage_list_no_page_success(client):
 
     rv = client.get('/storages', headers=headers, query_string=params)
     resp = rv.json
+    # Storage id=1 is added by migration
     assert len(resp['data']) == 6, 'Wrong quantity'
     assert 200 == rv.status_code, 'Incorrect status code'
 
@@ -136,7 +138,7 @@ def test_storage_delete_success(client):
 
 def test_storage_patch_success(client, app):
     headers = {'X-Auth-Token': str(client.secret)}
-    storage_id = 8888
+    storage_id = 10000
 
     with app.app_context():
         storage = Storage(

@@ -1,13 +1,13 @@
 # from project.database import db as _db
 import datetime
 import os
+import pathlib
 import sys
 
 import flask_migrate
 import pytest
 
 from limonero.app import create_app, db
-<<<<<<< Updated upstream
 from limonero.data_source_api import DataSourceDownload
 from limonero.models import (
     Storage,
@@ -99,10 +99,11 @@ def _get_storages():
     ]
 
 
-def _get_visualizations():
+def _get_data_sources():
+    module_dir = pathlib.Path(__file__).resolve().parent
     return [
         DataSource(
-            id=7001,
+            id=1,
             name="Default",
             description="Default data source",
             enabled=True,
@@ -135,14 +136,14 @@ def _get_visualizations():
             storage_id=1,
         ),
         DataSource(
-            id=7003,
-            name="Optional",
+            id=7004,
+            name="iris.parquet",
             description="Optional data source",
             enabled=False,
             statistics_process_counter=0,
             read_only=False,
             privacy_aware=False,
-            url="hdfs://test2:9000/db/test2",
+            url=f"file://{module_dir}/data/iris.parquet",
             created=datetime.datetime.utcnow(),
             updated=datetime.datetime.utcnow(),
             format=DataSourceFormat.CSV,
@@ -203,7 +204,7 @@ def client(app):
                 db.session.add(storage)
             for model in _get_models():
                 db.session.add(model)
-            for ds in _get_visualizations():
+            for ds in _get_data_sources():
                 db.session.add(ds)
             db.session.commit()
         client.secret = app.config["LIMONERO_CONFIG"]["secret"]
@@ -316,7 +317,7 @@ def default_storage(app):
 
 # noinspection PyShadowingNames
 @pytest.fixture(scope="function")
-def datasources(app, default_storage):
+def datasources(app):
     names = ["Storage HDFS", "iris", "Storage MySQL"]
     formats = [DataSourceFormat.CSV, DataSourceFormat.PARQUET, 
                DataSourceFormat.CSV]
@@ -327,6 +328,7 @@ def datasources(app, default_storage):
 
     data_sources = []
     with app.test_request_context():
+        default_storage = Storage.query.get(1)
         i = 1
         for name, format, enabled, url in zip(names, formats, statuses, urls):
             data_source = DataSource(
