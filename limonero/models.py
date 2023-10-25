@@ -76,6 +76,28 @@ class ModelType:
 
 
 # noinspection PyClassHasNoInit
+class FeatureType:
+    CATEGORICAL = 'CATEGORICAL'
+    NUMERICAL = 'NUMERICAL'
+
+    @staticmethod
+    def values():
+        return [n for n in list(FeatureType.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
+class FeatureUsage:
+    LABEL = 'LABEL'
+    FEATURE = 'FEATURE'
+
+    @staticmethod
+    def values():
+        return [n for n in list(FeatureUsage.__dict__.keys())
+                if n[0] != '_' and n != 'values']
+
+
+# noinspection PyClassHasNoInit
 class DeploymentStatus:
     NOT_DEPLOYED = 'NOT_DEPLOYED'
     ERROR = 'ERROR'
@@ -523,7 +545,7 @@ class DataSourcePermission(db.Model):
 
 
 class Model(db.Model):
-    """ Machine learning model """
+    """ Machine Learning model """
     __tablename__ = 'model'
 
     # Fields
@@ -559,6 +581,69 @@ class Model(db.Model):
         "Storage",
         overlaps='storage',
         foreign_keys=[storage_id])
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class Feature(db.Model):
+    """ Machine Learning model feature """
+    __tablename__ = 'feature'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=True)
+    type = Column(Enum(*list(FeatureType.values()),
+                       name='FeatureTypeEnumType'), nullable=True)
+    algorithm = Column(String(100), nullable=True)
+    missing_handling = Column(String(100), nullable=True)
+    scaling = Column(String(100), nullable=True)
+    categorical_handling = Column(String(100), nullable=True)
+    numerical_handling = Column(String(100), nullable=True)
+    usage = Column(Enum(*list(FeatureUsage.values()),
+                   name='FeatureUsageEnumType'), nullable=True)
+
+    # Associations
+    model_id = Column(Integer,
+                        ForeignKey("model.id",
+                                   name="fk_feature_model_id"),
+                        nullable=False,
+                        index=True)
+    model = relationship(
+        "Model",
+        overlaps='model',
+        foreign_keys=[model_id])
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class Hyperparameter(db.Model):
+    """ Machine Learning model hyperparameter """
+    __tablename__ = 'hyperparameter'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    value = Column(Float, nulable=False)
+    description = Column(String(500), nulable=True)
+
+    # Associations
+    model_id = Column(Integer,
+                        ForeignKey("model.id",
+                                   name="fk_hyperparameter_model_id"),
+                        nullable=False,
+                        index=True)
+    model = relationship(
+        "Model",
+        overlaps='model',
+        foreign_keys=[model_id])
 
     def __str__(self):
         return self.name
