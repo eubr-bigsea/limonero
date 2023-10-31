@@ -614,8 +614,10 @@ class Feature(db.Model):
                         index=True)
     model = relationship(
         "Model",
-        overlaps='model',
-        foreign_keys=[model_id])
+        overlaps='features',
+        foreign_keys=[model_id],
+        backref=backref("features",
+                        cascade="all, delete-orphan"))
 
     def __str__(self):
         return self.name
@@ -642,8 +644,10 @@ class Hyperparameter(db.Model):
                         index=True)
     model = relationship(
         "Model",
-        overlaps='model',
-        foreign_keys=[model_id])
+        overlaps='hyperparameters',
+        foreign_keys=[model_id],
+        backref=backref("hyperparameters",
+                        cascade="all, delete-orphan"))
 
     def __str__(self):
         return self.name
