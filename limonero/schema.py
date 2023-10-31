@@ -1007,9 +1007,6 @@ class FeatureListResponseSchema(BaseSchema):
     numerical_handling = fields.String(required=False)
     usage = fields.String(required=False,
                           validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
-    model = fields.Nested(
-        'limonero.schema.ModelListResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1024,7 +1021,6 @@ class FeatureListResponseSchema(BaseSchema):
 
 class FeatureCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
-    id = fields.Integer(required=True)
     name = fields.String(required=False)
     type = fields.String(required=False,
                          validate=[OneOf(list(FeatureType.__dict__.keys()))])
@@ -1035,7 +1031,7 @@ class FeatureCreateRequestSchema(BaseSchema):
     numerical_handling = fields.String(required=False)
     usage = fields.String(required=False,
                           validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
-    model_id = fields.Integer(required=True)
+    # model_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1061,9 +1057,6 @@ class FeatureItemResponseSchema(BaseSchema):
     numerical_handling = fields.String(required=False)
     usage = fields.String(required=False,
                           validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
-    model = fields.Nested(
-        'limonero.schema.ModelItemResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1082,9 +1075,6 @@ class HyperparameterListResponseSchema(BaseSchema):
     name = fields.String(required=True)
     value = fields.Float(required=True, allow_none=False)
     description = fields.String(required=False)
-    model = fields.Nested(
-        'limonero.schema.ModelListResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1099,11 +1089,10 @@ class HyperparameterListResponseSchema(BaseSchema):
 
 class HyperparameterCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
-    id = fields.Integer(required=True)
     name = fields.String(required=True)
     value = fields.Float(required=True, allow_none=False)
     description = fields.String(required=False)
-    model_id = fields.Integer(required=True)
+    # model_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1122,9 +1111,6 @@ class HyperparameterItemResponseSchema(BaseSchema):
     name = fields.String(required=True)
     value = fields.Float(required=True, allow_none=False)
     description = fields.String(required=False)
-    model = fields.Nested(
-        'limonero.schema.ModelItemResponseSchema',
-        required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
