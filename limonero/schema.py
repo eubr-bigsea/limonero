@@ -884,6 +884,14 @@ class ModelListResponseSchema(BaseSchema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
+    features = fields.Nested(
+        'limonero.schema.FeatureListResponseSchema',
+        allow_none=True,
+        many=True)
+    hyperparameters = fields.Nested(
+        'limonero.schema.HyperparameterListResponseSchema',
+        allow_none=True,
+        many=True)
     download_token = fields.Function(
         lambda d: generate_download_token(d.id, 600))
 
@@ -920,6 +928,14 @@ class ModelCreateRequestSchema(BaseSchema):
     task_id = fields.String(required=False, allow_none=True)
     job_id = fields.Integer(required=False, allow_none=True)
     storage_id = fields.Integer(required=True)
+    features = fields.Nested(
+        'limonero.schema.FeatureCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    hyperparameters = fields.Nested(
+        'limonero.schema.HyperparameterCreateRequestSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -958,12 +974,163 @@ class ModelItemResponseSchema(BaseSchema):
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
+    features = fields.Nested(
+        'limonero.schema.FeatureItemResponseSchema',
+        allow_none=True,
+        many=True)
+    hyperparameters = fields.Nested(
+        'limonero.schema.HyperparameterItemResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
     def make_object(self, data, **kwargs):
         """ Deserialize data into an instance of Model"""
         return Model(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class FeatureListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=False)
+    type = fields.String(required=False,
+                         validate=[OneOf(list(FeatureType.__dict__.keys()))])
+    algorithm = fields.String(required=False)
+    missing_handling = fields.String(required=False)
+    scaling = fields.String(required=False)
+    categorical_handling = fields.String(required=False)
+    numerical_handling = fields.String(required=False)
+    usage = fields.String(required=False,
+                          validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
+    model = fields.Nested(
+        'limonero.schema.ModelListResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Feature"""
+        return Feature(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class FeatureCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=False)
+    type = fields.String(required=False,
+                         validate=[OneOf(list(FeatureType.__dict__.keys()))])
+    algorithm = fields.String(required=False)
+    missing_handling = fields.String(required=False)
+    scaling = fields.String(required=False)
+    categorical_handling = fields.String(required=False)
+    numerical_handling = fields.String(required=False)
+    usage = fields.String(required=False,
+                          validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
+    model_id = fields.Integer(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Feature"""
+        return Feature(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class FeatureItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=False)
+    type = fields.String(required=False,
+                         validate=[OneOf(list(FeatureType.__dict__.keys()))])
+    algorithm = fields.String(required=False)
+    missing_handling = fields.String(required=False)
+    scaling = fields.String(required=False)
+    categorical_handling = fields.String(required=False)
+    numerical_handling = fields.String(required=False)
+    usage = fields.String(required=False,
+                          validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
+    model = fields.Nested(
+        'limonero.schema.ModelItemResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Feature"""
+        return Feature(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class HyperparameterListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+    description = fields.String(required=False)
+    model = fields.Nested(
+        'limonero.schema.ModelListResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Hyperparameter"""
+        return Hyperparameter(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class HyperparameterCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+    description = fields.String(required=False)
+    model_id = fields.Integer(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Hyperparameter"""
+        return Hyperparameter(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class HyperparameterItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+    description = fields.String(required=False)
+    model = fields.Nested(
+        'limonero.schema.ModelItemResponseSchema',
+        required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Hyperparameter"""
+        return Hyperparameter(**data)
 
     class Meta:
         ordered = True

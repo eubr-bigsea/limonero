@@ -631,8 +631,8 @@ class Hyperparameter(db.Model):
     # Fields
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
-    value = Column(Float, nulable=False)
-    description = Column(String(500), nulable=True)
+    value = Column(Float, nullable=False)
+    description = Column(String(500), nullable=True)
 
     # Associations
     model_id = Column(Integer,
