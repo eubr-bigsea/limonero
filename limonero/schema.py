@@ -892,6 +892,14 @@ class ModelListResponseSchema(BaseSchema):
         'limonero.schema.HyperparameterListResponseSchema',
         allow_none=True,
         many=True)
+    metrics = fields.Nested(
+        'limonero.schema.MetricListResponseSchema',
+        allow_none=True,
+        many=True)
+    metric_results = fields.Nested(
+        'limonero.schema.MetricResultListResponseSchema',
+        allow_none=True,
+        many=True)
     download_token = fields.Function(
         lambda d: generate_download_token(d.id, 600))
 
@@ -934,6 +942,14 @@ class ModelCreateRequestSchema(BaseSchema):
         many=True)
     hyperparameters = fields.Nested(
         'limonero.schema.HyperparameterCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    metrics = fields.Nested(
+        'limonero.schema.MetricCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    metric_results = fields.Nested(
+        'limonero.schema.MetricResultCreateRequestSchema',
         allow_none=True,
         many=True)
 
@@ -980,6 +996,14 @@ class ModelItemResponseSchema(BaseSchema):
         many=True)
     hyperparameters = fields.Nested(
         'limonero.schema.HyperparameterItemResponseSchema',
+        allow_none=True,
+        many=True)
+    metrics = fields.Nested(
+        'limonero.schema.MetricItemResponseSchema',
+        allow_none=True,
+        many=True)
+    metric_results = fields.Nested(
+        'limonero.schema.MetricResultItemResponseSchema',
         allow_none=True,
         many=True)
 
