@@ -1031,7 +1031,6 @@ class FeatureCreateRequestSchema(BaseSchema):
     numerical_handling = fields.String(required=False)
     usage = fields.String(required=False,
                           validate=[OneOf(list(FeatureUsage.__dict__.keys()))])
-    # model_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1092,7 +1091,6 @@ class HyperparameterCreateRequestSchema(BaseSchema):
     name = fields.String(required=True)
     value = fields.Float(required=True, allow_none=False)
     description = fields.String(required=False)
-    # model_id = fields.Integer(required=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -1117,6 +1115,109 @@ class HyperparameterItemResponseSchema(BaseSchema):
     def make_object(self, data, **kwargs):
         """ Deserialize data into an instance of Hyperparameter"""
         return Hyperparameter(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Metric"""
+        return Metric(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Metric"""
+        return Metric(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    value = fields.Float(required=True, allow_none=False)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of Metric"""
+        return Metric(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricResultListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    type = fields.String(required=True)
+    description = fields.String(required=False)
+    value = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of MetricResult"""
+        return MetricResult(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricResultCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    type = fields.String(required=True)
+    description = fields.String(required=False)
+    value = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of MetricResult"""
+        return MetricResult(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class MetricResultItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    type = fields.String(required=True)
+    description = fields.String(required=False)
+    value = fields.String(required=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of MetricResult"""
+        return MetricResult(**data)
 
     class Meta:
         ordered = True
