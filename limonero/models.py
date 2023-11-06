@@ -656,6 +656,65 @@ class Hyperparameter(db.Model):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
 
 
+class Metric(db.Model):
+    """ Machine Learning model metric """
+    __tablename__ = 'metric'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    value = Column(Float, nullable=False)
+
+    # Associations
+    model_id = Column(Integer,
+                        ForeignKey("model.id",
+                                   name="fk_metric_model_id"),
+                        nullable=False,
+                        index=True)
+    model = relationship(
+        "Model",
+        overlaps='metrics',
+        foreign_keys=[model_id],
+        backref=backref("metrics",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class MetricResult(db.Model):
+    """ Machine Learning model metric result """
+    __tablename__ = 'metric_result'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    type = Column(String(100), nullable=False)
+    description = Column(String(500), nullable=True)
+    value = Column(LONGTEXT, nullable=False)
+
+    # Associations
+    model_id = Column(Integer,
+                        ForeignKey("model.id",
+                                   name="fk_metric_result_model_id"),
+                        nullable=False,
+                        index=True)
+    model = relationship(
+        "Model",
+        overlaps='metric_results',
+        foreign_keys=[model_id],
+        backref=backref("metric_results",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
 class ModelPermission(db.Model):
     """ Associate users and permissions to models """
     __tablename__ = 'model_permission'
