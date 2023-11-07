@@ -54,72 +54,69 @@ class ModelListApi(Resource):
     @requires_auth
     def get():
         result, result_code = {"status": "ERROR", "message": "Internal error"}, 500
-        # noinspection PyBroadException
-        try:
-            if request.args.get("simple") != "true":
-                only = None
-            else:
-                only = ("id", "name", "created", "user_name", "user_id")
+        
+        if request.args.get("simple") != "true":
+            only = None
+        else:
+            only = ("id", "name", "created", "user_name", "user_id")
 
-            if request.args.get("fields"):
-                only = tuple([x.strip() for x in request.args.get("fields").split(",")])
+        if request.args.get("fields"):
+            only = tuple([x.strip() for x in request.args.get("fields").split(",")])
 
-            possible_filters = {"enabled": bool, "type": None, "user_id": int}
-            models = Model.query
-            for f, transform in list(possible_filters.items()):
-                models = apply_filter(
-                    models, request.args, f, transform, lambda field: field
+        possible_filters = {"enabled": bool, "type": None, "user_id": int}
+        models = Model.query
+        for f, transform in list(possible_filters.items()):
+            models = apply_filter(
+                models, request.args, f, transform, lambda field: field
+            )
+
+        models = _filter_by_permissions(
+            models, list(PermissionType.values())
+        ).filter(Model.enabled)
+
+        q = request.args.get("query")
+        if q:
+            models = models.filter(
+                or_(
+                    Model.name.like("%%{}%%".format(q)),
+                    Model.type.like("%%{}%%".format(q)),
                 )
+            )
+        t = request.args.get("type")
+        if t:
+            models = models.filter(Model.type.in_(t.split(",")))
+        sort = request.args.get("sort", "name")
+        if sort not in ["name", "id", "user_id", "user_name", "type"]:
+            sort = "id"
 
-            models = _filter_by_permissions(
-                models, list(PermissionType.values())
-            ).filter(Model.enabled)
+        sort_option = getattr(Model, sort)
+        if request.args.get("asc", "true") == "false":
+            sort_option = sort_option.desc()
 
-            q = request.args.get("query")
-            if q:
-                models = models.filter(
-                    or_(
-                        Model.name.like("%%{}%%".format(q)),
-                        Model.type.like("%%{}%%".format(q)),
-                    )
-                )
-            t = request.args.get("type")
-            if t:
-                models = models.filter(Model.type.in_(t.split(",")))
-            sort = request.args.get("sort", "name")
-            if sort not in ["name", "id", "user_id", "user_name", "type"]:
-                sort = "id"
+        models = models.order_by(sort_option)
 
-            sort_option = getattr(Model, sort)
-            if request.args.get("asc", "true") == "false":
-                sort_option = sort_option.desc()
-
-            models = models.order_by(sort_option)
-
-            page = request.args.get("page") or "1"
-            if page is not None and page.isdigit():
-                page_size = int(request.args.get("size", 20))
-                page = int(page)
-                pagination = models.paginate(page, page_size, True)
-                result = {
-                    "data": ModelListResponseSchema(many=True, only=only).dump(
-                        pagination.items
-                    ),
-                    "pagination": {
-                        "page": page,
-                        "size": page_size,
-                        "total": pagination.total,
-                        "pages": int(math.ceil(1.0 * pagination.total // page_size)),
-                    },
-                }
-            else:
-                result = {
-                    "data": ModelListResponseSchema(many=True, only=only).dump(models)
-                }
-            db.session.commit()
-            result_code = 200
-        except Exception as ex:
-            log.exception(str(ex))
+        page = request.args.get("page") or "1"
+        if page is not None and page.isdigit():
+            page_size = int(request.args.get("size", 20))
+            page = int(page)
+            pagination = models.paginate(page, page_size, True)
+            result = {
+                "data": ModelListResponseSchema(many=True, only=only).dump(
+                    pagination.items
+                ),
+                "pagination": {
+                    "page": page,
+                    "size": page_size,
+                    "total": pagination.total,
+                    "pages": int(math.ceil(1.0 * pagination.total // page_size)),
+                },
+            }
+        else:
+            result = {
+                "data": ModelListResponseSchema(many=True, only=only).dump(models)
+            }
+        db.session.commit()
+        result_code = 200
 
         return result, result_code
 
@@ -134,35 +131,21 @@ class ModelListApi(Resource):
             overwrite = request.json.pop("overwrite", False)
             request_schema = ModelCreateRequestSchema()
             response_schema = ModelItemResponseSchema()
-            try:
-                model = request_schema.load(request.json)
-                if overwrite:
-                    original = Model.query.filter(
-                        Model.task_id == request.json["task_id"]
-                    ).first()
-                    if original:
-                        model.id = original.id
-                        db.session.merge(model)
-                    else:
-                        db.session.add(model)
+            
+            model = request_schema.load(request.json)
+            if overwrite:
+                original = Model.query.filter(
+                    Model.task_id == request.json["task_id"]
+                ).first()
+                if original:
+                    model.id = original.id
+                    db.session.merge(model)
                 else:
                     db.session.add(model)
-                db.session.commit()
-                result, result_code = response_schema.dump(model), 200
-            except ValidationError as e:
-                result = dict(
-                    status="ERROR", message=gettext("Invalid data"), errors=e.messages
-                )
-                result_code = 400
-            except Exception as e:
-                log.exception("Error in POST")
-                result, result_code = (
-                    dict(status="ERROR", message=_("Internal error")),
-                    500,
-                )
-                if current_app.debug:
-                    result["debug_detail"] = str(e)
-                db.session.rollback()
+            else:
+                db.session.add(model)
+            db.session.commit()
+            result, result_code = response_schema.dump(model), 200
 
         return result, result_code
 
@@ -211,14 +194,13 @@ class ModelDetailApi(Resource):
                         "%(what)s was successfuly deleted", what=gettext("Model")
                     ),
                 ),
-                204,
+                200,
             )
         return result, result_code
 
     @requires_auth
     def patch(self, model_id):
-        result = {"status": "ERROR", "message": gettext("Insufficient data.")}
-        return_code = 404
+        result, result_code = {"status": "ERROR", "message": gettext("Insufficient data.")}, 404
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext("Updating %s (id=%s)"), self.human_name, model_id)
@@ -232,7 +214,7 @@ class ModelDetailApi(Resource):
                 model = db.session.merge(model)
                 db.session.commit()
 
-                return_code = 200
+                result_code = 200
                 result = {
                     "status": "OK",
                     "message": gettext(
@@ -242,7 +224,12 @@ class ModelDetailApi(Resource):
                     ),
                     "data": [response_schema.dump(model)],
                 }
-        return result, return_code
+            else:
+                result, result_code = (
+                    dict(status="ERROR", message=_("%(type)s not found.", type=_("Model"))),
+                    404,
+                )
+        return result, result_code
 
 
 class ModelPermissionApi(Resource):
@@ -286,54 +273,44 @@ class ModelPermissionApi(Resource):
                     error = True
                     break
             if not error:
-                try:
-                    filtered = _filter_by_permissions(
-                        Model.query, [PermissionType.MANAGE]
-                    )
-                    model = filtered.filter(Model.id == model_id).first()
+                filtered = _filter_by_permissions(
+                    Model.query, [PermissionType.MANAGE]
+                )
+                model = filtered.filter(Model.id == model_id).first()
 
-                    if model is not None:
-                        conditions = [
-                            ModelPermission.model_id == model_id,
-                            ModelPermission.user_id == user_id,
-                        ]
-                        permission = ModelPermission.query.filter(*conditions).first()
+                if model is not None:
+                    conditions = [
+                        ModelPermission.model_id == model_id,
+                        ModelPermission.user_id == user_id,
+                    ]
+                    permission = ModelPermission.query.filter(*conditions).first()
 
-                        action_performed = _("%(what)s saved with success")
-                        if permission is not None:
-                            permission.permission = form["permission"]
-                        else:
-                            permission = ModelPermission(
-                                model=model,
-                                user_id=user_id,
-                                user_name=form["user_name"],
-                                user_login=form["user_login"],
-                                permission=form["permission"],
-                            )
-
-                        db.session.add(permission)
-                        db.session.commit()
-                        result, result_code = {
-                            "message": action_performed,
-                            "status": "OK",
-                        }, 200
+                    action_performed = _("%(what)s saved with success")
+                    if permission is not None:
+                        permission.permission = form["permission"]
                     else:
-                        result, result_code = (
-                            dict(
-                                status="ERROR",
-                                message=_("%(type)s not found.", type=_("Model")),
-                            ),
-                            404,
+                        permission = ModelPermission(
+                            model=model,
+                            user_id=user_id,
+                            user_name=form["user_name"],
+                            user_login=form["user_login"],
+                            permission=form["permission"],
                         )
-                except Exception as e:
-                    log.exception("Error in POST")
+
+                    db.session.add(permission)
+                    db.session.commit()
+                    result, result_code = {
+                        "message": action_performed,
+                        "status": "OK",
+                    }, 200
+                else:
                     result, result_code = (
-                        dict(status="ERROR", message=_("Internal error")),
-                        500,
+                        dict(
+                            status="ERROR",
+                            message=_("%(type)s not found.", type=_("Model")),
+                        ),
+                        404,
                     )
-                    if current_app.debug:
-                        result["debug_detail"] = str(e)
-                    db.session.rollback()
 
         return result, result_code
 
@@ -352,27 +329,17 @@ class ModelPermissionApi(Resource):
                 ModelPermission.model_id == model_id, ModelPermission.user_id == user_id
             ).first()
             if permission is not None:
-                try:
-                    db.session.delete(permission)
-                    db.session.commit()
-                    result, result_code = (
-                        dict(
-                            status="OK",
-                            message=_(
-                                "%(what)s was successfuly deleted", what=_("Model")
-                            ),
+                db.session.delete(permission)
+                db.session.commit()
+                result, result_code = (
+                    dict(
+                        status="OK",
+                        message=_(
+                            "%(what)s was successfuly deleted", what=_("Model")
                         ),
-                        200,
-                    )
-                except Exception as e:
-                    log.exception(_("Error deleting %(what)s.", what=_("Model")))
-                    result, result_code = (
-                        dict(status="ERROR", message=_("Internal error")),
-                        500,
-                    )
-                    if current_app.debug:
-                        result["debug_detail"] = str(e)
-                    db.session.rollback()
+                    ),
+                    200,
+                )
         return result, result_code
 
 
@@ -638,11 +605,5 @@ class ModelDownloadApi(MethodView):
                 if "Could not obtain block" in java_ex.java_exception.getMessage():
                     return {"status": "ERROR", "message": WRONG_HDFS_CONFIG}, 400
                 log.exception("Java error")
-            except Exception as e:
-                result = json.dumps(
-                    {"status": "ERROR", "message": gettext("Internal error")}
-                )
-                result_code = 500
-                log.exception(str(e))
 
         return result, result_code
