@@ -13,7 +13,7 @@ flask-swagger-ui==3.36.0
 gunicorn==21.2.0
 marshmallow==3.12.1
 pyaml==20.4.0
-pyarrow==11.0.0
+pyarrow==14.0.1
 pytest==6.2.4
 py4j==0.10.7
 PyMySQL==1.0.2
