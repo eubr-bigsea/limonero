@@ -1,13 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# noinspection PyBroadException
-try:
-    import eventlet
-
-    eventlet.monkey_patch(all=True, thread=False)
-except:
-    pass
 
 import argparse
 import itertools
@@ -16,7 +7,6 @@ import logging.config
 import os
 import signal
 
-import eventlet.wsgi
 import sqlalchemy_utils
 import yaml
 from flask import Flask, request, g as flask_g
@@ -35,18 +25,29 @@ from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
     DataSourceInitializationApi
 from limonero.model_api import ModelDetailApi, ModelListApi, ModelDownloadApi
 from limonero.models import db, DataSource, Storage
-from limonero.privacy_api import GlobalPrivacyListApi, \
-    AttributePrivacyGroupListApi
 from limonero.py4j_init import init_jvm
 from limonero.storage_api import StorageDetailApi, StorageListApi, \
     StorageMetadataApi
 from cryptography.fernet import Fernet
 
+from marshmallow.exceptions import ValidationError
+from werkzeug.exceptions import HTTPException
+
+from dotenv import load_dotenv
+
+load_dotenv()
+log = logging.getLogger(__name__)
 os.chdir(os.environ.get('LIMONERO_HOME', '.'))
 
 # noinspection PyUnusedLocal
 def exit_gracefully(s, frame):
     os.kill(os.getpid(), signal.SIGTERM)
+
+def translate_validation(validation_errors):
+    for field, errors in list(validation_errors.items()):
+        validation_errors[field] = [gettext(error) for error in errors]
+    return validation_errors
+
 
 def create_app(main_module: bool = False):
     app = Flask(__name__, static_url_path='/static', static_folder='static')
@@ -54,6 +55,32 @@ def create_app(main_module: bool = False):
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
         'limonero/i18n/locales')
     app.json_encoder = LimoneroJSONEncoder
+
+    # Error handlers
+    @app.errorhandler(ValidationError)
+    def register_validation_error(e):
+        result = {'status': 'ERROR',
+                  'message': gettext("Validation error"),
+                  'errors': translate_validation(e.messages)}
+        db.session.rollback()
+        return result, 400
+    
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # pass through HTTP errors
+        if isinstance(e, HTTPException):
+            return e
+        result = {'status': 'ERROR',
+                  'message': gettext("Internal error")}
+        if app.debug:
+            result['debug_detail'] = str(e)
+
+        log.exception(e)
+        db.session.rollback()
+        return result, 500
+
+
+
     
     babel = Babel(app)
     
@@ -103,9 +130,6 @@ def create_app(main_module: bool = False):
         '/datasources/<int:data_source_id>': DataSourceDetailApi,
         '/datasources/<int:data_source_id>/permission/<int:user_id>':
             DataSourcePermissionApi,
-        '/datasources/<int:data_source_id>/privacy': DataSourcePrivacyApi,
-        '/privacy': GlobalPrivacyListApi,
-        '/privacy/attribute-groups': AttributePrivacyGroupListApi,
         '/models': ModelListApi,
         '/models/<int:model_id>': ModelDetailApi,
     
@@ -181,8 +205,6 @@ def create_app(main_module: bool = False):
             # JVM, used to interact with HDFS.
             if config.get('environment', 'dev') == 'dev':
                 app.run(debug=True, port=port, host='0.0.0.0')
-            else:
-                eventlet.wsgi.server(eventlet.listen(('', port)), app)
         else:
             return app    
     else:

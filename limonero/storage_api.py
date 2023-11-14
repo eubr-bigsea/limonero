@@ -1,24 +1,21 @@
-# -*- coding: utf-8 -*-}
-from limonero.app_auth import requires_auth, requires_permission
-from flask import request, current_app, g as flask_globals
+import json
+import logging
+import math
+from urllib.parse import urlparse
+
+from flask import g as flask_g
+from flask import request
+from flask_babel import gettext
 from flask_restful import Resource
 from sqlalchemy import or_
-from flask import g as flask_g
-from marshmallow.exceptions import ValidationError
 
-import math
-import logging
-from urllib.parse import urlparse
-from limonero.schema import *
-from flask_babel import gettext, get_locale
+from limonero.app_auth import requires_auth, requires_permission
+from limonero.models import Storage, db
+from limonero.schema import (StorageCreateRequestSchema,
+                             StorageItemResponseSchema,
+                             StorageListResponseSchema, partial_schema_factory)
 
 log = logging.getLogger(__name__)
-
-
-def translate_validation(validation_errors):
-    for field, errors in list(validation_errors.items()):
-        validation_errors[field] = [gettext(error) for error in errors]
-    return validation_errors
 
 
 class StorageListApi(Resource):
@@ -34,52 +31,47 @@ class StorageListApi(Resource):
         else:
             only = ('id', ) if request.args.get(
                 'simple', 'false') == 'true' else None
-        enabled_filter = request.args.get('enabled')
-        if enabled_filter:
-            storages = Storage.query.filter(
-                Storage.enabled == (enabled_filter != 'false'))
-        else:
-            storages = Storage.query
 
-        sort = request.args.get('sort', 'name')
-        if sort not in ['name', 'id', 'type']:
-            sort = 'id'
+        storages = Storage.query
 
-        sort_option = getattr(Storage, sort)
-        if request.args.get('asc', 'true') == 'false':
-            sort_option = sort_option.desc()
-
-        storages = storages.order_by(sort_option)
-
+        # Filtering
+        is_enabled = request.args.get('enabled')
+        if is_enabled is not None:
+            storages = storages.filter(Storage.enabled == ('true' == is_enabled))
+        
         query = request.args.get('query') or request.args.get('name')
         if query:
             storages = storages.filter(or_(
-                Storage.name.ilike('%%{}%%'.format(query)),
-                Storage.type.ilike('%%{}%%'.format(query)),
+                Storage.name.ilike(f'%%{query}%%'),
+                Storage.type.ilike(f'%%{query}%%'),
             ))
 
-        user = getattr(flask_g, 'user')
+        # Sorting
+        sort = request.args.get('sort', 'id')
+        sort_option = (getattr(Storage, sort) 
+                if sort in ['name', 'id', 'type'] else Storage.id)
+        sort_option = (sort_option.desc() 
+                if request.args.get('asc', True) == False else sort_option)
+        storages = storages.order_by(sort_option)
+
+         
         # Administrative have access to URL
+        user = getattr(flask_g, 'user')
         exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
-        page = request.args.get('page') or '1'
-        if page is not None and page.isdigit():
-            page_size = int(request.args.get('size', 20))
-            page = int(page)
-            pagination = storages.paginate(page, page_size, True)
-            result = {
-                'data': StorageListResponseSchema(
-                    many=True, only=only, exclude=exclude).dump(pagination.items),
-                'pagination': {
-                    'page': page, 'size': page_size,
-                    'total': pagination.total,
-                    'pages': int(math.ceil(1.0 * pagination.total / page_size))}
-            }
-        else:
-            result = {
-                'data': StorageListResponseSchema(
-                    many=True, only=only, exclude=exclude).dump(
-                    storages)}
+        # Pagination
+        page = request.args.get('page', type=int, default=1)
+        page_size = request.args.get('size', type=int, default=20)
+        pagination = storages.paginate(page, page_size, True)
+
+        result = {
+            'data': StorageListResponseSchema(
+                many=True, only=only, exclude=exclude).dump(pagination.items),
+            'pagination': {
+                'page': page, 'size': page_size,
+                'total': pagination.total,
+                'pages': int(math.ceil(1.0 * pagination.total / page_size))}
+        }
 
         if log.isEnabledFor(logging.DEBUG):
             log.debug(gettext('Listing %(name)s', name=self.human_name))
@@ -96,29 +88,13 @@ class StorageListApi(Resource):
             request_schema = StorageCreateRequestSchema()
             response_schema = StorageItemResponseSchema()
 
-            try:
-                form = request_schema.load(request.json)
-                if log.isEnabledFor(logging.DEBUG):
-                    log.debug(gettext('Adding %s'), self.human_name)
-                storage = form
-                db.session.add(storage)
-                db.session.commit()
-                result = response_schema.dump(storage)
-                return_code = 200
-            except ValidationError as e:
-                result = {'status': 'ERROR',
-                          'message': gettext("Validation error"),
-                          'errors': translate_validation(e.messages)}
-                db.session.rollback()
-            except Exception as e:
-                result = {'status': 'ERROR',
-                          'message': gettext("Internal error")}
-                return_code = 500
-                if current_app.debug:
-                    result['debug_detail'] = str(e)
-
-                log.exception(e)
-                db.session.rollback()
+            storage = request_schema.load(request.json)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(gettext('Adding %s'), self.human_name)
+            db.session.add(storage)
+            db.session.commit()
+            result = response_schema.dump(storage)
+            return_code = 200
 
         return result, return_code
 
@@ -167,22 +143,14 @@ class StorageDetailApi(Resource):
                       storage_id)
         storage = Storage.query.get(storage_id)
         if storage is not None:
-            try:
-                storage.enabled = False
-                db.session.add(storage)
-                db.session.commit()
-                result = {
-                    'status': 'OK',
-                    'message': gettext('%(name)s deleted with success!',
-                                       name=self.human_name)
-                }
-            except Exception as e:
-                result = {'status': 'ERROR',
-                          'message': gettext("Internal error")}
-                return_code = 500
-                if current_app.debug:
-                    result['debug_detail'] = str(e)
-                db.session.rollback()
+            storage.enabled = False
+            db.session.add(storage)
+            db.session.commit()
+            result = {
+                'status': 'OK',
+                'message': gettext('%(name)s deleted with success!',
+                                   name=self.human_name)
+            }
         return result, return_code
 
     @requires_auth
@@ -200,35 +168,21 @@ class StorageDetailApi(Resource):
             # Ignore missing fields to allow partial updates
             storage = request_schema.load(request.json, partial=True)
             response_schema = StorageItemResponseSchema()
-            try:
-                storage.id = storage_id
+            storage.id = storage_id
+            if Storage.query.get(storage_id):
                 storage = db.session.merge(storage)
                 db.session.commit()
 
-                if storage is not None:
-                    return_code = 200
-                    result = {
-                        'status': 'OK',
-                        'message': gettext(
-                            '%(n)s (id=%(id)s) was updated with success!',
-                            n=self.human_name,
-                            id=storage_id),
-                        'data': [response_schema.dump(
-                            storage)]
-                    }
-            except ValidationError as e:
-                result = {'status': 'ERROR',
-                          'message': gettext("Validation error"),
-                          'errors': translate_validation(e.messages)}
-                return_code = 400
-                db.session.rollback()
-            except Exception as e:
-                result = {'status': 'ERROR',
-                          'message': gettext("Internal error")}
-                return_code = 500
-                if current_app.debug:
-                    result['debug_detail'] = str(e)
-                db.session.rollback()
+                return_code = 200
+                result = {
+                    'status': 'OK',
+                    'message': gettext(
+                        '%(n)s (id=%(id)s) was updated with success!',
+                        n=self.human_name,
+                        id=storage_id),
+                    'data': [response_schema.dump(
+                        storage)]
+                }
         return result, return_code
 
 
@@ -238,8 +192,8 @@ class StorageMetadataApi(Resource):
     @staticmethod
     @requires_auth
     def get(storage_id):
-        user = getattr(flask_g, 'user')
-        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
+        # user = getattr(flask_g, 'user')
+        # exclude = tuple() if user.id in (0, 1) else tuple(['url'])
 
         storage = Storage.query.filter(Storage.enabled,
                                        Storage.id == storage_id).first()
@@ -250,7 +204,7 @@ class StorageMetadataApi(Resource):
         result = {}
         try:
             if storage is not None:
-                if storage.type == 'HIVE':
+                if storage.type in ('HIVE', 'HIVE_WAREHOUSE'):
                     from pyhive import hive
                     from TCLIService.ttypes import TOperationState
                     extra = {}
@@ -285,10 +239,10 @@ class StorageMetadataApi(Resource):
                     cursor.close()
                 elif storage.type == 'JDBC':
                     pass  # FIXME: Implement
-                return result
+                return result, status_code
             else:
                 return dict(status="ERROR",
-                            message=_("%(type)s not found.",
-                                      type=_('Storage'))), 404
+                            message=gettext("%(type)s not found.",
+                                      type=gettext('Storage'))), 404
         except Exception as ex:
             return dict(status="ERROR", message=str(ex)), 500

@@ -1,15 +1,20 @@
-# -*- coding: utf-8 -*-
+import datetime
 import json
 import os
-import datetime
+from urllib.parse import urlparse
+
 from flask import url_for
 from flask_babel import gettext
+import pytest
 
 from limonero.models import DataSource, DataSourceFormat, db
+from limonero.schema import generate_download_token
 
 
-def test_data_source_list_fail_not_authorized(client):
-    rv = client.get('/datasources')
+def test_data_source_list_fail_not_authorized(client, app):
+    with app.test_request_context():
+        url = url_for('DataSourceListApi')
+    rv = client.get(url)
     assert 401 == rv.status_code, 'Incorrect status code: {}'.format(rv.data)
     resp = json.loads(rv.data)
     assert resp['status'] == 'ERROR', 'Incorrect status'
@@ -17,7 +22,7 @@ def test_data_source_list_fail_not_authorized(client):
 
 
 def test_data_source_list_success(client, app):
-    with app.app_context():
+    with app.test_request_context():
         default_ds = DataSource.query.get(1)
 
     rv = client.get(
@@ -38,13 +43,13 @@ def test_data_source_list_many_success(client, app):
         '/datasources', headers={'X-Auth-Token': str(client.secret)})
     assert 200 == rv.status_code, 'Incorrect status code: {}'.format(rv.data)
     resp = json.loads(rv.data)
-    with app.app_context():
+    with app.test_request_context():
         total = DataSource.query.count()
     assert resp['pagination']['total'] == total, 'Wrong quantity'
 
 
 def test_data_source_get_success(client, app):
-    with app.app_context():
+    with app.test_request_context():
         default_ds = DataSource.query.get(1)
 
     rv = client.get('/datasources/{}'.format(default_ds.id),
@@ -136,43 +141,43 @@ def test_create_data_source_success(client, app):
     assert 200 == rv.status_code, \
         f'Incorrect status code: {rv.status_code} ({rv.json})'
     resp = rv.json['data']
-    with app.app_context():
+    with app.test_request_context():
         ds = DataSource.query.get(resp['id'])
         assert ds is not None, 'Data source was not created'
 
 
 def test_delete_data_source_success(client, app):
-    with app.app_context():
+    with app.test_request_context():
         ds = DataSource(name='To be deleted',
-                   description='Optional data source',
-                   enabled=False,
-                   statistics_process_counter=0,
-                   read_only=False,
-                   privacy_aware=False,
-                   url='hdfs://test2:9000/db/test2',
-                   created=datetime.datetime.utcnow(),
-                   updated=datetime.datetime.utcnow(),
-                   format=DataSourceFormat.PARQUET,
-                   provenience=None,
-                   estimated_rows=0,
-                   estimated_size_in_mega_bytes=0,
-                   expiration=None,
-                   user_id=1,
-                   user_login='lemonade',
-                   user_name='Lemonade project',
-                   tags=None,
-                   temporary=False,
-                   workflow_id=None,
-                   task_id=None,
-                   attribute_delimiter=',',
-                   text_delimiter='"',
-                   is_public=True,
-                   treat_as_missing='NA',
-                   encoding='UTF8',
-                   is_first_line_header=True,
-                   command='',
-                   is_multiline=False,
-                   storage_id=1)
+                        description='Optional data source',
+                        enabled=False,
+                        statistics_process_counter=0,
+                        read_only=False,
+                        privacy_aware=False,
+                        url='hdfs://test2:9000/db/test2',
+                        created=datetime.datetime.utcnow(),
+                        updated=datetime.datetime.utcnow(),
+                        format=DataSourceFormat.PARQUET,
+                        provenience=None,
+                        estimated_rows=0,
+                        estimated_size_in_mega_bytes=0,
+                        expiration=None,
+                        user_id=1,
+                        user_login='lemonade',
+                        user_name='Lemonade project',
+                        tags=None,
+                        temporary=False,
+                        workflow_id=None,
+                        task_id=None,
+                        attribute_delimiter=',',
+                        text_delimiter='"',
+                        is_public=True,
+                        treat_as_missing='NA',
+                        encoding='UTF8',
+                        is_first_line_header=True,
+                        command='',
+                        is_multiline=False,
+                        storage_id=1)
         db.session.add(ds)
         db.session.commit()
         ds_id = ds.id
@@ -188,9 +193,9 @@ def test_delete_data_source_success(client, app):
 
 
 def test_update_data_source_success(client, app):
-    with app.app_context():
+    with app.test_request_context():
         default_ds = DataSource.query.get(1)
-        
+
     payload = {
         'name': 'New name for data source',
         'format': 'CSV',
@@ -239,8 +244,9 @@ def test_update_data_source_not_found_fail(client):
         "%(type)s not found.", type=gettext('Data source'))
 
 
-def suspended_test_data_source_infer_simple_schema_success(client, jvm, app,
-                                                           infer_ds):
+@pytest.mark.skip('todo')
+def test_data_source_infer_simple_schema_success(client, app,
+                                                 infer_ds):
     """ Uses JVM !"""
 
     for ds, meta in infer_ds:
@@ -249,7 +255,7 @@ def suspended_test_data_source_infer_simple_schema_success(client, jvm, app,
                          headers={'X-Auth-Token': str(client.secret)})
         assert 200 == rv.status_code, 'Incorrect status code: {}'.format(
             rv.data)
-        with app.app_context():
+        with app.test_request_context():
             read_ds = DataSource.query.get(ds.id)
             assert len(meta) == len(read_ds.attributes)
             for i, (name, data_type) in enumerate(meta):
@@ -257,8 +263,8 @@ def suspended_test_data_source_infer_simple_schema_success(client, jvm, app,
                     i].type, '{} x {}'.format(name, read_ds.attributes[i].name)
 
 
-def suspended_test_data_source_check_chunk_dont_exist_success(client, jvm,
-                                                              file_storage):
+@pytest.mark.skip('todo')
+def test_data_source_check_chunk_dont_exist_success(client, file_storage):
     url = url_for('DataSourceUploadApi')
     params = {
         'resumableIdentifier': 'eda-cc0-ffa',
@@ -273,8 +279,9 @@ def suspended_test_data_source_check_chunk_dont_exist_success(client, jvm,
         rv.data)
 
 
-def suspended_test_data_source_upload_chunk_success(client, jvm, app,
-                                                    file_storage):
+@pytest.mark.skip('todo')
+def test_data_source_upload_chunk_success(client, app,
+                                          file_storage):
     url = url_for('DataSourceUploadApi')
     params = {
         'resumableIdentifier': 'eda-cc0-ffa',
@@ -289,9 +296,8 @@ def suspended_test_data_source_upload_chunk_success(client, jvm, app,
                      data=data,
                      query_string=params,
                      headers={'X-Auth-Token': str(client.secret)})
-    assert 200 == rv.status_code, 'Incorrect status code: {}'.format(
-        rv.data)
-    with app.app_context():
+    assert 200 == rv.status_code, f'Incorrect status code: {rv.data}'
+    with app.test_request_context():
         ds = DataSource.query.get(1)
         assert os.path.exists(ds.url[5:])
         with open(ds.url[5:]) as f:
@@ -299,10 +305,11 @@ def suspended_test_data_source_upload_chunk_success(client, jvm, app,
         os.unlink(ds.url[5:])
 
 
-def suspended_test_data_source_upload_chunk_hdfs_success(client, jvm, app,
-                                                         default_storage, hdfs, db):
+@pytest.mark.skip('todo')
+def test_data_source_upload_chunk_hdfs_success(
+        client, app, default_storage, hdfs, db):
     cluster, uri, fs = hdfs
-    with app.app_context():
+    with app.test_request_context():
         default_storage.url = uri
         db.session.add(default_storage)
         db.session.commit()
@@ -321,14 +328,23 @@ def suspended_test_data_source_upload_chunk_hdfs_success(client, jvm, app,
                      data=data,
                      query_string=params,
                      headers={'X-Auth-Token': str(client.secret)})
-    assert 200 == rv.status_code, 'Incorrect status code: {}'.format(
-        rv.data)
+    assert 200 == rv.status_code, f'Incorrect status code: {rv.data}'
 
-
-def suspended_test_data_source_download_success(client, jvm, app, file_ds):
-    url = url_for('DataSourceDownload', data_source_id=file_ds.id)
-
+@pytest.mark.skip('todo: fix "Popped wrong context"')
+def test_data_source_download_success(client, app, datasources):
+    with app.test_request_context():
+        file_ds =  DataSource.query.get(7004) #next(d for d in datasources if d.url.startswith('file://'))
+        token = generate_download_token(file_ds.id)
+        url = url_for('DataSourceDownload', data_source_id=file_ds.id,
+                      token=token)
+    
     rv = client.get(url, headers={'X-Auth-Token': str(client.secret)})
-    assert 200 == rv.status_code, 'Incorrect status code: {}'.format(rv.data)
-    with open(file_ds.url[5:]) as f:
-        assert f.read() == rv.data
+    
+    assert 200 == rv.status_code, f'Incorrect status code: {rv.data}'
+    assert 'attachment; filename=iris.parquet.csv' == rv.headers.get(
+        'Content-disposition')
+        #parsed = urlparse(file_ds.url)
+        #with open(parsed.path, 'rb') as f:
+        #    d = f.read()
+        #    assert d == rv.data
+
