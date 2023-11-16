@@ -1,5 +1,6 @@
 limonero:
     port: 3321
+    secret: 2023
     environment: prod
     servers:
         database_url: mysql+pymysql://user:secret@server:3306/limonero
