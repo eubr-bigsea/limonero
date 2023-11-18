@@ -18,10 +18,15 @@ from limonero.models import (
     Model,
     ModelType,
     DeploymentStatus,
+    Feature,
+    FeatureType,
+    FeatureUsage,
+    Hyperparameter,
+    Metric,
+    MetricResult,
 )
 from limonero.py4j_init import init_jvm, create_gateway
 from limonero.util import CustomJSONEncoder
-from limonero.models import DataSource, DataSourceFormat, Storage, StorageType
 
 sys.path.append(os.path.dirname(os.path.curdir))
 
@@ -49,6 +54,70 @@ def _get_models():
             task_id="",
             job_id=0,
             storage_id=1,
+            features=[
+                Feature(
+                    id=1,
+                    name="Feature #1",
+                    type=FeatureType.CATEGORICAL,
+                    algorithm="algorithm",
+                    missing_handling="missing handling",
+                    scaling="scaling",
+                    categorical_handling="categorical handling",
+                    numerical_handling="numerical handling",
+                    usage=FeatureUsage.LABEL,
+                ),
+                Feature(
+                    id=2,
+                    name="Feature #2",
+                    type=FeatureType.NUMERICAL,
+                    algorithm="algorithm",
+                    missing_handling="missing handling",
+                    scaling="scaling",
+                    categorical_handling="categorical handling",
+                    numerical_handling="numerical handling",
+                    usage=FeatureUsage.FEATURE,
+                ),
+            ],
+            hyperparameters=[
+                Hyperparameter(
+                    id=1,
+                    name="Hyperparameter #1",
+                    value=2.756,
+                    description="first hyperparameter",
+                ),
+                Hyperparameter(
+                    id=2,
+                    name="Hyperparameter #2",
+                    value=15.33,
+                    description="second hyperparameter",
+                ),
+            ],
+            metrics=[
+                Metric(
+                    id=1,
+                    name="Metric #1",
+                    value=3.645,
+                ),
+                Metric(
+                    id=2,
+                    name="Metric #2",
+                    value=17,
+                ),
+            ],
+            metric_results=[
+                MetricResult(
+                    id=1,
+                    type="metric result type",
+                    description="Metric Result #1",
+                    value="{deda=deas,sdas=dsada,sdasa=dasd}",
+                ),
+                MetricResult(
+                    id=2,
+                    type="metric result type",
+                    description="Metric Result #2",
+                    value="{deda=deas,sdas=dsada,sdasa=dasd}",
+                ),
+            ],
         ),
         Model(
             id=2,
