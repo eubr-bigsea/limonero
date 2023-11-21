@@ -67,11 +67,12 @@ def test_model_post_success(client):
         default_storage = Storage.query.order_by(
             Storage.id).first()
 
-    params = {'name': 'Model #test', 'enabled': 'true', 'path': '/tmp/model/model_test.zip', 
+    params = {'name': 'Model #test', 'enabled': 'true', 'path': '/tmp/model/model_test.zip',
               'class_name': 'LinearRegressionModel', 'type': 'SPARK_ML_CLASSIFICATION', 'user_id': '1',
-              'user_name': 'Lemonade project', 'user_login': 'lemonade', 'storage_id': default_storage.id}
-
-    rv = client.post('/models', headers=headers, json=params)
+              'user_name': 'Lemonade project', 'user_login': 'lemonade', 'storage_id': default_storage.id,
+              'job_id': '0', 'task_id': '', 'workflow_id': '0', 'workflow_name': ''}
+    
+    rv = client.post('/models', headers=headers, content_type='application/json', data=json.dumps(params))
     assert 200 == rv.status_code, 'Incorrect status code'
     resp = rv.json
 
@@ -113,7 +114,8 @@ def test_model_delete_success(client):
         model = Model(
             id=model_id, name='Deleted', path='/tmp/model/model_test.zip', 
             class_name='LinearRegressionModel', type= 'SPARK_ML_CLASSIFICATION', user_id= '1',
-            user_name= 'Lemonade project', user_login= 'lemonade', storage_id= 1
+            user_name= 'Lemonade project', user_login= 'lemonade', storage_id= 1,
+            job_id='0', task_id='', workflow_id='0', workflow_name=''
             )
         db.session.add(model)
         db.session.commit()
@@ -130,7 +132,8 @@ def test_model_patch_success(client, app):
         model = Model(
             id=model_id, name='Deleted', path='/tmp/model/model_test.zip', 
             class_name='LinearRegressionModel', type= 'SPARK_ML_CLASSIFICATION', user_id= '1',
-            user_name='Lemonade project', user_login='lemonade', storage_id=1
+            user_name='Lemonade project', user_login='lemonade', storage_id=1,
+            job_id='0', task_id='', workflow_id='0', workflow_name=''
             )
         db.session.add(model)
         db.session.commit()
