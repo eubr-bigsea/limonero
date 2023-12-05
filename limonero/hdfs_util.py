@@ -63,7 +63,7 @@ def get_parquet_schema(ds):
          (lambda: pa.timestamp('s'), 'DATETIME'),
          (pa.date64, 'DATE'),
          (pa.binary, 'BINARY'),
-         (lambda: pa.decimal128(10), 'DECIMAL'),
+         (lambda p, s: pa.decimal128(p, s), 'DECIMAL'),
          (pa.large_string, 'TEXT'),
          (pa.time64, 'TIME'),
          (lambda: pa.list(pa.string), 'VECTOR'),
@@ -72,7 +72,11 @@ def get_parquet_schema(ds):
     for attr in ds.attributes:
         for dtype, limonero_type in tests:
             ok = False
-            if attr.type == limonero_type:
+            if limonero_type == 'DECIMAL':
+                new_attrs.append((attr.name, dtype(attr.precision, attr.scale)))
+                ok = True
+                break
+            elif attr.type == limonero_type:
                 new_attrs.append((attr.name, dtype()))
                 ok = True
                 break
