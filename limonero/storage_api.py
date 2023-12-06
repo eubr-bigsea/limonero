@@ -202,6 +202,7 @@ class StorageMetadataApi(Resource):
             next((a for a in [storage.client_url, storage.url]
                   if a), None))
         result = {}
+        status_code = 200
         try:
             if storage is not None:
                 if storage.type in ('HIVE', 'HIVE_WAREHOUSE'):
