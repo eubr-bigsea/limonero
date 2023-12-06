@@ -1039,12 +1039,15 @@ class DataSourceInferSchemaApi(Resource):
                     fs=parsed.schema))
 
             DataSourceInferSchemaApi._delete_old_attributes(ds)
-            for name, dtype in schema:
+            for name, (dtype, precision, scale) in schema:
                 attr = Attribute(name=name,
                                  nullable=True,
                                  enumeration=False,
                                  type=dtype,
-                                 feature=False, label=False,)
+                                 feature=False, label=False,
+                                 precision=precision if precision != 0 else None,
+                                 scale=scale,
+                                 )
                 attr.data_source = ds
                 db.session.add(attr)
             db.session.commit()

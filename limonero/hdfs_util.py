@@ -63,7 +63,7 @@ def get_parquet_schema(ds):
          (lambda: pa.timestamp('s'), 'DATETIME'),
          (pa.date64, 'DATE'),
          (pa.binary, 'BINARY'),
-         (lambda p, s: pa.decimal128(p, s), 'DECIMAL'),
+         (lambda p, s: pa.decimal128(p or 10, 4 if s is None else s), 'DECIMAL'),
          (pa.large_string, 'TEXT'),
          (pa.time64, 'TIME'),
          (lambda: pa.list(pa.string), 'VECTOR'),
@@ -107,8 +107,13 @@ def infer_parquet(local: fs.FileSystem, path: str):
         ok = False
         for test, dtype in tests:
             ok = test(t)
+            p = 0
+            s = 0
             if ok:
-                limonero_types.append(dtype)
+                if dtype == 'DECIMAL':
+                    p = t.precision
+                    s = t.scale
+                limonero_types.append((dtype, p, s))
                 break  
         if not ok:
             raise ValueError(gettext(
