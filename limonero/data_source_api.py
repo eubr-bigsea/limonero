@@ -580,7 +580,7 @@ class DataSourceUploadApi(Resource):
                 storage = Storage.query.get(storage_id)
                 if storage.type != 'HDFS':
                     raise ValueError(
-                        'Usupported storage type: {}'.format(storage.type))
+                        'Unsupported storage type: {}'.format(storage.type))
                 parsed = urlparse(storage.url)
 
                 if parsed.scheme == 'file':
@@ -749,7 +749,7 @@ class DataSourceUploadApi(Resource):
                         storage_id=storage.id,
                         description=gettext('Imported in Limonero'),
                         enabled=True,
-                        url=target_path if parsed.scheme == 'file'
+                        url=f'file://{target_path}' if parsed.scheme == 'file'
                             else f'{storage_url.strip("/")}/limonero/data/{final_filename}',
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
@@ -1072,7 +1072,7 @@ class DataSourceInferSchemaApi(Resource):
                 use_fs = fs.LocalFileSystem()
                 schema = hu.infer_parquet(use_fs, path)
             else:
-                raise ValueError(gettext('Usupported filesystem: {fs}',
+                raise ValueError(gettext('Unsupported filesystem: {fs}',
                     fs=parsed.schema))
 
             DataSourceInferSchemaApi._delete_old_attributes(ds)
@@ -1106,7 +1106,7 @@ class DataSourceInferSchemaApi(Resource):
                 str_uri = f'{parsed.scheme}://{parsed.path}'
                 use_fs = fs.LocalFileSystem()
             else:
-                raise ValueError(gettext('Usupported filesystem: ') +
+                raise ValueError(gettext('Unsupported filesystem: ') +
                     parsed.scheme)
             if ds.format == DataSourceFormat.CSV:
                 try:
@@ -1131,16 +1131,17 @@ class DataSourceInferSchemaApi(Resource):
 
                     if parsed.scheme == 'file':
                         encoding = ds.encoding or 'utf8'
-                        buffered_reader = codecs.open(parsed.path,
+                        if is_gzip:
+                            gz_file = gzip.open(parsed.path, 'rb')
+                            buffered_reader = codecs.getreader(encoding)(gz_file)
+                        else:
+                            buffered_reader = codecs.open(parsed.path,
                                                     'rb', encoding=encoding)
                     elif parsed.scheme == 'hdfs':
                         buffered_reader = io.BufferedReader(
                             use_fs.open_input_stream(parsed.path))
 
-                    if is_gzip and parsed.scheme != 'hdfs':
-                        reader = gzip.open(buffered_reader, mode='rt')
-                    else:
-                        reader = buffered_reader
+                    reader = buffered_reader
 
                     quote_char = options.get('quote_char', None)
                     quote_char = quote_char.encode(
@@ -1195,7 +1196,7 @@ class DataSourceInferSchemaApi(Resource):
                         gettext('Cannot infer the schema: %(what)s', what=ex))
             elif ds.format == DataSourceFormat.SHAPEFILE:
                 if True:
-                    raise ValueError(gettext('Usupported'))
+                    raise ValueError(gettext('Unsupported'))
                 from dbfpy import dbf
                 DataSourceInferSchemaApi._delete_old_attributes(ds)
 
