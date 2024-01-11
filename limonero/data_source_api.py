@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import operator
+import os
 import pyarrow.parquet as pq
 import re
 import uuid
@@ -40,10 +41,10 @@ from limonero.util import get_hdfs_conf, parse_hdfs_extra_params, strip_accents
 from limonero.util.jdbc import get_hive_data_type, get_mysql_data_type
 
 from .app_auth import User, requires_auth
-from .schema import (DataSourceListResponseSchema, DataSourceItemResponseSchema, 
+from .schema import (DataSourceListResponseSchema, DataSourceItemResponseSchema,
                      DataSourceCreateRequestSchema, DataSourcePrivacyResponseSchema, partial_schema_factory)
-from .models import (Attribute, AttributePrivacy, DataType, db, DataSource, DataSourcePermission, DataSourceFormat, 
-                     DataSourceInitialization, 
+from .models import (Attribute, AttributePrivacy, DataType, db, DataSource, DataSourcePermission, DataSourceFormat,
+                     DataSourceInitialization,
                      PermissionType, Storage)
 
 _ = gettext
@@ -131,7 +132,7 @@ class DataSourceListApi(Resource):
                 only = tuple(
                     [x.strip() for x in request.args.get('fields').split(',')])
 
-            possible_filters = {'enabled': bool, 'format': None, 
+            possible_filters = {'enabled': bool, 'format': None,
                                 'user_id': int, 'workflow_id': int}
             data_sources = DataSource.query
             for f, transform in list(possible_filters.items()):
@@ -403,7 +404,7 @@ class DataSourceDetailApi(Resource):
                         db.session.commit()
                         result = {
                                 'status': 'OK',
-                                'message': 
+                                'message':
                                 gettext("%(what)s was successfuly updated",
                                                    what=gettext('Data source')),
                                 'data': response_schema.dump(data_source)
@@ -591,8 +592,8 @@ class DataSourceUploadApi(Resource):
                 elif parsed.scheme == 'hdfs':
                     str_uri = hu.get_parsed_uri(parsed, False)
                     extra_params = parse_hdfs_extra_params(storage.extra_params)
-                    if parsed.port:                
-                        hdfs = fs.HadoopFileSystem(str_uri, user=extra_params.user or 'hadoop', 
+                    if parsed.port:
+                        hdfs = fs.HadoopFileSystem(str_uri, user=extra_params.user or 'hadoop',
                             port=int(parsed.port))
                     else:
                         hdfs = fs.HadoopFileSystem(str_uri, user=extra_params.user or 'hadoop',)
@@ -644,22 +645,37 @@ class DataSourceUploadApi(Resource):
                     str_uri = hu.get_parsed_uri(parsed, False)
 
                 extra_params = parse_hdfs_extra_params(storage.extra_params)
-                # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
-                hadoop_user = extra_params.user or 'hadoop'
-                if parsed.port:                
-                    hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user, 
-                        port=int(parsed.port))
+                if extra_params is not None:
+                    # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
+                    hadoop_user = extra_params.user or 'hadoop'
                 else:
-                    hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user,)
+                    hadoop_user = 'hadoop'
 
-                tmp_path = DataSourceUploadApi._get_tmp_path(
+                if parsed.scheme == 'hdfs':
+                    if parsed.port:
+                        hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user,
+                            port=int(parsed.port))
+                    else:
+                        hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user,)
+
+                    tmp_path = DataSourceUploadApi._get_tmp_path(
                         hdfs, parsed, filename)
 
-                chunk_filename = f'{tmp_path}/{filename}.part{chunk_number:09d}'
-                current_app.logger.debug('Writing chunk: %s', chunk_filename)
+                    chunk_filename = f'{tmp_path}/{filename}.part{chunk_number:09d}'
+                    current_app.logger.debug('Writing chunk: %s', chunk_filename)
 
-                file_data = request.get_data()
-                hu.write(hdfs, chunk_filename, file_data)
+                    file_data = request.get_data()
+                    hu.write(hdfs, chunk_filename, file_data)
+                elif parsed.scheme == 'file':
+                    import tempfile
+                    tmp_path = tempfile.gettempdir()
+                    chunk_filename = f'{tmp_path}/{filename}.part{chunk_number:09d}'
+
+                    file_data = request.get_data()
+                    with open(chunk_filename, 'wb') as f:
+                        f.write(file_data)
+                else:
+                    raise ValueError(f'Unsupported scheme: {parsed.scheme}')
 
                 # Checks if all file's parts are present
                 if chunk_number == total_chunks:
@@ -676,13 +692,34 @@ class DataSourceUploadApi(Resource):
                         target_path = (f'/limonero/data/{final_filename}')
                     # target_path = (f'/limonero/data/{final_filename}')
 
-                    if hu.exists(hdfs, target_path):
-                        result = {'status': 'error',
-                                  'message': gettext(
-                                  'A file with same name already exists. Try to upload the file again.')}
-                        result_code = 500
-                    hu.copy_merge(hdfs, tmp_path, target_path, filename, 
-                                  total_chunks)
+                    if parsed.scheme == 'hdfs':
+                        if hu.exists(hdfs, target_path):
+                            result = {'status': 'error',
+                                      'message': gettext(
+                                      'A file with same name already exists. Try to upload the file again.')}
+                            result_code = 500
+                        hu.copy_merge(hdfs, tmp_path, target_path, filename,
+                                      total_chunks)
+                    elif parsed.scheme == 'file':
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        with open(target_path, 'wb') as f:
+                            for i in range(total_chunks):
+                                number = str(i + 1).rjust(9, '0')
+                                name = f'{tmp_path.rstrip("/")}/{filename}.part{number}'
+                                with open(name, 'rb') as in_file:
+                                    f.write(in_file.read())
+
+                        for i in range(total_chunks):
+                            number = str(i + 1).rjust(9, '0')
+                            name = f'{tmp_path.rstrip("/")}/{filename}.part{number}'
+                            try:
+                                os.remove(name)
+                            except:
+                                pass
+
+                        ...
+                    else:
+                        raise ValueError(f'Unsupported scheme: {parsed.scheme}')
 
                     # noinspection PyBroadException
                     try:
@@ -712,7 +749,7 @@ class DataSourceUploadApi(Resource):
                         storage_id=storage.id,
                         description=gettext('Imported in Limonero'),
                         enabled=True,
-                        url=target_path if parsed.scheme == 'file' 
+                        url=target_path if parsed.scheme == 'file'
                             else f'{storage_url.strip("/")}/limonero/data/{final_filename}',
                         estimated_size_in_mega_bytes=total_size / 1024.0 ** 2,
                         user_id=user.id,
@@ -756,7 +793,7 @@ class DataSourceUploadApi(Resource):
             result = {'status': 'ERROR',
                      'data': str(e)}
             result_code = 500
-            
+
 
     @staticmethod
     def _try_infer_schema(ds, delim):
@@ -783,12 +820,12 @@ class DataSourceDownload(MethodView):
             download_token = json.loads(fernet_key.decrypt(token))
         except Exception:
             return json.dumps(
-                {'status': 'ERROR', 'message': 
+                {'status': 'ERROR', 'message':
                  gettext('Invalid or expired token. Refresh the listing page.'
                          )}), 500
         if download_token['id'] != data_source_id:
             return json.dumps(
-                {'status': 'ERROR', 'message': 
+                {'status': 'ERROR', 'message':
                  gettext('Invalid data source.')}), 401
 
         data_source = DataSource.query.get_or_404(ident=data_source_id)
@@ -799,7 +836,7 @@ class DataSourceDownload(MethodView):
         if parsed.scheme == 'file':
             name = '{}.{}'.format(data_source.name.replace(' ', '-'),
                                   data_source.format.lower())
-                                 
+
             if data_source.format == 'PARQUET' and convert_to_csv:
                 def do_download(path):
                     BUFFER_SIZE = 4096
@@ -849,7 +886,7 @@ class DataSourceDownload(MethodView):
                     hadoop_user = extra_params.user
                 # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
                 if parsed.port:
-                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port), 
+                    hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port),
                         user=hadoop_user)
                 else:
                     hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
@@ -872,7 +909,7 @@ class DataSourceDownload(MethodView):
                             name = name + '.csv'
                         elif hu.is_directory(hdfs, parsed.path):
                             result = Response(stream_with_context(
-                                hu.download_parquet(hdfs, parsed.path)), 
+                                hu.download_parquet(hdfs, parsed.path)),
                                 mimetype='application/octet-stream')
                         else:
                             result = Response(stream_with_context(
@@ -1035,7 +1072,7 @@ class DataSourceInferSchemaApi(Resource):
                 use_fs = fs.LocalFileSystem()
                 schema = hu.infer_parquet(use_fs, path)
             else:
-                raise ValueError(gettext('Usupported filesystem: {fs}', 
+                raise ValueError(gettext('Usupported filesystem: {fs}',
                     fs=parsed.schema))
 
             DataSourceInferSchemaApi._delete_old_attributes(ds)
@@ -1069,7 +1106,7 @@ class DataSourceInferSchemaApi(Resource):
                 str_uri = f'{parsed.scheme}://{parsed.path}'
                 use_fs = fs.LocalFileSystem()
             else:
-                raise ValueError(gettext('Usupported filesystem: ') +  
+                raise ValueError(gettext('Usupported filesystem: ') +
                     parsed.scheme)
             if ds.format == DataSourceFormat.CSV:
                 try:
@@ -1091,10 +1128,10 @@ class DataSourceInferSchemaApi(Resource):
                     encoding = 'utf8'
 
                     is_gzip = parsed.path.endswith('.gz')
-                    
+
                     if parsed.scheme == 'file':
                         encoding = ds.encoding or 'utf8'
-                        buffered_reader = codecs.open(parsed.path, 
+                        buffered_reader = codecs.open(parsed.path,
                                                     'rb', encoding=encoding)
                     elif parsed.scheme == 'hdfs':
                         buffered_reader = io.BufferedReader(
@@ -1670,7 +1707,7 @@ class DataSourceSampleApi(Resource):
                     extra_params = parse_hdfs_extra_params(data_source.storage.extra_params)
                     hadoop_user = extra_params.user or 'hadoop'
                     if parsed.port:
-                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port), 
+                        hdfs = fs.HadoopFileSystem(str_uri, port=int(parsed.port),
                             user=hadoop_user)
                     else:
                         hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
