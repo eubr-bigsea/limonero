@@ -145,6 +145,33 @@ def test_create_data_source_success(client, app):
         ds = DataSource.query.get(resp['id'])
         assert ds is not None, 'Data source was not created'
 
+def test_create_data_source_with_variables_success(client, app):
+    payload = {
+        'name': 'Data source with variables',
+        'format': 'JSON',
+        'is_public': False,
+        'storage_id': 1,
+        'url': 'hdfs://dev:9000/data/test.json',
+        'variables': [
+            {'name': 'month'},
+            {'name': 'client'},
+        ]
+    }
+    rv = client.post('/datasources',
+                     data=json.dumps(payload),
+                     content_type='application/json',
+                     headers={'X-Auth-Token': str(client.secret)})
+
+    assert 200 == rv.status_code, \
+        f'Incorrect status code: {rv.status_code} ({rv.json})'
+    resp = rv.json['data']
+    with app.test_request_context():
+        ds = DataSource.query.get(resp['id'])
+        assert len(ds.variables) == 2
+        assert ds.variables[0].name == 'month'
+        assert ds.variables[1].name == 'client'
+        assert ds is not None, 'Data source was not created'
+
 
 def test_delete_data_source_success(client, app):
     with app.test_request_context():
