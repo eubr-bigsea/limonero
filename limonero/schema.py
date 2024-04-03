@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 import datetime
 import json
+import re
 from copy import deepcopy
 from marshmallow import Schema, fields, post_load, post_dump, EXCLUDE, INCLUDE
 from marshmallow.validate import OneOf
 from flask_babel import gettext
-from limonero.models import *
+from .models import *
 
 
 def partial_schema_factory(schema_cls):
@@ -18,12 +18,25 @@ def partial_schema_factory(schema_cls):
     return schema
 
 
+enum_re = re.compile(r'(Must be one of:) (.+)')
+
+enum_re = re.compile(r'(Must be one of:) (.+)')
+
+
 def translate_validation(validation_errors):
     for field, errors in list(validation_errors.items()):
         if isinstance(errors, dict):
             validation_errors[field] = translate_validation(errors)
         else:
-            validation_errors[field] = [gettext(error) for error in errors]
+            final_errors = []
+            for error in errors:
+                found = enum_re.findall(error)
+                if found:
+                    final_errors.append(
+                        f'{gettext(found[0][0])} {found[0][1]}')
+                else:
+                    final_errors.append(gettext(error))
+            validation_errors[field] = final_errors
         return validation_errors
 
 
@@ -65,31 +78,31 @@ class AttributeListResponseSchema(BaseSchema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(DataType.__dict__.keys()))])
+                         validate=[OneOf(DataType.values())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     enumeration = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     label = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -102,8 +115,8 @@ class AttributeListResponseSchema(BaseSchema):
     key = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attribute_privacy = fields.Nested(
         'limonero.schema.AttributePrivacyListResponseSchema',
         allow_none=True)
@@ -125,31 +138,31 @@ class AttributeItemResponseSchema(BaseSchema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(DataType.__dict__.keys()))])
+                         validate=[OneOf(DataType.values())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     enumeration = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     label = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -162,8 +175,8 @@ class AttributeItemResponseSchema(BaseSchema):
     key = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attribute_privacy = fields.Nested(
         'limonero.schema.AttributePrivacyItemResponseSchema',
         allow_none=True)
@@ -185,31 +198,31 @@ class AttributeCreateRequestSchema(BaseSchema):
     name = fields.String(required=True)
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(DataType.__dict__.keys()))])
+                         validate=[OneOf(DataType.values())])
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
     nullable = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     enumeration = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     missing_representation = fields.String(required=False, allow_none=True)
     feature = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     label = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     distinct_values = fields.Integer(required=False, allow_none=True)
     mean_value = fields.Float(required=False, allow_none=True)
     median_value = fields.String(required=False, allow_none=True)
@@ -222,8 +235,8 @@ class AttributeCreateRequestSchema(BaseSchema):
     key = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attribute_privacy = fields.Nested(
         'limonero.schema.AttributePrivacyCreateRequestSchema',
         allow_none=True)
@@ -263,12 +276,12 @@ class AttributePrivacyListResponseSchema(BaseSchema):
     id = fields.Integer(required=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(list(DataType.__dict__.keys()))])
+                              validate=[OneOf(DataType.values())])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
+                                 validate=[OneOf(PrivacyType.values())])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
+                                            validate=[OneOf(AnonymizationTechnique.values())])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -280,8 +293,8 @@ class AttributePrivacyListResponseSchema(BaseSchema):
     is_global_law = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attribute_privacy_group = fields.Nested(
         'limonero.schema.AttributePrivacyGroupListResponseSchema',
         allow_none=True)
@@ -302,12 +315,12 @@ class AttributePrivacyItemResponseSchema(BaseSchema):
     id = fields.Integer(required=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(list(DataType.__dict__.keys()))])
+                              validate=[OneOf(DataType.values())])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
+                                 validate=[OneOf(PrivacyType.values())])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
+                                            validate=[OneOf(AnonymizationTechnique.values())])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -319,8 +332,8 @@ class AttributePrivacyItemResponseSchema(BaseSchema):
     is_global_law = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attribute_privacy_group_id = fields.Integer(
         required=False, allow_none=True)
 
@@ -340,12 +353,12 @@ class AttributePrivacyCreateRequestSchema(BaseSchema):
     id = fields.Integer(allow_none=True)
     attribute_name = fields.String(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(list(DataType.__dict__.keys()))])
+                              validate=[OneOf(DataType.values())])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
+                                 validate=[OneOf(PrivacyType.values())])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
+                                            validate=[OneOf(AnonymizationTechnique.values())])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -373,12 +386,12 @@ class AttributePrivacyPrivacyResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     data_type = fields.String(required=False, allow_none=True,
-                              validate=[OneOf(list(DataType.__dict__.keys()))])
+                              validate=[OneOf(DataType.values())])
     privacy_type = fields.String(required=True,
-                                 validate=[OneOf(list(PrivacyType.__dict__.keys()))])
+                                 validate=[OneOf(PrivacyType.values())])
     category_technique = fields.String(required=False, allow_none=True)
     anonymization_technique = fields.String(required=True,
-                                            validate=[OneOf(list(AnonymizationTechnique.__dict__.keys()))])
+                                            validate=[OneOf(AnonymizationTechnique.values())])
     hierarchical_structure_type = fields.String(
         required=False, allow_none=True)
     privacy_model_technique = fields.String(required=False, allow_none=True)
@@ -390,8 +403,8 @@ class AttributePrivacyPrivacyResponseSchema(BaseSchema):
     is_global_law = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -477,38 +490,38 @@ class DataSourceListResponseSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     statistics_process_counter = fields.Integer(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False, allow_none=True, load_default=0, dump_default=0)
     read_only = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     privacy_aware = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     url = fields.String(required=True)
     created = fields.DateTime(required=False, allow_none=True)
     updated = fields.DateTime(
         required=False,
         allow_none=True,
-        missing=datetime.datetime.utcnow,
-        default=datetime.datetime.utcnow)
+        load_default=datetime.datetime.utcnow,
+        dump_default=datetime.datetime.utcnow)
     format = fields.String(required=True,
-                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
-    initialization = fields.String(required=False, allow_none=True, missing=DataSourceInitialization.INITIALIZED, default=DataSourceInitialization.INITIALIZED,
-                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+                           validate=[OneOf(DataSourceFormat.values())])
+    initialization = fields.String(required=False, allow_none=True, load_default=DataSourceInitialization.INITIALIZED, dump_default=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(DataSourceInitialization.values())])
     initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     estimated_size_in_mega_bytes = fields.Decimal(
         required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
@@ -519,8 +532,8 @@ class DataSourceListResponseSchema(BaseSchema):
     temporary = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
@@ -530,30 +543,37 @@ class DataSourceListResponseSchema(BaseSchema):
     is_public = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False,
+        allow_none=True,
+        load_default=0,
+        dump_default=0)
     is_multiline = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     command = fields.String(required=False, allow_none=True)
     is_lookup = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     use_in_workflow = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeListResponseSchema',
+        allow_none=True,
+        many=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableListResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
@@ -584,25 +604,25 @@ class DataSourceCreateRequestSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     statistics_process_counter = fields.Integer(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False, allow_none=True, load_default=0, dump_default=0)
     read_only = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     privacy_aware = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     url = fields.String(required=True)
     format = fields.String(required=True,
-                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
-    initialization = fields.String(required=False, allow_none=True, missing=DataSourceInitialization.INITIALIZED, default=DataSourceInitialization.INITIALIZED,
-                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+                           validate=[OneOf(DataSourceFormat.values())])
+    initialization = fields.String(required=False, allow_none=True, load_default=DataSourceInitialization.INITIALIZED, dump_default=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(DataSourceInitialization.values())])
     initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
@@ -613,8 +633,8 @@ class DataSourceCreateRequestSchema(BaseSchema):
     temporary = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
@@ -624,30 +644,37 @@ class DataSourceCreateRequestSchema(BaseSchema):
     is_public = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False,
+        allow_none=True,
+        load_default=0,
+        dump_default=0)
     is_multiline = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     command = fields.String(required=False, allow_none=True)
     is_lookup = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     use_in_workflow = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeCreateRequestSchema',
+        allow_none=True,
+        many=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableCreateRequestSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
@@ -675,38 +702,38 @@ class DataSourceItemResponseSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     statistics_process_counter = fields.Integer(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False, allow_none=True, load_default=0, dump_default=0)
     read_only = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     privacy_aware = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     url = fields.String(required=True)
     created = fields.DateTime(required=False, allow_none=True)
     updated = fields.DateTime(
         required=False,
         allow_none=True,
-        missing=datetime.datetime.utcnow,
-        default=datetime.datetime.utcnow)
+        load_default=datetime.datetime.utcnow,
+        dump_default=datetime.datetime.utcnow)
     format = fields.String(required=True,
-                           validate=[OneOf(list(DataSourceFormat.__dict__.keys()))])
-    initialization = fields.String(required=False, allow_none=True, missing=DataSourceInitialization.INITIALIZED, default=DataSourceInitialization.INITIALIZED,
-                                   validate=[OneOf(list(DataSourceInitialization.__dict__.keys()))])
+                           validate=[OneOf(DataSourceFormat.values())])
+    initialization = fields.String(required=False, allow_none=True, load_default=DataSourceInitialization.INITIALIZED, dump_default=DataSourceInitialization.INITIALIZED,
+                                   validate=[OneOf(DataSourceInitialization.values())])
     initialization_job_id = fields.String(required=False, allow_none=True)
     provenience = fields.String(required=False, allow_none=True)
     estimated_rows = fields.Integer(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     estimated_size_in_mega_bytes = fields.Decimal(
         required=False, allow_none=True)
     expiration = fields.String(required=False, allow_none=True)
@@ -717,8 +744,8 @@ class DataSourceItemResponseSchema(BaseSchema):
     temporary = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     workflow_id = fields.Integer(required=False, allow_none=True)
     workflow_version = fields.Integer(required=False, allow_none=True)
     task_id = fields.String(required=False, allow_none=True)
@@ -728,30 +755,37 @@ class DataSourceItemResponseSchema(BaseSchema):
     is_public = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     treat_as_missing = fields.String(required=False, allow_none=True)
     encoding = fields.String(required=False, allow_none=True)
     is_first_line_header = fields.Boolean(
-        required=False, allow_none=True, missing=0, default=0)
+        required=False,
+        allow_none=True,
+        load_default=0,
+        dump_default=0)
     is_multiline = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     command = fields.String(required=False, allow_none=True)
     is_lookup = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     use_in_workflow = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=0,
-        default=0)
+        load_default=0,
+        dump_default=0)
     attributes = fields.Nested(
         'limonero.schema.AttributeItemResponseSchema',
+        allow_none=True,
+        many=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableItemResponseSchema',
         allow_none=True,
         many=True)
     permissions = fields.Nested(
@@ -780,8 +814,8 @@ class DataSourcePrivacyResponseSchema(BaseSchema):
     privacy_aware = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=False,
-        default=False)
+        load_default=False,
+        dump_default=False)
     attributes = fields.Nested(
         'limonero.schema.AttributePrivacyResponseSchema',
         allow_none=True,
@@ -802,7 +836,7 @@ class DataSourcePermissionListResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
+                               validate=[OneOf(PermissionType.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -822,7 +856,7 @@ class DataSourcePermissionItemResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
+                               validate=[OneOf(PermissionType.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -842,7 +876,7 @@ class DataSourcePermissionCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
+                               validate=[OneOf(PermissionType.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -858,6 +892,63 @@ class DataSourcePermissionCreateRequestSchema(BaseSchema):
         unknown = EXCLUDE
 
 
+class DataSourceVariableListResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    label = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
+    default_value = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceVariable"""
+        return DataSourceVariable(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceVariableItemResponseSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(required=True)
+    name = fields.String(required=True)
+    label = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
+    default_value = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceVariable"""
+        return DataSourceVariable(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
+class DataSourceVariableCreateRequestSchema(BaseSchema):
+    """ JSON serialization schema """
+    id = fields.Integer(allow_none=True)
+    name = fields.String(required=True)
+    label = fields.String(required=False, allow_none=True)
+    description = fields.String(required=False, allow_none=True)
+    default_value = fields.String(required=False, allow_none=True)
+
+    # noinspection PyUnresolvedReferences
+    @post_load
+    def make_object(self, data, **kwargs):
+        """ Deserialize data into an instance of DataSourceVariable"""
+        return DataSourceVariable(**data)
+
+    class Meta:
+        ordered = True
+        unknown = EXCLUDE
+
+
 class ModelListResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
@@ -865,15 +956,15 @@ class ModelListResponseSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     created = fields.DateTime(required=False, allow_none=True)
     path = fields.String(required=True)
     class_name = fields.String(required=True)
-    type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
-                         validate=[OneOf(list(ModelType.__dict__.keys()))])
-    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
-                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
+    type = fields.String(required=False, allow_none=True, load_default=ModelType.UNSPECIFIED, dump_default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.values())])
+    deployment_status = fields.String(required=False, allow_none=True, load_default=DeploymentStatus.NOT_DEPLOYED, dump_default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(DeploymentStatus.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -904,14 +995,14 @@ class ModelCreateRequestSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     path = fields.String(required=True)
     class_name = fields.String(required=True)
-    type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
-                         validate=[OneOf(list(ModelType.__dict__.keys()))])
-    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
-                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
+    type = fields.String(required=False, allow_none=True, load_default=ModelType.UNSPECIFIED, dump_default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.values())])
+    deployment_status = fields.String(required=False, allow_none=True, load_default=DeploymentStatus.NOT_DEPLOYED, dump_default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(DeploymentStatus.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -939,15 +1030,15 @@ class ModelItemResponseSchema(BaseSchema):
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     created = fields.DateTime(required=False, allow_none=True)
     path = fields.String(required=True)
     class_name = fields.String(required=True)
-    type = fields.String(required=False, allow_none=True, missing=ModelType.UNSPECIFIED, default=ModelType.UNSPECIFIED,
-                         validate=[OneOf(list(ModelType.__dict__.keys()))])
-    deployment_status = fields.String(required=False, allow_none=True, missing=DeploymentStatus.NOT_DEPLOYED, default=DeploymentStatus.NOT_DEPLOYED,
-                                      validate=[OneOf(list(DeploymentStatus.__dict__.keys()))])
+    type = fields.String(required=False, allow_none=True, load_default=ModelType.UNSPECIFIED, dump_default=ModelType.UNSPECIFIED,
+                         validate=[OneOf(ModelType.values())])
+    deployment_status = fields.String(required=False, allow_none=True, load_default=DeploymentStatus.NOT_DEPLOYED, dump_default=DeploymentStatus.NOT_DEPLOYED,
+                                      validate=[OneOf(DeploymentStatus.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -974,7 +1065,7 @@ class ModelPermissionListResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
+                               validate=[OneOf(PermissionType.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -994,7 +1085,7 @@ class ModelPermissionItemResponseSchema(BaseSchema):
     """ JSON serialization schema """
     id = fields.Integer(required=True)
     permission = fields.String(required=True,
-                               validate=[OneOf(list(PermissionType.__dict__.keys()))])
+                               validate=[OneOf(PermissionType.values())])
     user_id = fields.Integer(required=True)
     user_login = fields.String(required=True)
     user_name = fields.String(required=True)
@@ -1015,12 +1106,12 @@ class StorageListResponseSchema(BaseSchema):
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(StorageType.__dict__.keys()))])
+                         validate=[OneOf(StorageType.values())])
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     url = fields.String(required=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)
@@ -1041,12 +1132,12 @@ class StorageItemResponseSchema(BaseSchema):
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(StorageType.__dict__.keys()))])
+                         validate=[OneOf(StorageType.values())])
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     url = fields.String(required=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)
@@ -1066,12 +1157,12 @@ class StorageCreateRequestSchema(BaseSchema):
     """ JSON serialization schema """
     name = fields.String(required=True)
     type = fields.String(required=True,
-                         validate=[OneOf(list(StorageType.__dict__.keys()))])
+                         validate=[OneOf(StorageType.values())])
     enabled = fields.Boolean(
         required=False,
         allow_none=True,
-        missing=True,
-        default=True)
+        load_default=True,
+        dump_default=True)
     url = fields.String(required=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)

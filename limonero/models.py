@@ -1,18 +1,9 @@
 import datetime
-import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, \
-    Enum, DateTime, Numeric, Text, Unicode, UnicodeText
-from sqlalchemy import event
-from sqlalchemy.dialects.mysql import LONGTEXT
+    Enum, DateTime, Numeric, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy.schema import UniqueConstraint
-from sqlalchemy_i18n import make_translatable, translation_base, Translatable
-
-make_translatable(options={'locales': ['pt', 'en'],
-                           'auto_create_locales': False,
-                           'fallback_locale': 'pt'})
 
 db = SQLAlchemy()
 
@@ -227,17 +218,18 @@ class Attribute(db.Model):
     min_value = Column(String(200))
     std_deviation = Column(Float)
     missing_total = Column(String(200))
-    deciles = Column(LONGTEXT)
+    deciles = Column(Text(4294000000))
     format = Column(String(100))
     key = Column(Boolean,
                  default=False, nullable=False)
 
     # Associations
-    data_source_id = Column(Integer,
-                            ForeignKey("data_source.id",
-                                       name="fk_attribute_data_source_id"),
-                            nullable=False,
-                            index=True)
+    data_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_attribute_data_source_id"),
+        nullable=False,
+        index=True)
     data_source = relationship(
         "DataSource",
         overlaps='attributes',
@@ -266,33 +258,36 @@ class AttributeForeignKey(db.Model):
                             name='AttributeForeignKeyDirectionEnumType'), nullable=False)
 
     # Associations
-    foreign_key_id = Column(Integer,
-                            ForeignKey("data_source_foreign_key.id",
-                                       name="fk_attribute_foreign_key_foreign_key_id"),
-                            nullable=False,
-                            index=True)
+    foreign_key_id = Column(
+        Integer,
+        ForeignKey("data_source_foreign_key.id",
+                   name="fk_attribute_foreign_key_foreign_key_id"),
+        nullable=False,
+        index=True)
     foreign_key = relationship(
         "DataSourceForeignKey",
         overlaps='attributes',
         foreign_keys=[foreign_key_id],
         backref=backref("attributes",
                         cascade="all, delete-orphan"))
-    from_attribute_id = Column(Integer,
-                               ForeignKey("attribute.id",
-                                          name="fk_attribute_foreign_key_from_attribute_id"),
-                               nullable=False,
-                               index=True)
+    from_attribute_id = Column(
+        Integer,
+        ForeignKey("attribute.id",
+                   name="fk_attribute_foreign_key_from_attribute_id"),
+        nullable=False,
+        index=True)
     from_attribute = relationship(
         "Attribute",
         overlaps='foreign_keys',
         foreign_keys=[from_attribute_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
-    to_attribute_id = Column(Integer,
-                             ForeignKey("attribute.id",
-                                        name="fk_attribute_foreign_key_to_attribute_id"),
-                             nullable=False,
-                             index=True)
+    to_attribute_id = Column(
+        Integer,
+        ForeignKey("attribute.id",
+                   name="fk_attribute_foreign_key_to_attribute_id"),
+        nullable=False,
+        index=True)
     to_attribute = relationship(
         "Attribute",
         overlaps='references',
@@ -323,28 +318,30 @@ class AttributePrivacy(db.Model):
                                           name='AnonymizationTechniqueEnumType'), nullable=False)
     hierarchical_structure_type = Column(String(100))
     privacy_model_technique = Column(String(100))
-    hierarchy = Column(LONGTEXT)
-    category_model = Column(LONGTEXT)
-    privacy_model = Column(LONGTEXT)
-    privacy_model_parameters = Column(LONGTEXT)
+    hierarchy = Column(Text(4294000000))
+    category_model = Column(Text(4294000000))
+    privacy_model = Column(Text(4294000000))
+    privacy_model_parameters = Column(Text(4294000000))
     unlock_privacy_key = Column(String(400))
     is_global_law = Column(Boolean,
                            default=False)
 
     # Associations
-    attribute_id = Column(Integer,
-                          ForeignKey("attribute.id",
-                                     name="fk_attribute_privacy_attribute_id"),
-                          index=True)
+    attribute_id = Column(
+        Integer,
+        ForeignKey("attribute.id",
+                   name="fk_attribute_privacy_attribute_id"),
+        index=True)
     attribute = relationship(
         "Attribute",
         overlaps='attribute_privacy',
         foreign_keys=[attribute_id],
         back_populates="attribute_privacy")
-    attribute_privacy_group_id = Column(Integer,
-                                        ForeignKey("attribute_privacy_group.id",
-                                                   name="fk_attribute_privacy_attribute_privacy_group_id"),
-                                        index=True)
+    attribute_privacy_group_id = Column(
+        Integer,
+        ForeignKey("attribute_privacy_group.id",
+                   name="fk_attribute_privacy_attribute_privacy_group_id"),
+        index=True)
     attribute_privacy_group = relationship(
         "AttributePrivacyGroup",
         overlaps='attribute_privacy',
@@ -403,7 +400,7 @@ class DataSource(db.Model):
                                  name='DataSourceInitializationEnumType'),
                             default=DataSourceInitialization.INITIALIZED, nullable=False)
     initialization_job_id = Column(String(200))
-    provenience = Column(LONGTEXT)
+    provenience = Column(Text(4294000000))
     estimated_rows = Column(Integer,
                             default=0)
     estimated_size_in_mega_bytes = Column(Numeric(10, 2))
@@ -422,24 +419,25 @@ class DataSource(db.Model):
     text_delimiter = Column(String(20))
     is_public = Column(Boolean,
                        default=False, nullable=False)
-    treat_as_missing = Column(LONGTEXT)
+    treat_as_missing = Column(Text(4294000000))
     encoding = Column(String(200))
     is_first_line_header = Column(Boolean,
                                   default=0, nullable=False)
     is_multiline = Column(Boolean,
                           default=0, nullable=False)
-    command = Column(LONGTEXT)
+    command = Column(Text(4294000000))
     is_lookup = Column(Boolean,
                        default=0, nullable=False)
     use_in_workflow = Column(Boolean,
                              default=0, nullable=False, index=True)
 
     # Associations
-    storage_id = Column(Integer,
-                        ForeignKey("storage.id",
-                                   name="fk_data_source_storage_id"),
-                        nullable=False,
-                        index=True)
+    storage_id = Column(
+        Integer,
+        ForeignKey("storage.id",
+                   name="fk_data_source_storage_id"),
+        nullable=False,
+        index=True)
     storage = relationship(
         "Storage",
         overlaps='storage',
@@ -460,22 +458,24 @@ class DataSourceForeignKey(db.Model):
     id = Column(Integer, primary_key=True)
 
     # Associations
-    from_source_id = Column(Integer,
-                            ForeignKey("data_source.id",
-                                       name="fk_data_source_foreign_key_from_source_id"),
-                            nullable=False,
-                            index=True)
+    from_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_data_source_foreign_key_from_source_id"),
+        nullable=False,
+        index=True)
     from_source = relationship(
         "DataSource",
         overlaps='foreign_keys',
         foreign_keys=[from_source_id],
         backref=backref("foreign_keys",
                         cascade="all, delete-orphan"))
-    to_source_id = Column(Integer,
-                          ForeignKey("data_source.id",
-                                     name="fk_data_source_foreign_key_to_source_id"),
-                          nullable=False,
-                          index=True)
+    to_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_data_source_foreign_key_to_source_id"),
+        nullable=False,
+        index=True)
     to_source = relationship(
         "DataSource",
         overlaps='references',
@@ -503,11 +503,12 @@ class DataSourcePermission(db.Model):
     user_name = Column(String(200), nullable=False)
 
     # Associations
-    data_source_id = Column(Integer,
-                            ForeignKey("data_source.id",
-                                       name="fk_data_source_permission_data_source_id"),
-                            nullable=False,
-                            index=True)
+    data_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_data_source_permission_data_source_id"),
+        nullable=False,
+        index=True)
     data_source = relationship(
         "DataSource",
         overlaps='permissions',
@@ -517,6 +518,38 @@ class DataSourcePermission(db.Model):
 
     def __str__(self):
         return self.permission
+
+    def __repr__(self):
+        return '<Instance {}: {}>'.format(self.__class__, self.id)
+
+
+class DataSourceVariable(db.Model):
+    """ Variables for data source """
+    __tablename__ = 'data_source_variable'
+
+    # Fields
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    label = Column(String(200))
+    description = Column(Text(4294000000))
+    default_value = Column(Text(4294000000))
+
+    # Associations
+    data_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_data_source_variable_data_source_id"),
+        nullable=False,
+        index=True)
+    data_source = relationship(
+        "DataSource",
+        overlaps='variables',
+        foreign_keys=[data_source_id],
+        backref=backref("variables",
+                        cascade="all, delete-orphan"))
+
+    def __str__(self):
+        return self.name
 
     def __repr__(self):
         return '<Instance {}: {}>'.format(self.__class__, self.id)
@@ -550,11 +583,12 @@ class Model(db.Model):
     job_id = Column(Integer)
 
     # Associations
-    storage_id = Column(Integer,
-                        ForeignKey("storage.id",
-                                   name="fk_model_storage_id"),
-                        nullable=False,
-                        index=True)
+    storage_id = Column(
+        Integer,
+        ForeignKey("storage.id",
+                   name="fk_model_storage_id"),
+        nullable=False,
+        index=True)
     storage = relationship(
         "Storage",
         overlaps='storage',
@@ -580,11 +614,12 @@ class ModelPermission(db.Model):
     user_name = Column(String(200), nullable=False)
 
     # Associations
-    model_id = Column(Integer,
-                      ForeignKey("model.id",
-                                 name="fk_model_permission_model_id"),
-                      nullable=False,
-                      index=True)
+    model_id = Column(
+        Integer,
+        ForeignKey("model.id",
+                   name="fk_model_permission_model_id"),
+        nullable=False,
+        index=True)
     model = relationship(
         "Model",
         overlaps='permissions',
@@ -610,14 +645,15 @@ class PrivacyRisk(db.Model):
     probability = Column(Float)
     impact = Column(Float)
     value = Column(Float, nullable=False)
-    detail = Column(LONGTEXT, nullable=False)
+    detail = Column(Text(4294000000), nullable=False)
 
     # Associations
-    data_source_id = Column(Integer,
-                            ForeignKey("data_source.id",
-                                       name="fk_privacy_risk_data_source_id"),
-                            nullable=False,
-                            index=True)
+    data_source_id = Column(
+        Integer,
+        ForeignKey("data_source.id",
+                   name="fk_privacy_risk_data_source_id"),
+        nullable=False,
+        index=True)
     data_source = relationship(
         "DataSource",
         overlaps='risks',
@@ -645,7 +681,7 @@ class Storage(db.Model):
                      default=True, nullable=False)
     url = Column(String(1000), nullable=False)
     client_url = Column(String(1000))
-    extra_params = Column(LONGTEXT)
+    extra_params = Column(Text(4294000000))
 
     def __str__(self):
         return self.name
@@ -665,11 +701,12 @@ class StoragePermission(db.Model):
     user_id = Column(Integer, nullable=False)
 
     # Associations
-    storage_id = Column(Integer,
-                        ForeignKey("storage.id",
-                                   name="fk_storage_permission_storage_id"),
-                        nullable=False,
-                        index=True)
+    storage_id = Column(
+        Integer,
+        ForeignKey("storage.id",
+                   name="fk_storage_permission_storage_id"),
+        nullable=False,
+        index=True)
     storage = relationship(
         "Storage",
         overlaps='permissions',
