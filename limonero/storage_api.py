@@ -57,7 +57,8 @@ class StorageListApi(Resource):
          
         # Administrative have access to URL
         user = getattr(flask_g, 'user')
-        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
+        is_admin = 'ADMINISTRATOR' in flask_g.user.permissions  
+        exclude = tuple() if is_admin else tuple(['url'])
 
         # Pagination
         page = request.args.get('page', type=int, default=1)
@@ -116,7 +117,8 @@ class StorageDetailApi(Resource):
         return_code = 200
 
         user = getattr(flask_g, 'user')
-        exclude = tuple() if user.id in (0, 1) else tuple(['url'])
+        is_admin = 'ADMINISTRATOR' in flask_g.user.permissions  
+        exclude = tuple() if is_admin else tuple(['url'])
 
         if storage is not None:
             result = {
