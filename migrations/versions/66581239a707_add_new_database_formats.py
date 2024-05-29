@@ -20,7 +20,7 @@ def get_commands():
     values = [
         'CSV', 'CUSTOM', 'GEO_JSON', 'JDBC', 'IMAGE_FOLDER', 'DATA_FOLDER', 
         'HAR_IMAGE_FOLDER', 'HDF5', 'HIVE', 'JSON', 'NPY', 'PICKLE', 'PARQUET',
-        'SAV, SHAPEFILE', 'TAR_IMAGE_FOLDER', 'TEXT', 'VIDEO_FOLDER',
+        'SAV', 'SHAPEFILE', 'TAR_IMAGE_FOLDER', 'TEXT', 'VIDEO_FOLDER',
         'XML_FILE', 'UNKNOWN'
     ]
     values_str = ', '.join([f"'{v}'" for v in values])
