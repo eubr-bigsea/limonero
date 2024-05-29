@@ -79,6 +79,7 @@ class AttributeListResponseSchema(BaseSchema):
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
+    raw_type = fields.String(required=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -139,6 +140,7 @@ class AttributeItemResponseSchema(BaseSchema):
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
+    raw_type = fields.String(required=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -199,6 +201,7 @@ class AttributeCreateRequestSchema(BaseSchema):
     description = fields.String(required=False, allow_none=True)
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
+    raw_type = fields.String(required=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -572,10 +575,6 @@ class DataSourceListResponseSchema(BaseSchema):
         'limonero.schema.AttributeListResponseSchema',
         allow_none=True,
         many=True)
-    variables = fields.Nested(
-        'limonero.schema.DataSourceVariableListResponseSchema',
-        allow_none=True,
-        many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionListResponseSchema',
         allow_none=True,
@@ -583,6 +582,10 @@ class DataSourceListResponseSchema(BaseSchema):
     storage = fields.Nested(
         'limonero.schema.StorageListResponseSchema',
         required=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableListResponseSchema',
+        allow_none=True,
+        many=True)
     download_token = fields.Function(
         lambda d: generate_download_token(d.id, 600))
 
@@ -673,15 +676,15 @@ class DataSourceCreateRequestSchema(BaseSchema):
         'limonero.schema.AttributeCreateRequestSchema',
         allow_none=True,
         many=True)
-    variables = fields.Nested(
-        'limonero.schema.DataSourceVariableCreateRequestSchema',
-        allow_none=True,
-        many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionCreateRequestSchema',
         allow_none=True,
         many=True)
     storage_id = fields.Integer(required=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableCreateRequestSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -784,10 +787,6 @@ class DataSourceItemResponseSchema(BaseSchema):
         'limonero.schema.AttributeItemResponseSchema',
         allow_none=True,
         many=True)
-    variables = fields.Nested(
-        'limonero.schema.DataSourceVariableItemResponseSchema',
-        allow_none=True,
-        many=True)
     permissions = fields.Nested(
         'limonero.schema.DataSourcePermissionItemResponseSchema',
         allow_none=True,
@@ -795,6 +794,10 @@ class DataSourceItemResponseSchema(BaseSchema):
     storage = fields.Nested(
         'limonero.schema.StorageItemResponseSchema',
         required=True)
+    variables = fields.Nested(
+        'limonero.schema.DataSourceVariableItemResponseSchema',
+        allow_none=True,
+        many=True)
 
     # noinspection PyUnresolvedReferences
     @post_load
@@ -893,7 +896,7 @@ class DataSourcePermissionCreateRequestSchema(BaseSchema):
 
 
 class DataSourceVariableListResponseSchema(BaseSchema):
-    """ JSON serialization schema """
+    """ JSON schema for listing """
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     label = fields.String(required=False, allow_none=True)
@@ -912,7 +915,7 @@ class DataSourceVariableListResponseSchema(BaseSchema):
 
 
 class DataSourceVariableItemResponseSchema(BaseSchema):
-    """ JSON serialization schema """
+    """ JSON schema for listing """
     id = fields.Integer(required=True)
     name = fields.String(required=True)
     label = fields.String(required=False, allow_none=True)
@@ -931,8 +934,7 @@ class DataSourceVariableItemResponseSchema(BaseSchema):
 
 
 class DataSourceVariableCreateRequestSchema(BaseSchema):
-    """ JSON serialization schema """
-    id = fields.Integer(allow_none=True)
+    """ JSON schema for new instance """
     name = fields.String(required=True)
     label = fields.String(required=False, allow_none=True)
     description = fields.String(required=False, allow_none=True)

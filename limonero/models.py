@@ -199,6 +199,7 @@ class Attribute(db.Model):
     description = Column(String(500))
     type = Column(Enum(*list(DataType.values()),
                        name='DataTypeEnumType'), nullable=False)
+    raw_type = Column(String(100), nullable=False)
     size = Column(Integer)
     precision = Column(Integer)
     scale = Column(Integer)
