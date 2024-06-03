@@ -200,6 +200,7 @@ class Attribute(db.Model):
     type = Column(Enum(*list(DataType.values()),
                        name='DataTypeEnumType'), nullable=False)
     raw_type = Column(String(100), nullable=False)
+    position = Column(Integer)
     size = Column(Integer)
     precision = Column(Integer)
     scale = Column(Integer)

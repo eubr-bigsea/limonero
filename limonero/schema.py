@@ -80,6 +80,7 @@ class AttributeListResponseSchema(BaseSchema):
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
     raw_type = fields.String(required=True)
+    position = fields.Integer(required=False, allow_none=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -141,6 +142,7 @@ class AttributeItemResponseSchema(BaseSchema):
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
     raw_type = fields.String(required=True)
+    position = fields.Integer(required=False, allow_none=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
@@ -202,6 +204,7 @@ class AttributeCreateRequestSchema(BaseSchema):
     type = fields.String(required=True,
                          validate=[OneOf(DataType.values())])
     raw_type = fields.String(required=True)
+    position = fields.Integer(required=False, allow_none=True)
     size = fields.Integer(required=False, allow_none=True)
     precision = fields.Integer(required=False, allow_none=True)
     scale = fields.Integer(required=False, allow_none=True)
