@@ -19,6 +19,7 @@ import zipfile
 from io import BytesIO, StringIO
 from urllib.parse import urlparse
 from pathlib import Path
+from itertools import zip_longest
 
 
 import pymysql
@@ -993,67 +994,7 @@ class DataSourceInferSchemaApi(Resource):
                             what=parsed.scheme))
 
         elif ds.format in (DataSourceFormat.HIVE):
-            parsed = urlparse(ds.storage.client_url)
-            from pyhive import hive
-            from TCLIService.ttypes import TOperationState
-            if ds.storage.extra_params:
-                extra = json.loads(ds.storage.extra_params)
-            else:
-                extra = {}
-            print('=' * 20)
-            print(parsed)
-            print('=' * 20)
-            cursor = hive.connect(
-                   host=parsed.hostname,
-                   port=int(parsed.port or 10000),
-                   username=parsed.username,
-                   password=parsed.password,
-                   database=(parsed.path or 'default').replace('/', ''),
-                   auth=extra.get('auth', 'CUSTOM') if parsed.password else None,
-                   configuration={
-                       'hive.cli.print.header': 'true'},
-                   kerberos_service_name=extra.get('kerberos_service_name'),
-                   thrift_transport=None).cursor()
-
-            if ds.command is None or ds.command.strip() == '':
-                raise ValueError(gettext(
-                    'Data source does not have a command specified'))
-            fix_limit = re.compile(r'\sLIMIT\s+(\d+)')
-            cmd = fix_limit.sub('', ds.command)
-            cursor.execute('{} LIMIT 0'.format(cmd), async_=True)
-            status = cursor.poll().operationState
-            while status in (TOperationState.INITIALIZED_STATE,
-                    TOperationState.RUNNING_STATE):
-                status = cursor.poll().operationState
-
-            tables = set()
-            attrs = []
-            attrs_name = []
-            types = []
-            for t in cursor.description:
-                attr, attr_type = t[0:2]
-                types.append(attr_type)
-                table, name = attr.split('.', 2)
-                attrs.append(attr)
-                attrs_name.append(name)
-                tables.add(table)
-            if len(tables) == 1:
-                final_names = attrs_name
-            else:
-                final_names = attrs
-
-            DataSourceInferSchemaApi._delete_old_attributes(ds)
-            for (name, d) in zip(final_names, types):
-                final_type = get_hive_data_type(d)
-                attr = Attribute(name=name, type=final_type,
-                                 size=None, precision=None,
-                                 scale=None, nullable=None)
-                attr.data_source = ds
-                attr.feature = False
-                attr.label = False
-                db.session.add(attr)
-            db.session.commit()
-
+            parsed, types = DataSourceInferSchemaApi.infer_from_hive(ds)
 
         elif ds.format in (DataSourceFormat.PARQUET,):
 
@@ -1254,6 +1195,103 @@ class DataSourceInferSchemaApi(Resource):
             raise ValueError(
                 gettext('Cannot infer the schema for format %(format)s',
                         format=ds.format))
+
+    @staticmethod
+    def infer_from_hive(ds: DataSource) -> None:
+        """ Infer table structure from Hive """
+        from pyhive import hive
+        from TCLIService.ttypes import TOperationState
+        if ds.storage.extra_params:
+            extra = json.loads(ds.storage.extra_params)
+        else:
+            extra = {}
+
+        parsed = urlparse(ds.storage.client_url)
+        # print('=' * 20)
+        # print(parsed)
+        # print('=' * 20)
+        with hive.connect(
+                   host=parsed.hostname,
+                   port=int(parsed.port or 10000),
+                   username=parsed.username,
+                   password=parsed.password,
+                   database=(parsed.path or 'default').replace('/', ''),
+                   auth=extra.get('auth', 'CUSTOM') if parsed.password else None,
+                   configuration={
+                       'hive.cli.print.header': 'true'},
+                   kerberos_service_name=extra.get('kerberos_service_name'),
+                   thrift_transport=None) as conn:
+            with conn.cursor() as cursor:
+                if ds.command is None or ds.command.strip() == '':
+                    raise ValueError(gettext(
+                            'Data source does not have a command specified'))
+
+                select_expr = re.compile('SELECT\s+*\s+FROM\s+(\w+)', re.I)
+                found = select_expr.search(ds.command)
+                tables = set()
+                attrs = []
+                attrs_name = []
+                types = []
+                raw_types = []
+                descriptions = []
+                table_comment = None
+                if found:
+                    cursor.execute(f'DESCRIBE FORMATTED {found}', async_=True)
+                    status = cursor.poll().operationState
+                    while status in (TOperationState.INITIALIZED_STATE,
+                            TOperationState.RUNNING_STATE):
+                        status = cursor.poll().operationState
+                    columns_section = True
+                    for column_info in cursor.fetchall():
+                        info = column_info[0].strip()
+                        if info == "# Detailed Table Information":
+                            columns_section = False
+                            continue
+                        if columns_section:
+                            if info:
+                                attrs.apped(info)
+                                column_type = column_info[1].strip()
+                                types.append(get_hive_data_type(column_type))
+                                raw_types.append(column_type)
+                                column_comment = (column_info[2].strip()
+                                    if len(column_info) > 2 else "")
+                                descriptions.append(column_comment)
+                        elif column_info[1].strip() == 'comment':
+                            table_comment = column_info[1].strip()
+                            break
+                else:
+                    cmd = re.sub(r'\sLIMIT\s+(\d+)', '', ds.command)
+                    cursor.execute('{} LIMIT 0'.format(cmd), async_=True)
+                    status = cursor.poll().operationState
+                    while status in (TOperationState.INITIALIZED_STATE,
+                            TOperationState.RUNNING_STATE):
+                        status = cursor.poll().operationState
+
+                    for t in cursor.description:
+                        attr, attr_type = t[0:2]
+                        types.append(attr_type)
+                        table, name = attr.split('.', 2)
+                        attrs.append(attr)
+                        attrs_name.append(name)
+                        tables.add(table)
+                    final_names = attrs_name if len(tables) == 1 else attrs
+
+        DataSourceInferSchemaApi._delete_old_attributes(ds)
+        for (name, data_type, raw_type, description) in zip_longest(
+                    final_names, types, raw_types, descriptions):
+            final_type = get_hive_data_type(data_type)
+            attr = Attribute(name=name, type=final_type, size=None,
+                             precision=None, scale=None, nullable=None,
+                             data_source=ds, feature=False, label=False,
+                             description=description,
+                             raw_type=raw_type)
+            db.session.add(attr)
+        if table_comment is not None:
+            ds.description = table_comment
+            db.session.add(ds)
+        db.session.commit()
+
+        return parsed, types
 
     @staticmethod
     def _delete_old_attributes(ds):

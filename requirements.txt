@@ -25,4 +25,4 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 python-dotenv==1.0.0
 werkzeug==2.3.8
-
+sqlglot[rs]==24.1.0

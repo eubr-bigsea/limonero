@@ -20,6 +20,9 @@ def get_mysql_data_type(d, dtype):
 
 def get_hive_data_type(d):
     d = d.replace('_TYPE', '').upper()
+    inx = d.find("(")
+    if inx > -1:
+        d = d[:inx]
     if d in ('TINYINT', 'SMALLINT', 'INT', 'INTEGER',
                 'BOOLEAN'):
         final_type = DataType.INTEGER
