@@ -1226,7 +1226,8 @@ class DataSourceInferSchemaApi(Resource):
                     raise ValueError(gettext(
                             'Data source does not have a command specified'))
 
-                select_expr = re.compile('SELECT\s+*\s+FROM\s+(\w+)', re.I)
+                select_expr = re.compile(
+                    r'SELECT\s+\*\s+FROM\s+(\w+(?:\.\w+)?)', re.I)
                 found = select_expr.search(ds.command)
                 tables = set()
                 attrs = []
@@ -1236,7 +1237,8 @@ class DataSourceInferSchemaApi(Resource):
                 descriptions = []
                 table_comment = None
                 if found:
-                    cursor.execute(f'DESCRIBE FORMATTED {found}', async_=True)
+                    cursor.execute(f'DESCRIBE FORMATTED {found.group(1)}',
+                                   async_=True)
                     status = cursor.poll().operationState
                     while status in (TOperationState.INITIALIZED_STATE,
                             TOperationState.RUNNING_STATE):
@@ -1249,16 +1251,17 @@ class DataSourceInferSchemaApi(Resource):
                             continue
                         if columns_section:
                             if info:
-                                attrs.apped(info)
+                                attrs.append(info)
                                 column_type = column_info[1].strip()
                                 types.append(get_hive_data_type(column_type))
                                 raw_types.append(column_type)
                                 column_comment = (column_info[2].strip()
                                     if len(column_info) > 2 else "")
                                 descriptions.append(column_comment)
-                        elif column_info[1].strip() == 'comment':
+                        elif column_info[1] and column_info[1].strip() == 'comment':
                             table_comment = column_info[1].strip()
                             break
+                    final_names = attrs
                 else:
                     cmd = re.sub(r'\sLIMIT\s+(\d+)', '', ds.command)
                     cursor.execute('{} LIMIT 0'.format(cmd), async_=True)
