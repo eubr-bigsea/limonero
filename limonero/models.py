@@ -232,12 +232,6 @@ class Attribute(db.Model):
                    name="fk_attribute_data_source_id"),
         nullable=False,
         index=True)
-    data_source = relationship(
-        "DataSource",
-        overlaps='attributes',
-        foreign_keys=[data_source_id],
-        backref=backref("attributes",
-                        cascade="all, delete-orphan"))
     attribute_privacy = relationship(
         "AttributePrivacy", uselist=False,
         back_populates="attribute", lazy='joined')
@@ -434,6 +428,9 @@ class DataSource(db.Model):
                              default=0, nullable=False, index=True)
 
     # Associations
+    attributes = relationship("Attribute",
+                              cascade="all, delete-orphan",
+                              order_by="(Attribute.position, Attribute.id)")
     storage_id = Column(
         Integer,
         ForeignKey("storage.id",
