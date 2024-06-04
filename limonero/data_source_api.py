@@ -973,14 +973,15 @@ class DataSourceInferSchemaApi(Resource):
 
                         DataSourceInferSchemaApi._delete_old_attributes(ds)
 
-                        for (name, dtype, size, to_ignore, precision, scale,
-                             nullable) in cursor.description:
+                        for i, (name, dtype, size, to_ignore, precision, scale,
+                             nullable) in enumerate(cursor.description):
                             final_type = get_mysql_data_type(d, dtype)
                             if d[dtype] == 'BLOB':
                                 precision = None
                             attr = Attribute(name=name, type=final_type,
                                              size=size, precision=precision,
-                                             scale=scale, nullable=nullable)
+                                             scale=scale, nullable=nullable,
+                                             position=i+1, data_source_id=ds.id)
                             attr.data_source = ds
                             attr.feature = False
                             attr.label = False
@@ -1017,6 +1018,7 @@ class DataSourceInferSchemaApi(Resource):
                     fs=parsed.schema))
 
             DataSourceInferSchemaApi._delete_old_attributes(ds)
+            i = 0
             for name, (dtype, precision, scale) in schema:
                 attr = Attribute(name=name,
                                  nullable=True,
@@ -1024,9 +1026,11 @@ class DataSourceInferSchemaApi(Resource):
                                  type=dtype,
                                  feature=False, label=False,
                                  precision=precision if precision != 0 else None,
-                                 scale=scale,
+                                 scale=scale, position=i+1,
+                                 data_source_id=ds.id
                                  )
-                attr.data_source = ds
+                i+= 1
+                #attr.data_source = ds
                 db.session.add(attr)
             db.session.commit()
 
@@ -1119,13 +1123,14 @@ class DataSourceInferSchemaApi(Resource):
                         attrs, csv_reader, use_header, missing_values)
 
                     DataSourceInferSchemaApi._delete_old_attributes(ds)
-                    for attr in attrs:
+                    for i, attr in enumerate(attrs):
                         if attr.type is None:
                             attr.type = DataType.CHARACTER
                         if attr.type == DataType.CHARACTER:
                             if attr.size is not None and attr.size > 1000:
                                 attr.type = DataType.TEXT
-                        attr.data_source = ds
+                        attr.data_source_id = ds.id
+                        attr.position = i + 1
                         attr.feature = False
                         attr.label = False
                         db.session.add(attr)
@@ -1179,14 +1184,15 @@ class DataSourceInferSchemaApi(Resource):
                     'V': DataType.CHARACTER,
                     'Y': DataType.DECIMAL
                 }
-                for definition in handler.fieldDefs:
+                for i, definition in enumerate(handler.fieldDefs):
                     data_type = types[definition.typeCode]
                     attr = Attribute(name=definition.name, nullable=True,
                                      enumeration=False, type=data_type,
                                      feature=False, label=False,
                                      size=definition.length,
-                                     scale=definition.decimalCount)
-                    attr.data_source = ds
+                                     scale=definition.decimalCount,
+                                     position=i+1, data_source_id=ds.id)
+                    # attr.data_source = ds
                     attr.feature = False
                     attr.label = False
                     db.session.add(attr)
@@ -1280,14 +1286,14 @@ class DataSourceInferSchemaApi(Resource):
                     final_names = attrs_name if len(tables) == 1 else attrs
 
         DataSourceInferSchemaApi._delete_old_attributes(ds)
-        for (name, data_type, raw_type, description) in zip_longest(
-                    final_names, types, raw_types, descriptions):
+        for i, (name, data_type, raw_type, description) in enumerate(zip_longest(
+                    final_names, types, raw_types, descriptions)):
             final_type = get_hive_data_type(data_type)
             attr = Attribute(name=name, type=final_type, size=None,
                              precision=None, scale=None, nullable=None,
-                             data_source=ds, feature=False, label=False,
+                             data_source_id=ds.id, feature=False, label=False,
                              description=description,
-                             raw_type=raw_type)
+                             raw_type=raw_type, position=i+1)
             db.session.add(attr)
         if table_comment is not None:
             ds.description = table_comment
@@ -2017,7 +2023,7 @@ def receive_append_or_remove(target, value, initiator):
 
 
 # noinspection PyUnusedLocal
-@listens_for(Attribute, 'after_update')
-def receive_attribute_change(mapper, connection, target):
-    if target.data_source:
-        target.data_source.updated = datetime.datetime.utcnow()
+#@listens_for(Attribute, 'after_update')
+#def receive_attribute_change(mapper, connection, target):
+#    if target.data_source_id:
+#        target.data_source.updated = datetime.datetime.utcnow()
