@@ -2,7 +2,7 @@
 
 function start_server
 {
-	python -m gunicorn 'limonero.app:create_app()' -b 0.0.0.0:$LIMONERO_PORT
+	python -m gunicorn 'limonero.app:create_app()' -b 0.0.0.0:$LIMONERO_PORT --timeout=300
 }
 
 function db_migrate
