@@ -679,6 +679,7 @@ class Storage(db.Model):
     enabled = Column(Boolean,
                      default=True, nullable=False)
     url = Column(String(1000), nullable=False)
+    path = Column(String(1000))
     client_url = Column(String(1000))
     extra_params = Column(Text(4294000000))
 

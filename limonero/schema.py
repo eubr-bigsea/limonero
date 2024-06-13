@@ -1118,6 +1118,7 @@ class StorageListResponseSchema(BaseSchema):
         load_default=True,
         dump_default=True)
     url = fields.String(required=True)
+    path = fields.String(required=False, allow_none=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)
 
@@ -1144,6 +1145,7 @@ class StorageItemResponseSchema(BaseSchema):
         load_default=True,
         dump_default=True)
     url = fields.String(required=True)
+    path = fields.String(required=False, allow_none=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)
 
@@ -1169,6 +1171,7 @@ class StorageCreateRequestSchema(BaseSchema):
         load_default=True,
         dump_default=True)
     url = fields.String(required=True)
+    path = fields.String(required=False, allow_none=True)
     client_url = fields.String(required=False, allow_none=True)
     extra_params = fields.String(required=False, allow_none=True)
 
