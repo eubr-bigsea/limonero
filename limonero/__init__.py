@@ -5,6 +5,9 @@ from flask.json import JSONEncoder
 
 
 class CustomJSONEncoder(JSONEncoder):
+    def __init__(self, **kwargs):
+        kwargs['indent'] = None
+        super().__init__(**kwargs)
     def default(self, o):
         if isinstance(o, (date, datetime)):
             return o.isoformat()
