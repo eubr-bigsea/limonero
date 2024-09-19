@@ -9,31 +9,34 @@ import signal
 
 import sqlalchemy_utils
 import yaml
-from flask import Flask, request, g as flask_g
-from flask_babel import get_locale, Babel
-from flask_babel import gettext
+from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+from flask import Flask, request
+from flask import g as flask_g
+from flask_babel import Babel, gettext
 from flask_cors import CORS
 from flask_migrate import Migrate
-from flask_restful import Api, abort
+from flask_restful import Api
 from flask_swagger_ui import get_swaggerui_blueprint
-
-from limonero import CustomJSONEncoder as LimoneroJSONEncoder
-from limonero.cache import cache
-from limonero.data_source_api import DataSourceDetailApi, DataSourceListApi, \
-    DataSourcePermissionApi, DataSourceUploadApi, DataSourceInferSchemaApi, \
-    DataSourcePrivacyApi, DataSourceDownload, DataSourceSampleApi, \
-    DataSourceInitializationApi
-from limonero.model_api import ModelDetailApi, ModelListApi, ModelDownloadApi
-from limonero.models import db, DataSource, Storage
-from limonero.py4j_init import init_jvm
-from limonero.storage_api import StorageDetailApi, StorageListApi, \
-    StorageMetadataApi
-from cryptography.fernet import Fernet
-
 from marshmallow.exceptions import ValidationError
 from werkzeug.exceptions import HTTPException
 
-from dotenv import load_dotenv
+from limonero import CustomJSONEncoder as LimoneroJSONEncoder
+from limonero.cache import cache
+from limonero.data_source_api import (
+    DataSourceDetailApi,
+    DataSourceDownload,
+    DataSourceInferSchemaApi,
+    DataSourceInitializationApi,
+    DataSourceListApi,
+    DataSourcePermissionApi,
+    DataSourceSampleApi,
+    DataSourceUploadApi,
+)
+from limonero.model_api import ModelDetailApi, ModelDownloadApi, ModelListApi
+from limonero.models import db
+from limonero.py4j_init import init_jvm
+from limonero.storage_api import StorageDetailApi, StorageListApi, StorageMetadataApi
 
 load_dotenv()
 log = logging.getLogger(__name__)
@@ -51,10 +54,11 @@ def translate_validation(validation_errors):
 
 def create_app(main_module: bool = False):
     app = Flask(__name__, static_url_path='/static', static_folder='static')
-    
+
     app.config['BABEL_TRANSLATION_DIRECTORIES'] = os.path.abspath(
         'limonero/i18n/locales')
     app.json_encoder = LimoneroJSONEncoder
+    app.json.compact = True
 
     # Error handlers
     @app.errorhandler(ValidationError)
@@ -64,7 +68,7 @@ def create_app(main_module: bool = False):
                   'errors': translate_validation(e.messages)}
         db.session.rollback()
         return result, 400
-    
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         # pass through HTTP errors
@@ -81,29 +85,29 @@ def create_app(main_module: bool = False):
 
 
 
-    
+
     babel = Babel(app)
-    
+
     logging.config.fileConfig('logging_config.ini')
-    
+
     app.secret_key = 'l3m0n4d1'
-    
-    
+
+
     # Cryptography key
     app.download_key = Fernet.generate_key()
     app.fernet = Fernet(app.download_key)
-    
-    
+
+
     # Cache
     cache.init_app(app)
-    
+
     # CORS
     CORS(app, resources={r"/*": {"origins": "*"}})
     api = Api(app)
-    
+
     # Swagger
     swaggerui_blueprint = get_swaggerui_blueprint(
-        '/api/docs',  
+        '/api/docs',
         '/static/swagger.yaml',
         config={  # Swagger UI config overrides
             'app_name': "Lemonade Caipirinha"
@@ -117,22 +121,22 @@ def create_app(main_module: bool = False):
         #    'additionalQueryStringParams': {'test': "hello"}
         # }
     )
-    
+
     app.register_blueprint(swaggerui_blueprint)
-    
+
     mappings = {
         '/datasources': DataSourceListApi,
         '/datasources/upload': DataSourceUploadApi,
         '/datasources/infer-schema/<int:data_source_id>': DataSourceInferSchemaApi,
         '/datasources/sample/<int:data_source_id>': DataSourceSampleApi,
-        '/datasources/initialize/<status>/<int:data_source_id>': 
+        '/datasources/initialize/<status>/<int:data_source_id>':
             DataSourceInitializationApi,
         '/datasources/<int:data_source_id>': DataSourceDetailApi,
         '/datasources/<int:data_source_id>/permission/<int:user_id>':
             DataSourcePermissionApi,
         '/models': ModelListApi,
         '/models/<int:model_id>': ModelDetailApi,
-    
+
         '/storages': StorageListApi,
         '/storages/<int:storage_id>': StorageDetailApi,
         '/storages/metadata/<int:storage_id>': StorageMetadataApi,
@@ -141,7 +145,7 @@ def create_app(main_module: bool = False):
                                          key=lambda path: path[1])
     for view, g in grouped_mappings:
         api.add_resource(view, *[x[0] for x in g], endpoint=view.__name__)
-    
+
     app.add_url_rule('/datasources/public/<int:data_source_id>/download',
                      methods=['GET'], endpoint='DataSourceDownload',
                      view_func=DataSourceDownload.as_view('download'))
@@ -160,7 +164,7 @@ def create_app(main_module: bool = False):
         else:
             return request.args.get(
                 'lang', request.accept_languages.best_match(['en', 'pt', 'es']))
-    
+
     sqlalchemy_utils.i18n.get_locale = get_locale
 
     config_file = None
@@ -206,7 +210,7 @@ def create_app(main_module: bool = False):
             if config.get('environment', 'dev') == 'dev':
                 app.run(debug=True, port=port, host='0.0.0.0')
         else:
-            return app    
+            return app
     else:
         logger.error(
             gettext('Please, set LIMONERO_CONFIG environment variable'))
