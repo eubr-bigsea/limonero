@@ -1568,7 +1568,7 @@ class DataSourceInferSchemaApi(Resource):
                 feature=False,
                 label=False,
                 description=description,
-                raw_type=raw_type,
+                raw_type=data_type.split('_')[0],
                 position=i + 1,
             )
             db.session.add(attr)
