@@ -40,6 +40,7 @@ from limonero.util import parse_hdfs_extra_params, strip_accents
 from limonero.util.variable import handle_variables
 from limonero.util.jdbc import get_hive_data_type, get_mysql_data_type
 
+from limonero.util.infer import infer_from_mysql
 from .app_auth import User, requires_auth
 from .models import (
     Attribute,
@@ -1182,84 +1183,34 @@ class DataSourceInferSchemaApi(Resource):
     def infer_schema(ds, options):
         user = getattr(flask_g, "user", None)
         candidates = [ds.url, ds.storage.client_url, ds.storage.url]
-        (url,) = handle_variables(
+        (url, sql) = handle_variables(
             user,
             [
                 next(
                     (url for url in candidates if url),
                     None,
-                )
+                ),
+                ds.command
             ],
             ds.variables,
         )
         parsed = urlparse(url)
 
         if ds.format in (DataSourceFormat.JDBC,):
-            parsed = urlparse(ds.url)
-            qs = dict(x.split("=") for x in parsed.query.split("&"))
+            parsed = urlparse(ds.storage.url)
             # Supported DB: mysql
-
             if parsed.scheme == "mysql":
-                ft = pymysql.constants.FIELD_TYPE
-                d = {getattr(ft, k): k for k in dir(ft) if not k.startswith("_")}
-                try:
-                    fix_limit = re.compile(r"\sLIMIT\s+(\d+)")
-
-                    if ds.command is None or ds.command.strip() == "":
-                        raise ValueError(
-                            gettext(
-                                "Data source does not have a command specified"
-                            )
-                        )
-                    cmd = fix_limit.sub("", ds.command)
-                    with pymysql.connect(
-                        host=parsed.hostname,
-                        port=parsed.port or "3306",
-                        user=qs.get("user"),
-                        passwd=qs.get("password"),
-                        db=parsed.path[1:],
-                    ) as cn:
-                        cursor = cn.cursor()
-                        cursor.execute("{} LIMIT 0".format(cmd))
-
-                        DataSourceInferSchemaApi._delete_old_attributes(ds)
-
-                        for i, (
-                            name,
-                            dtype,
-                            size,
-                            to_ignore,
-                            precision,
-                            scale,
-                            nullable,
-                        ) in enumerate(cursor.description):
-                            final_type = get_mysql_data_type(d, dtype)
-                            if d[dtype] == "BLOB":
-                                precision = None
-                            attr = Attribute(
-                                name=name,
-                                type=final_type,
-                                size=size,
-                                precision=precision,
-                                scale=scale,
-                                nullable=nullable,
-                                position=i + 1,
-                                data_source_id=ds.id,
-                            )
-                            attr.data_source = ds
-                            attr.feature = False
-                            attr.label = False
-                            db.session.add(attr)
-                        db.session.commit()
-                except Exception:
-                    raise ValueError(gettext("Could not connect to database"))
+                attributes = infer_from_mysql(ds, parsed, sql, gettext)
+                DataSourceInferSchemaApi._delete_old_attributes(ds)
+                db.session.add_all(attributes)
+                db.session.commit()
             else:
                 raise ValueError(
                     gettext("Unsupported database: %(what)s", what=parsed.scheme)
                 )
 
         elif ds.format in (DataSourceFormat.HIVE):
-            parsed, types = DataSourceInferSchemaApi.infer_from_hive(ds)
+            parsed, types = DataSourceInferSchemaApi.infer_from_hive(ds, sql)
 
         elif ds.format in (DataSourceFormat.PARQUET,):
             # extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
@@ -1501,7 +1452,7 @@ class DataSourceInferSchemaApi(Resource):
             )
 
     @staticmethod
-    def infer_from_hive(ds: DataSource) -> None:
+    def infer_from_hive(ds: DataSource, sql: str) -> None:
         """Infer table structure from Hive"""
         from pyhive import hive
         from TCLIService.ttypes import TOperationState
@@ -1527,7 +1478,7 @@ class DataSourceInferSchemaApi(Resource):
             thrift_transport=None,
         ) as conn:
             with conn.cursor() as cursor:
-                if ds.command is None or ds.command.strip() == "":
+                if sql is None or sql.strip() == "":
                     raise ValueError(
                         gettext("Data source does not have a command specified")
                     )
@@ -1535,7 +1486,7 @@ class DataSourceInferSchemaApi(Resource):
                 select_expr = re.compile(
                     r"SELECT\s+\*\s+FROM\s+(\w+(?:\.\w+)?)", re.I
                 )
-                found = select_expr.search(ds.command)
+                found = select_expr.search(sql)
                 tables = set()
                 attrs = []
                 attrs_name = []
@@ -1579,7 +1530,7 @@ class DataSourceInferSchemaApi(Resource):
                             break
                     final_names = attrs
                 else:
-                    cmd = re.sub(r"\sLIMIT\s+(\d+)", "", ds.command)
+                    cmd = re.sub(r"\sLIMIT\s+(\d+)", "", sql)
                     cursor.execute("{} LIMIT 0".format(cmd), async_=True)
                     status = cursor.poll().operationState
                     while status in (
@@ -1591,10 +1542,14 @@ class DataSourceInferSchemaApi(Resource):
                     for t in cursor.description:
                         attr, attr_type = t[0:2]
                         types.append(attr_type)
-                        table, name = attr.split(".", 2)
+                        parts = attr.split(".", 2)
+                        if len(parts) > 1:
+                            table, name = parts
+                            tables.add(table)
+                        else:
+                            table, name = ['', parts[0]]
                         attrs.append(attr)
                         attrs_name.append(name)
-                        tables.add(table)
                     final_names = attrs_name if len(tables) == 1 else attrs
 
         DataSourceInferSchemaApi._delete_old_attributes(ds)
@@ -1975,41 +1930,44 @@ class DataSourceSampleApi(Resource):
                 data_source.storage.client_url,
                 data_source.storage.url,
             ]
-            (url,) = handle_variables(
+            (url, sql) = handle_variables(
                 user,
                 [
                     next(
                         (url for url in candidates if url),
                         None,
-                    )
+                    ),
+                    data_source.command
                 ],
                 data_source.variables,
             )
             parsed = urlparse(url)
-            if parsed.scheme == "mysql":
-                qs = {}
-                if parsed.query and parsed.query.strip():
-                    qs_args = parsed.query.split("&")
-                    if qs_args:
-                        qs = dict(x.split("=") for x in qs_args)
-                fix_limit = re.compile(r"\sLIMIT\s+(\d+)")
-                cmd = fix_limit.sub("", data_source.command)
+            if data_source.format == 'JDBC':
+                parsed = urlparse(data_source.storage.url)
+                if parsed.scheme == "mysql":
+                    qs = {}
+                    if parsed.query and parsed.query.strip():
+                        qs_args = parsed.query.split("&")
+                        if qs_args:
+                            qs = dict(x.split("=") for x in qs_args)
+                    fix_limit = re.compile(r"\sLIMIT\s+(\d+)")
+                    cmd = fix_limit.sub("", sql)
 
-                with pymysql.connect(
-                    host=parsed.hostname,
-                    port=parsed.port or "3306",
-                    user=parsed.username or qs.get("user"),
-                    passwd=parsed.password or qs.get("password"),
-                    db=parsed.path[1:],
-                    charset="UTF8",
-                    cursorclass=pymysql.cursors.DictCursor,
-                ) as cn:
-                    cursor = cn.cursor()
-                    cursor.execute("{} LIMIT {}".format(cmd, limit))
-                    result, status_code = (
-                        dict(status="OK", data=cursor.fetchall()),
-                        200,
-                    )
+                    with pymysql.connect(
+                        host=parsed.hostname,
+                        port=parsed.port or "3306",
+                        user=parsed.username or qs.get("user"),
+                        passwd=parsed.password or qs.get("password"),
+                        db=parsed.path[1:],
+                        #charset="UTF8",
+                        cursorclass=pymysql.cursors.DictCursor,
+                    ) as cn:
+                        cursor = cn.cursor()
+                        cursor.execute("{} LIMIT {}".format(cmd, limit))
+                        result, status_code = (
+                            dict(status="OK", data=cursor.fetchall()),
+                            200,
+                        )
             elif data_source.format == "HIVE":
                 from pyhive import hive
                 from TCLIService.ttypes import TOperationState
@@ -2017,8 +1975,8 @@ class DataSourceSampleApi(Resource):
                 parsed = urlparse(data_source.storage.client_url)
 
                 if (
-                    data_source.command is None
-                    or data_source.command.strip() == ""
+                    sql is None
+                    or sql.strip() == ""
                 ):
                     raise ValueError(
                         gettext("Data source does not have a command specified")
@@ -2050,7 +2008,7 @@ class DataSourceSampleApi(Resource):
                     ).cursor()
 
                 fix_limit = re.compile(r"\sLIMIT\s+(\d+)")
-                cmd = fix_limit.sub("", data_source.command)
+                cmd = fix_limit.sub("", sql)
                 cursor.execute("{} LIMIT {}".format(cmd, limit))
                 status = cursor.poll().operationState
                 while status in (

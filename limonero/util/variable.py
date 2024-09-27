@@ -77,16 +77,19 @@ def handle_variables(
             all_vars[variable.name] = var_value
 
     for value in values:
-        new_value = _replace(value, all_vars, VARIABLE_RE)
-        result.append(new_value)
-        missing = VARIABLE_NOT_REPLACED_RE.findall(new_value)
-        if missing:
-            raise ValueError(
-                gettext(
-                    "Not all variables were expanded. "
-                    "Please, check informed values: {}".format(
-                        ", ".join(missing)
+        if value is None:
+            result.append(None)
+        else:
+            new_value = _replace(value, all_vars, VARIABLE_RE)
+            result.append(new_value)
+            missing = VARIABLE_NOT_REPLACED_RE.findall(new_value)
+            if missing:
+                raise ValueError(
+                    gettext(
+                        "Not all variables were expanded. "
+                        "Please, check informed values: {}".format(
+                            ", ".join(missing)
+                        )
                     )
                 )
-            )
     return result
