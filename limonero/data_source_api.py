@@ -19,6 +19,7 @@ from itertools import zip_longest
 from pathlib import Path
 from urllib.parse import urlparse
 
+import boto3
 import pyarrow.parquet as pq
 import pymysql
 from flask import Response, current_app, request, stream_with_context
@@ -1194,6 +1195,9 @@ class DataSourceInferSchemaApi(Resource):
             ],
             ds.variables,
         )
+        if ds.storage.type == 'S3':
+            url = '/'.join([ds.storage.url.strip('/'),
+                    ds.url.strip('/')])
         parsed = urlparse(url)
 
         if ds.format in (DataSourceFormat.JDBC,):
@@ -1223,7 +1227,16 @@ class DataSourceInferSchemaApi(Resource):
                 else:
                     use_fs = fs.HadoopFileSystem(str_uri)
                 schema = hu.infer_parquet(use_fs, path)
-            elif parsed.schema == "file":
+            elif ds.storage.type == 'S3':
+                extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+                use_fs = fs.S3FileSystem(
+                    endpoint_override=ds.storage.url,
+                    access_key=extra_params.access_key,
+                    secret_key=extra_params.secret_key,
+                    scheme=parsed.scheme
+                )
+                schema = hu.infer_parquet(use_fs, path.strip('/'))
+            elif parsed.scheme == "file":
                 str_uri = hu.get_parsed_uri(parsed, False)
                 use_fs = fs.LocalFileSystem()
                 schema = hu.infer_parquet(use_fs, path)
@@ -1234,7 +1247,7 @@ class DataSourceInferSchemaApi(Resource):
 
             DataSourceInferSchemaApi._delete_old_attributes(ds)
             i = 0
-            for name, (dtype, precision, scale) in schema:
+            for name, (dtype, precision, scale), raw in schema:
                 attr = Attribute(
                     name=name,
                     nullable=True,
@@ -1246,6 +1259,7 @@ class DataSourceInferSchemaApi(Resource):
                     scale=scale,
                     position=i + 1,
                     data_source_id=ds.id,
+                    raw_type=raw
                 )
                 i += 1
                 # attr.data_source = ds
@@ -1266,6 +1280,14 @@ class DataSourceInferSchemaApi(Resource):
                     )
                 else:
                     use_fs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
+            elif ds.storage.type == 'S3':
+                extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
+                use_fs = fs.S3FileSystem(
+                    endpoint_override=ds.storage.url,
+                    access_key=extra_params.access_key,
+                    secret_key=extra_params.secret_key,
+                    scheme=parsed.scheme
+                )
             elif parsed.scheme == "file":
                 str_uri = f"{parsed.scheme}://{parsed.path}"
                 use_fs = fs.LocalFileSystem()
@@ -1309,6 +1331,10 @@ class DataSourceInferSchemaApi(Resource):
                         buffered_reader = io.BufferedReader(
                             use_fs.open_input_stream(parsed.path)
                         )
+                    elif ds.storage.type == "S3":
+                        buffered_reader = io.BufferedReader(
+                            use_fs.open_input_stream(parsed.path.strip('/'))
+                        )
 
                     reader = buffered_reader
 
@@ -1349,6 +1375,10 @@ class DataSourceInferSchemaApi(Resource):
                         attrs, csv_reader, use_header, missing_values
                     )
 
+                    mapping_types = {
+                        'CHARACTER': 'VARCHAR',
+                        'DECIMAL': 'NUMERIC',
+                                            }
                     DataSourceInferSchemaApi._delete_old_attributes(ds)
                     for i, attr in enumerate(attrs):
                         if attr.type is None:
@@ -1359,6 +1389,7 @@ class DataSourceInferSchemaApi(Resource):
                         attr.data_source_id = ds.id
                         attr.position = i + 1
                         attr.feature = False
+                        attr.raw_type = mapping_types.get(attr.type, attr.type)
                         attr.label = False
                         db.session.add(attr)
 
@@ -1941,6 +1972,9 @@ class DataSourceSampleApi(Resource):
                 ],
                 data_source.variables,
             )
+            if data_source.storage.type == 'S3':
+                url: str = '/'.join([data_source.storage.url.strip('/'),
+                    data_source.url.strip('/')])
             parsed = urlparse(url)
             if data_source.format == 'JDBC':
                 parsed = urlparse(data_source.storage.url)
@@ -2101,27 +2135,42 @@ class DataSourceSampleApi(Resource):
                         ),
                         400,
                     )
-            elif parsed.scheme == "hdfs" and data_source.format in (
+            elif (
+                parsed.scheme == "hdfs" or data_source.storage.type == "S3"
+            ) and data_source.format in (
                 "CSV",
                 "PARQUET",
             ):
                 import pyarrow
                 from pyarrow import fs
-
+                file_path = parsed.path
                 try:
                     str_uri = f"{parsed.scheme}://{parsed.hostname}"
                     extra_params = parse_hdfs_extra_params(
                         data_source.storage.extra_params
                     )
-                    hadoop_user = extra_params.user or "hadoop"
-                    if parsed.port:
-                        hdfs = fs.HadoopFileSystem(
-                            str_uri, port=int(parsed.port), user=hadoop_user
+                    if data_source.storage.type == 'S3':
+                        extra_params = parse_hdfs_extra_params(
+                            data_source.storage.extra_params)
+                        file_system = fs.S3FileSystem(
+                            endpoint_override=data_source.storage.url,
+                            access_key=extra_params.access_key,
+                            secret_key=extra_params.secret_key,
+                            scheme=parsed.scheme
                         )
+                        file_path = file_path.strip('/')
                     else:
-                        hdfs = fs.HadoopFileSystem(str_uri, user=hadoop_user)
+                        hadoop_user: str = extra_params.user or "hadoop"
+                        if parsed.port:
+                            file_system = fs.HadoopFileSystem(
+                                str_uri, port=int(parsed.port), user=hadoop_user
+                            )
+                        else:
+                            file_system = fs.HadoopFileSystem(
+                                str_uri, user=hadoop_user
+                            )
 
-                    if not hu.exists(hdfs, parsed.path):
+                    if not hu.exists(file_system, file_path):
                         result = (
                             {"status": "ERROR", "message": "Not found"},
                             404,
@@ -2129,15 +2178,15 @@ class DataSourceSampleApi(Resource):
                     else:
                         if data_source.format == "CSV":
                             data = hu.sample_csv(
-                                hdfs, parsed.path, limit, data_source
+                                file_system, file_path, limit, data_source
                             )
                         elif data_source.attributes:
                             schema = hu.get_parquet_schema(data_source)
                             data = hu.sample_parquet(
-                                hdfs, parsed.path, limit, schema
+                                file_system, file_path, limit, schema
                             )
                         else:
-                            data = hu.sample_parquet(hdfs, parsed.path, limit)
+                            data = hu.sample_parquet(file_system, file_path, limit)
                         result, status_code = dict(status="OK", data=data), 200
                 except pyarrow.lib.ArrowInvalid:
                     log.exception(gettext("Internal error"))

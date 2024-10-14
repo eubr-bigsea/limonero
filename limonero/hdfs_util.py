@@ -5,7 +5,7 @@ import io
 import gzip
 from gettext import gettext
 
-def copy_merge(local: fs.HadoopFileSystem, source_dir: str, 
+def copy_merge(local: fs.HadoopFileSystem, source_dir: str,
         target: str, filename: str, n_chunks: int):
     """ """
     with local.open_output_stream(target, compression=None) as stream:
@@ -14,12 +14,12 @@ def copy_merge(local: fs.HadoopFileSystem, source_dir: str,
             name = f'{source_dir.rstrip("/")}/{filename}.part{number}'
             with local.open_input_file(name) as in_file:
                 stream.write(in_file.readall())
-        
+
     for i in range(n_chunks):
         number = str(i + 1).rjust(9, '0')
         name = f'{source_dir.rstrip("/")}/{filename}.part{number}'
         local.delete_file(name)
-        
+
 def write(local: fs.HadoopFileSystem, path: str, chunk: any):
     """ Write data """
     with local.open_output_stream(path) as stream:
@@ -72,7 +72,7 @@ def get_parquet_schema(ds):
     for attr in ds.attributes:
         for dtype, limonero_type in tests:
             ok = False
-            if limonero_type == 'DECIMAL':
+            if attr.type == 'DECIMAL':
                 new_attrs.append((attr.name, dtype(attr.precision, attr.scale)))
                 ok = True
                 break
@@ -89,23 +89,24 @@ def infer_parquet(local: fs.FileSystem, path: str):
     ds = pq.ParquetDataset(path, filesystem=local)
     schema = ds.read().schema
     tests = [
-         (pa_types.is_unicode, 'CHARACTER'),
-         (pa_types.is_boolean, 'INTEGER'),
-         (pa_types.is_integer, 'INTEGER'),
-         (pa_types.is_float64, 'DOUBLE'),
-         (pa_types.is_floating, 'FLOAT'),
-         (pa_types.is_timestamp, 'DATETIME'),
-         (pa_types.is_date, 'DATE'),
-         (pa_types.is_binary, 'BINARY'),
-         (pa_types.is_decimal, 'DECIMAL'),
-         (pa_types.is_list, 'VECTOR'),
-         (pa_types.is_large_string, 'TEXT'),
+         (pa_types.is_unicode, 'CHARACTER', 'VARCHAR'),
+         (pa_types.is_boolean, 'INTEGER', "BOOl"),
+         (pa_types.is_integer, 'INTEGER', "INTEGER"),
+         (pa_types.is_float64, 'DOUBLE', "DOUBLE"),
+         (pa_types.is_floating, 'FLOAT', "FLOAT"),
+         (pa_types.is_timestamp, 'DATETIME', "TIMESTAMP"),
+         (pa_types.is_date, 'DATE', "DATE"),
+         (pa_types.is_binary, 'BINARY', "BINARY"),
+         (pa_types.is_decimal, 'DECIMAL', "NUMERIC"),
+         (pa_types.is_list, 'VECTOR', "LIST"),
+         (pa_types.is_large_string, 'TEXT', "TEXT"),
     ]
 
     limonero_types = []
+    raw_types = []
     for t in schema.types:
         ok = False
-        for test, dtype in tests:
+        for test, dtype, raw in tests:
             ok = test(t)
             p = 0
             s = 0
@@ -114,13 +115,14 @@ def infer_parquet(local: fs.FileSystem, path: str):
                     p = t.precision
                     s = t.scale
                 limonero_types.append((dtype, p, s))
-                break  
+                raw_types.append(raw)
+                break
         if not ok:
             raise ValueError(gettext(
-                'Unsupported Parquet data type: {t}').format( 
-                t = str(t))) 
-            
-    return zip(schema.names, limonero_types)
+                'Unsupported Parquet data type: {t}').format(
+                t = str(t)))
+
+    return zip(schema.names, limonero_types, raw_types)
 
 def _csv_options(ds):
     convert_options = csv.ConvertOptions(
@@ -179,7 +181,7 @@ def infer_csv(local: fs.HadoopFileSystem, path: str, size: int, ds):
 def download_parquet1(local: fs.HadoopFileSystem, path: str):
     """ """
     ds = pq.ParquetDataset(path, filesystem=local).read()
-    with open('/tmp/titan.parquet', 'wb') as lixo: 
+    with open('/tmp/titan.parquet', 'wb') as lixo:
         with pq.ParquetWriter(lixo, ds.schema, store_schema=True) as writer:
             for i, batch in enumerate(ds.to_batches(max_chunksize=1500)):
                 writer.write_batch(batch)
@@ -198,7 +200,7 @@ def download_parquet3(local: fs.HadoopFileSystem, path: str):
     ds = pq.ParquetDataset(path, filesystem=local).read()
     batches = ds.to_batches(max_chunksize=10200)
     BUFFER_SIZE = 8192
-    with open('/tmp/titan.parquet', 'wb') as lixo: 
+    with open('/tmp/titan.parquet', 'wb') as lixo:
         # sink = pa.BufferOutputStream()
         sink = io.BytesIO()
         writer = pq.ParquetWriter(sink, ds.schema, store_schema=True)
@@ -267,7 +269,7 @@ def download_parquet_as_csv(local: fs.HadoopFileSystem, path: str):
             if amount != BUFFER_SIZE:
                 done = True
             yield bytes(data)
-        buf.truncate(0) 
+        buf.truncate(0)
         buf.seek(0) # for writing
 
 def download_file(local: fs.HadoopFileSystem, path: str):
