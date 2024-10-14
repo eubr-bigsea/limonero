@@ -19,6 +19,7 @@ class DataSourceFormat:
     HAR_IMAGE_FOLDER = 'HAR_IMAGE_FOLDER'
     HDF5 = 'HDF5'
     HIVE = 'HIVE'
+    ICEBERG = 'ICEBERG'
     JSON = 'JSON'
     NPY = 'NPY'
     PICKLE = 'PICKLE'
@@ -95,6 +96,8 @@ class StorageType:
     LOCAL = 'LOCAL'
     JDBC = 'JDBC'
     CASSANDRA = 'CASSANDRA'
+    S3 = 'S3'
+    ICEBERG_CATALOG = 'ICEBERG_CATALOG'
 
     @staticmethod
     def values():
@@ -199,7 +202,7 @@ class Attribute(db.Model):
     description = Column(String(500))
     type = Column(Enum(*list(DataType.values()),
                        name='DataTypeEnumType'), nullable=False)
-    raw_type = Column(String(100), nullable=False)
+    raw_type = Column(String(100))
     position = Column(Integer)
     size = Column(Integer)
     precision = Column(Integer)
