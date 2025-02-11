@@ -11,6 +11,7 @@ import logging
 import math
 import operator
 import os
+from pprint import pprint
 import re
 import uuid
 import zipfile
@@ -116,9 +117,29 @@ def is_logged_user_owner_or_admin(data_source):
         or "ADMINISTRATOR" in flask_g.user.permissions
     )
 
+def can_edit_workflow(existing_workflow: DataSource) -> bool:
+    is_owner = existing_workflow.user_id == flask_g.user.id
+    is_admin = 'ADMINISTRATOR' in flask_g.user.permissions
+    edit_any_workflow = 'DATA_SOURCE_EDIT_ANY' in flask_g.user.permissions
+    return is_owner or is_admin or edit_any_workflow
+
+def can_view_workflow(existing_workflow: DataSource) -> bool:
+    is_owner = existing_workflow.user_id == flask_g.user.id
+    is_admin = 'ADMINISTRATOR' in flask_g.user.permissions
+    view_workflow = ('DATA_SOURCE_VIEW_ANY' in flask_g.user.permissions
+        or 'DATA_SOURCE_EDIT_ANY' in flask_g.user.permissions)
+    return is_owner or is_admin or view_workflow
+
 
 def _filter_by_permissions(data_sources, permissions, consider_public=True):
-    if flask_g.user.id not in (0, 1):  # It is not a inter service call
+    print('=' * 40)
+    pprint(flask_g.user)
+    print('=' * 40)
+    is_interservice_call = flask_g.user.id in (0, 1)
+    has_view_any_permission = 'WORKFLOW_VIEW_ANY' in flask_g.user.permissions
+    is_admin = 'ADMINISTRATOR' in flask_g.user.permissions
+
+    if not (is_interservice_call or has_view_any_permission or is_admin):
         sub_query = DataSourcePermission.query.with_entities(
             DataSourcePermission.id
         ).filter(
