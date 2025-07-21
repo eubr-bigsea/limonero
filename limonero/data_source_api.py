@@ -43,7 +43,7 @@ from limonero.util.variable import handle_variables
 from limonero.util.jdbc import get_hive_data_type, get_mysql_data_type
 
 from limonero.util.infer import infer_from_mysql
-from .app_auth import User, requires_auth
+from .app_auth import User, requires_auth, requires_permission
 from .models import (
     Attribute,
     AttributePrivacy,
@@ -132,12 +132,13 @@ def can_view_workflow(existing_workflow: DataSource) -> bool:
 
 
 def _filter_by_permissions(data_sources, permissions, consider_public=True):
-    print('=' * 40)
-    pprint(flask_g.user)
-    print('=' * 40)
+    # print('=' * 40)
+    # pprint(flask_g.user)
+    # print('=' * 40)
     is_interservice_call = flask_g.user.id in (0, 1)
-    has_view_any_permission = 'WORKFLOW_VIEW_ANY' in flask_g.user.permissions
+    has_view_any_permission = 'DATA_SOURCE_VIEW_ANY' in flask_g.user.permissions
     is_admin = 'ADMINISTRATOR' in flask_g.user.permissions
+
 
     if not (is_interservice_call or has_view_any_permission or is_admin):
         sub_query = DataSourcePermission.query.with_entities(
@@ -161,6 +162,7 @@ class DataSourceListApi(Resource):
 
     @staticmethod
     @requires_auth
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
     def get():
         result, result_code = (
             {"status": "ERROR", "message": gettext("Internal error")},
@@ -301,6 +303,7 @@ class DataSourceListApi(Resource):
 
     @staticmethod
     @requires_auth
+    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT")
     def post():
         result, result_code = (
             dict(
@@ -309,6 +312,7 @@ class DataSourceListApi(Resource):
             ),
             400,
         )
+        # noinspection PyBroadException
         if request.json is not None:
             request_schema = DataSourceCreateRequestSchema()
             response_schema = DataSourceItemResponseSchema(
@@ -383,6 +387,7 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
     def get(data_source_id):
         names_only = request.args.get("attributes_name") == "true"
 
@@ -425,6 +430,7 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
+    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT")
     def delete(data_source_id):
         result, result_code = (
             dict(
@@ -1042,6 +1048,7 @@ class DataSourceDownload(MethodView):
 
     # noinspection PyUnresolvedReferences
     @staticmethod
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
     def get(data_source_id):
         # Uses a token to download
         download_token = {}
@@ -1951,6 +1958,7 @@ class DataSourceInitializationApi(Resource):
 class DataSourceSampleApi(Resource):
     @staticmethod
     @requires_auth
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
     def get(data_source_id: int):
         return DataSourceSampleApi._get_sample(data_source_id)
 
