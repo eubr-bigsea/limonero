@@ -40,7 +40,7 @@ from werkzeug.exceptions import NotFound
 import limonero.hdfs_util as hu
 from limonero.util import parse_hdfs_extra_params, strip_accents
 from limonero.util.variable import handle_variables
-from limonero.util.jdbc import get_hive_data_type, get_mysql_data_type
+from limonero.util.jdbc import get_hive_data_type
 
 from limonero.util.infer import infer_from_mysql
 from .app_auth import User, requires_auth, requires_permission
@@ -162,7 +162,8 @@ class DataSourceListApi(Resource):
 
     @staticmethod
     @requires_auth
-    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW",
+        "ADMINISTRATOR")
     def get():
         result, result_code = (
             {"status": "ERROR", "message": gettext("Internal error")},
@@ -303,7 +304,8 @@ class DataSourceListApi(Resource):
 
     @staticmethod
     @requires_auth
-    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT")
+    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT",
+        "ADMINISTRATOR")
     def post():
         result, result_code = (
             dict(
@@ -387,7 +389,8 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
-    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW",
+        "ADMINISTRATOR")
     def get(data_source_id):
         names_only = request.args.get("attributes_name") == "true"
 
@@ -430,7 +433,8 @@ class DataSourceDetailApi(Resource):
 
     @staticmethod
     @requires_auth
-    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT")
+    @requires_permission("DATA_SOURCE_EDIT_ANY", "DATA_SOURCE_EDIT",
+        "ADMINISTRATOR")
     def delete(data_source_id):
         result, result_code = (
             dict(
@@ -1048,7 +1052,8 @@ class DataSourceDownload(MethodView):
 
     # noinspection PyUnresolvedReferences
     @staticmethod
-    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW",
+        "ADMINISTRATOR")
     def get(data_source_id):
         # Uses a token to download
         download_token = {}
@@ -1958,7 +1963,8 @@ class DataSourceInitializationApi(Resource):
 class DataSourceSampleApi(Resource):
     @staticmethod
     @requires_auth
-    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW")
+    @requires_permission("DATA_SOURCE_VIEW_ANY", "DATA_SOURCE_VIEW",
+        "ADMINISTRATOR")
     def get(data_source_id: int):
         return DataSourceSampleApi._get_sample(data_source_id)
 

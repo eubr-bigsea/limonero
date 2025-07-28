@@ -45,11 +45,16 @@ def exists(local: fs.HadoopFileSystem, path: str) -> bool:
 
 def sample_parquet(local: fs.HadoopFileSystem, path: str, size: int, schema=None):
     """ Return a sample of size rows from Parquet file """
-    if schema:
-        ds = pq.ParquetDataset(path, filesystem=local, schema=schema)
-    else:
-        ds = pq.ParquetDataset(path, filesystem=local)
-    return ds.read().slice(0, size).to_pylist()
+    import pyarrow.dataset as ds
+    dataset = ds.dataset(path, filesystem=local, format='parquet',
+        schema=schema)
+    table = dataset.to_table()
+    return table.slice(0, size).to_pylist()
+    # if schema:
+    #     ds = pq.ParquetDataset(path, filesystem=local, schema=schema)
+    # else:
+    #     ds = pq.ParquetDataset(path, filesystem=local)
+    # return ds.read().slice(0, size).to_pylist()
 
 def get_parquet_schema(ds):
     """ Return a sample of size rows from Parquet file """
