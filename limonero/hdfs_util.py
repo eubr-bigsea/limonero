@@ -44,12 +44,26 @@ def exists(local: fs.HadoopFileSystem, path: str) -> bool:
     return local.get_file_info(path).type != fs.FileType.NotFound
 
 def sample_parquet(local: fs.HadoopFileSystem, path: str, size: int, schema=None):
-    """ Return a sample of size rows from Parquet file """
     import pyarrow.dataset as ds
-    dataset = ds.dataset(path, filesystem=local, format='parquet',
-        schema=schema)
-    table = dataset.to_table()
-    return table.slice(0, size).to_pylist()
+    dataset = ds.dataset(path, filesystem=local, format="parquet")
+    registros = []
+
+    try:
+        for batch in dataset.to_batches(batch_size=1):
+            registros_batch = batch.to_pylist()
+            faltam = size - len(registros)
+            registros.extend(registros_batch[:faltam])
+            if len(registros) >= size:
+                break
+            else:
+                registros.extend(registros_batch)    
+    except OSError as e:
+        print(f"Erro ao ler Parquet. Arquivo pode ser grande ou possuir muitas colunas: {e}")
+
+    return registros
+
+    #table = dataset.to_table()
+    #return table.slice(0, size).to_pylist()
     # if schema:
     #     ds = pq.ParquetDataset(path, filesystem=local, schema=schema)
     # else:
@@ -92,7 +106,7 @@ def get_parquet_schema(ds):
 def infer_parquet(local: fs.FileSystem, path: str):
     """ Return a sample of size rows from Parquet file """
     ds = pq.ParquetDataset(path, filesystem=local)
-    schema = ds.read().schema
+    schema = ds.schema
     tests = [
          (pa_types.is_unicode, 'CHARACTER', 'VARCHAR'),
          (pa_types.is_boolean, 'INTEGER', "BOOl"),
