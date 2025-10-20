@@ -1347,7 +1347,7 @@ class DataSourceInferSchemaApi(Resource):
                     else:
                         missing_values = []
 
-                    encoding = "utf8"
+                    encoding = ds.encoding or "utf8"
 
                     is_gzip = parsed.path.endswith(".gz")
 
