@@ -63,7 +63,11 @@ class StorageListApi(Resource):
         # Pagination
         page = request.args.get('page', type=int, default=1)
         page_size = request.args.get('size', type=int, default=20)
-        pagination = storages.paginate(page, page_size, True)
+        pagination = storages.paginate(
+                            page=page,
+                            per_page=page_size,
+                            error_out=True
+                        )
 
         result = {
             'data': StorageListResponseSchema(
