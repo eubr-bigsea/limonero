@@ -1261,13 +1261,13 @@ class DataSourceInferSchemaApi(Resource):
                 config = json.loads(ds.storage.extra_params)
             except:
                 raise ValidationError(
-                    gettext("Iceberg Storage must have content in extra_params")
+                    gettext("Iceberg Storage must have a json content in extra_params: ")+str(ds.storage.extra_params)
                 )
 
             config['warehouse'] = ds.storage.url
 
             catalog = load_catalog(
-                "default",
+                config['catalog_name'],
                 **config
             )
 
@@ -2157,7 +2157,7 @@ class DataSourceSampleApi(Resource):
                 config['warehouse'] = data_source.storage.url
 
                 catalog = load_catalog(
-                    "default",
+                    config['catalog_name'],
                     **config
                 )
 
