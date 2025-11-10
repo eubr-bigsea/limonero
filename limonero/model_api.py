@@ -100,7 +100,11 @@ class ModelListApi(Resource):
             if page is not None and page.isdigit():
                 page_size = int(request.args.get("size", 20))
                 page = int(page)
-                pagination = models.paginate(page, page_size, True)
+                pagination = models.paginate(
+                            page=page,
+                            per_page=page_size,
+                            error_out=True
+                        )
                 result = {
                     "data": ModelListResponseSchema(many=True, only=only).dump(
                         pagination.items

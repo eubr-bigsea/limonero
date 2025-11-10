@@ -264,11 +264,15 @@ class DataSourceListApi(Resource):
                     page = int(page)
                     if page > -1:
                         pagination = data_sources.paginate(
-                            page, page_size, False
+                            page=page,
+                            per_page=page_size,
+                            error_out=False
                         )
                         if pagination.total < page_size and page > 1:
                             pagination = data_sources.paginate(
-                                1, page_size, False
+                                page=1,
+                                per_page=page_size,
+                                error_out=False
                             )
                     else:
                         # No pagination
@@ -1249,6 +1253,54 @@ class DataSourceInferSchemaApi(Resource):
         elif ds.format in (DataSourceFormat.HIVE):
             parsed, types = DataSourceInferSchemaApi.infer_from_hive(ds, sql)
 
+        elif ds.format in (DataSourceFormat.ICEBERG):
+
+            from pyiceberg.catalog import load_catalog
+
+            try:
+                config = json.loads(ds.storage.extra_params)
+            except:
+                raise ValidationError(
+                    gettext("Iceberg Storage must have a json content in extra_params: ")+str(ds.storage.extra_params)
+                )
+
+            config['warehouse'] = ds.storage.url
+
+            catalog = load_catalog(
+                config['catalog_name'],
+                **config
+            )
+
+            schema = catalog.load_table(ds.url).schema().dict()
+
+            def convert_dtype(dtype: str):
+                dtype = dtype.upper()
+                if dtype == "STRING":
+                    dtype = "TEXT"
+                return dtype
+
+            DataSourceInferSchemaApi._delete_old_attributes(ds)
+            for field in schema['fields']:
+                name = field['name']
+                dtype = field['field_type']
+                position = field['field_id']
+                attr = Attribute(
+                    name=name,
+                    nullable=True,
+                    enumeration=False,
+                    type=convert_dtype(dtype),
+                    feature=False,
+                    label=False,
+                    precision=None, # precision if precision != 0 else None,
+                    scale=None,
+                    position=position,
+                    data_source_id=ds.id,
+                    raw_type=None
+                )
+                # attr.data_source = ds
+                db.session.add(attr)
+            db.session.commit()
+
         elif ds.format in (DataSourceFormat.PARQUET,):
             # extra_params = parse_hdfs_extra_params(ds.storage.extra_params)
             # conf = get_hdfs_conf(jvm, extra_params, current_app.config)
@@ -2091,6 +2143,37 @@ class DataSourceSampleApi(Resource):
                 result = []
                 for row in cursor:
                     result.append(dict(zip(col_names, row)))
+                result, status_code = dict(status="OK", data=result), 200
+            elif data_source.format == "ICEBERG":
+                from pyiceberg.catalog import load_catalog
+
+                try:
+                    config = json.loads(data_source.storage.extra_params)
+                except:
+                    raise ValidationError(
+                        gettext("Iceberg Storage must have content in extra_params")
+                    )
+
+                config['warehouse'] = data_source.storage.url
+
+                catalog = load_catalog(
+                    config['catalog_name'],
+                    **config
+                )
+
+                table = catalog.load_table(data_source.url)
+
+                rows = table.scan()\
+                        .to_arrow()\
+                        .slice(0, limit).to_pylist()
+
+                col_names = [attr.name for attr in data_source.attributes]
+
+                result = [
+                    {new_key: value for new_key, value in zip(col_names, row.values())}
+                    for row in rows
+                ]
+
                 result, status_code = dict(status="OK", data=result), 200
             elif parsed.scheme == "file":
                 # Support JSON and CSV
