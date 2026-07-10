@@ -39,5 +39,5 @@ def downgrade():
     else:
         op.drop_column('data_source', 'initialization')
     if is_psql():
-        op.get_bind().execute('DROP TYPE "DataSourceInitializationEnumType"')
+        op.get_bind().execute(sa.text('DROP TYPE "DataSourceInitializationEnumType"'))
 
