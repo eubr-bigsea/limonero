@@ -63,5 +63,5 @@ def downgrade():
     op.drop_table('model')
 
     if is_psql():
-        op.get_bind().execute('DROP TYPE "ModelTypeEnumType"')
+        op.get_bind().execute(sa.text('DROP TYPE "ModelTypeEnumType"'))
     # ### end Alembic commands ###

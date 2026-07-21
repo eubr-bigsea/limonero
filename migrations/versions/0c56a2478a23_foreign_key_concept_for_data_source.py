@@ -57,6 +57,6 @@ def downgrade():
     op.drop_table('data_source_foreign_key')
 
     if is_psql():
-        op.get_bind().execute('DROP TYPE "AttributeForeignKeyDirectionEnumType"')
+        op.get_bind().execute(sa.text('DROP TYPE "AttributeForeignKeyDirectionEnumType"'))
 
     # ### end Alembic commands ###

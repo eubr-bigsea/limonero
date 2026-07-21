@@ -82,7 +82,7 @@ def downgrade():
     op.drop_table('data_source')
     op.drop_table('storage')
     if is_psql():
-        op.get_bind().execute('DROP TYPE "DataTypeEnumType"')
-        op.get_bind().execute('DROP TYPE "StorageTypeEnumType"')
-        op.get_bind().execute('DROP TYPE "DataSourceFormatEnumType"')
+        op.get_bind().execute(sa.text('DROP TYPE "DataTypeEnumType"'))
+        op.get_bind().execute(sa.text('DROP TYPE "StorageTypeEnumType"'))
+        op.get_bind().execute(sa.text('DROP TYPE "DataSourceFormatEnumType"'))
     # ### end Alembic commands ###

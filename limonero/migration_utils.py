@@ -1,4 +1,5 @@
 from alembic import context, op
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 def get_engine_name():
@@ -49,10 +50,10 @@ def upgrade_actions(all_commands):
     try:
         for cmd in all_commands:
             if isinstance(cmd[0], str):
-                connection.execute(cmd[0])
+                connection.execute(text(cmd[0]))
             elif isinstance(cmd[0], list):
                 for row in cmd[0]:
-                    connection.execute(row)
+                    connection.execute(text(row))
             else:
                 cmd[0]()
     except:
@@ -65,19 +66,23 @@ def downgrade_actions(all_commands):
     ctx = context.get_context()
     session = sessionmaker(bind=ctx.bind)()
     connection = session.connection()
-    connection.execute(get_enable_disable_fk_command(False))
+    fk_cmd = get_enable_disable_fk_command(False)
+    if fk_cmd:
+        connection.execute(text(fk_cmd))
 
     try:
         for cmd in reversed(all_commands):
             if isinstance(cmd[1], str):
-                connection.execute(cmd[1])
+                connection.execute(text(cmd[1]))
             elif isinstance(cmd[1], list):
                 for row in cmd[1]:
-                    connection.execute(row)
+                    connection.execute(text(row))
             else:
                 cmd[1]()
     except:
         session.rollback()
         raise
-    connection.execute(get_enable_disable_fk_command(True))
+    fk_cmd = get_enable_disable_fk_command(True)
+    if fk_cmd:
+        connection.execute(text(fk_cmd))
     session.commit()

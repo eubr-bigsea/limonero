@@ -87,7 +87,7 @@ def downgrade():
     op.drop_table('data_source_permission')
     op.drop_table('storage_permission')
     if is_psql():
-        op.get_bind().execute('DROP TYPE "AnonymizationTechniqueEnumType"')
-        op.get_bind().execute('DROP TYPE "PermissionTypeEnumType"')
-        op.get_bind().execute('DROP TYPE "PrivacyRiskTypeEnumType"')
+        op.get_bind().execute(sa.text('DROP TYPE "AnonymizationTechniqueEnumType"'))
+        op.get_bind().execute(sa.text('DROP TYPE "PermissionTypeEnumType"'))
+        op.get_bind().execute(sa.text('DROP TYPE "PrivacyRiskTypeEnumType"'))
     # ### end Alembic commands ###
